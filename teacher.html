@@ -484,7 +484,7 @@ textarea.fc{resize:vertical;min-height:60px;}
         <div class="ctabs" id="hwTrackerTabs" style="margin-bottom:0"><button class="ctab active">Select a class</button></div>
         <div style="display:flex;gap:6px;flex-shrink:0">
           <button class="btn btn-o btn-sm" onclick="openExtraHW()" style="white-space:nowrap">⭐ Extra HW</button>
-          <button class="btn btn-g btn-sm" onclick="endCurrentMonth()" id="btnEndMonth" style="white-space:nowrap;display:none">🔒 End Month</button>
+          <button class="btn btn-g btn-sm" onclick="openEndMonthModal()" id="btnEndMonth" style="white-space:nowrap;display:none">🔒 Manage Months</button>
         </div>
       </div>
       <div id="hwTrackerContent">
@@ -2041,13 +2041,12 @@ async function loadHWTracker(classId){
 var _hwTrackerEndedMonths={}; // classId → {monthNo: endedDate}
 var _hwTrackerCollapsed={}; // classId → Set of collapsed month numbers
 
-async function endCurrentMonth(){
+function openEndMonthModal(){
   var activeBtn=document.querySelector('#hwTrackerTabs .ctab.active');
-  if(!activeBtn)return;
+  if(!activeBtn){toast('Select a class first','err');return;}
   var classId=activeBtn.textContent;
   var data=hwTrackerCache[classId];
-  if(!data)return;
-  // Find current (latest non-ended) month
+  if(!data){toast('Load homework tracker first','err');return;}
   var ended=_hwTrackerEndedMonths[classId]||{};
   var hwList=data.homework||[];
   var seen={},regularHW=[];
@@ -2056,23 +2055,74 @@ async function endCurrentMonth(){
     var key=hw.sessionDate+'_'+(hw.type||'');
     if(!seen[key]){seen[key]=true;regularHW.push(hw);}
   });
-  regularHW.sort(function(a,b){return a.sessionDate>b.sessionDate?1:-1;});
-  var monthsAll=buildHWMonths(regularHW);
-  var currentMonthIdx=monthsAll.findIndex(function(m){return !ended[String(m.month)];});
-  if(currentMonthIdx<0){toast('All months already ended','ok');return;}
-  var mo=monthsAll[currentMonthIdx];
-  if(!confirm('End Month '+mo.month+'? Students will no longer see this month as active. You can still view it by expanding.')){return;}
+  var months=buildHWMonths(regularHW);
+  if(!months.length||!months[0].hw.length){toast('No homework months found','err');return;}
+
+  var rows=months.map(function(mo){
+    var isEnded=!!ended[String(mo.month)];
+    var endedDate=ended[String(mo.month)]||'';
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--g50);border-radius:8px;margin-bottom:6px">'
+      +'<div>'
+        +'<div style="font-size:13px;font-weight:700">Month '+mo.month+'</div>'
+        +'<div style="font-size:11px;color:var(--g400)">'+mo.hw.length+' assignment(s)'+(isEnded?' · Ended '+endedDate:'')+'</div>'
+      +'</div>'
+      +'<div style="display:flex;gap:6px">'
+        +(isEnded
+          ? '<button class="btn btn-g btn-sm" onclick="doReopenMonth(\''+classId+'\','+mo.month+',this)">🔓 Reopen</button>'
+          : '<button class="btn btn-r btn-sm" onclick="doEndMonth(\''+classId+'\','+mo.month+',this)">🔒 End</button>'
+        )
+      +'</div>'
+    +'</div>';
+  }).join('');
+
+  // Show in modal
+  var mo2=document.getElementById('moEndMonth');
+  if(!mo2){
+    mo2=document.createElement('div');
+    mo2.id='moEndMonth'; mo2.className='mo';
+    mo2.innerHTML='<div class="md" style="max-width:460px">'
+      +'<div class="md-h">🔒 Manage Months</div>'
+      +'<div class="md-sub">End a month to collapse it by default. Reopen to expand it again.</div>'
+      +'<div id="moEndMonthBody"></div>'
+      +'<div class="md-act" style="margin-top:14px"><button class="btn btn-g" onclick="closeMo(\'moEndMonth\')">Close</button></div>'
+    +'</div>';
+    mo2.addEventListener('click',function(e){if(e.target===mo2)mo2.classList.remove('show');});
+    document.body.appendChild(mo2);
+  }
+  document.getElementById('moEndMonthBody').innerHTML=rows;
+  mo2.classList.add('show');
+}
+
+async function doEndMonth(classId, monthNo, btn){
+  btn.disabled=true; btn.textContent='Saving…';
   try{
-    var r=await api('endHWMonth',{classId:classId,monthNo:mo.month});
+    var r=await api('endHWMonth',{classId:classId,monthNo:monthNo});
     if(r.success){
       if(!_hwTrackerEndedMonths[classId])_hwTrackerEndedMonths[classId]={};
-      _hwTrackerEndedMonths[classId][String(mo.month)]=localToday();
+      _hwTrackerEndedMonths[classId][String(monthNo)]=localToday();
       if(!_hwTrackerCollapsed[classId])_hwTrackerCollapsed[classId]=new Set();
-      _hwTrackerCollapsed[classId].add(mo.month);
-      toast('Month '+mo.month+' ended ✓','ok');
+      _hwTrackerCollapsed[classId].add(monthNo);
+      toast('Month '+monthNo+' ended ✓','ok');
+      // Refresh modal rows
+      openEndMonthModal();
       renderHWTracker(classId);
-    }else toast('Error: '+r.message,'err');
-  }catch(e){toast('Connection error','err');}
+    }else{toast('Error: '+r.message,'err');btn.disabled=false;btn.textContent='🔒 End';}
+  }catch(e){toast('Connection error','err');btn.disabled=false;btn.textContent='🔒 End';}
+}
+
+async function doReopenMonth(classId, monthNo, btn){
+  btn.disabled=true; btn.textContent='Saving…';
+  try{
+    // Delete the ended record from GAS
+    var r=await api('endHWMonth',{classId:classId,monthNo:monthNo,reopen:true});
+    if(r.success){
+      if(_hwTrackerEndedMonths[classId]) delete _hwTrackerEndedMonths[classId][String(monthNo)];
+      if(_hwTrackerCollapsed[classId]) _hwTrackerCollapsed[classId].delete(monthNo);
+      toast('Month '+monthNo+' reopened ✓','ok');
+      openEndMonthModal();
+      renderHWTracker(classId);
+    }else{toast('Error: '+r.message,'err');btn.disabled=false;btn.textContent='🔓 Reopen';}
+  }catch(e){toast('Connection error','err');btn.disabled=false;btn.textContent='🔓 Reopen';}
 }
 
 function buildHWMonths(regularHW){
@@ -2169,14 +2219,16 @@ function renderHWTracker(classId){
         students.forEach(function(s){var sb=s.submissions[hw.hwId];if(sb&&sb.status==='Done')moDone++;moTotal++;});
       });
       collapsedHtml+='<div style="background:white;border:1px solid var(--g200);border-radius:8px;margin-bottom:6px;overflow:hidden">'+
-        '<div style="padding:10px 16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;background:var(--g50)" '+
-          'onclick="expandHWMonth(\''+classId+'\','+mo.month+')">'+
-          '<div style="display:flex;align-items:center;gap:10px">'+
+        '<div style="padding:10px 16px;display:flex;align-items:center;justify-content:space-between;background:var(--g50)">'+
+          '<div style="display:flex;align-items:center;gap:10px;cursor:pointer;flex:1" onclick="expandHWMonth(\''+classId+'\','+mo.month+')">'+
             '<span style="font-size:13px;font-weight:700">Month '+mo.month+'</span>'+
             '<span style="font-size:10px;font-weight:700;background:#dcfce7;color:#166534;padding:2px 7px;border-radius:5px">🔒 Ended</span>'+
             '<span style="font-size:11px;color:var(--g400)">'+mo.hw.length+' assignments · '+moDone+'/'+moTotal+' done</span>'+
           '</div>'+
-          '<span style="font-size:12px;color:var(--primary);font-weight:600">Expand ›</span>'+
+          '<div style="display:flex;gap:6px;align-items:center">'+
+            '<button class="btn btn-g btn-sm" onclick="doReopenMonth(\''+classId+'\','+mo.month+',this)" style="white-space:nowrap">🔓 Reopen</button>'+
+            '<span style="font-size:12px;color:var(--primary);font-weight:600;cursor:pointer" onclick="expandHWMonth(\''+classId+'\','+mo.month+')">Expand ›</span>'+
+          '</div>'+
         '</div>'+
       '</div>';
     });
@@ -2188,7 +2240,10 @@ function renderHWTracker(classId){
   var monthHeaders='<th style="padding:0;background:var(--g900);position:sticky;left:0;z-index:10;min-width:155px;box-shadow:2px 0 8px rgba(0,0,0,.1)"></th>';
   months.forEach(function(mo){
     var bg=mo.month%2===0?'#e8e6e2':'var(--g100)';
-    var endedBadge=mo.ended?'<span style="font-size:9px;background:#dcfce7;color:#166534;padding:1px 6px;border-radius:4px;margin-left:4px">🔒</span>':'';
+    var endedBadge=mo.ended
+      ?'<span style="font-size:9px;background:#dcfce7;color:#166534;padding:1px 6px;border-radius:4px;margin-left:4px">🔒</span>'
+        +'<button onclick="doReopenMonth(\''+classId+'\','+mo.month+',this)" style="margin-left:4px;background:none;border:1px solid #d1d5db;border-radius:4px;color:#5f6368;font-size:9px;padding:1px 5px;cursor:pointer;font-family:inherit">Reopen</button>'
+      :'<button onclick="doEndMonth(\''+classId+'\','+mo.month+',this)" style="margin-left:4px;background:none;border:1px solid #d1d5db;border-radius:4px;color:#5f6368;font-size:9px;padding:1px 5px;cursor:pointer;font-family:inherit">End</button>';
     monthHeaders+='<th colspan="'+(mo.hw.length+1)+'" style="padding:7px 4px;text-align:center;background:'+bg+
       ';border-right:2px solid var(--g200);border-left:1px solid var(--g200);font-size:11px;font-weight:700;color:var(--g600)">Month '+mo.month+endedBadge+'</th>';
   });

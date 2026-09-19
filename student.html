@@ -81,6 +81,9 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--off);col
 .hw-countdown{font-size:12px;font-weight:700;}
 .hw-content{font-size:13px;color:var(--g900);margin-bottom:6px;line-height:1.5;}
 .hw-deadline{font-size:11px;color:var(--g400);}
+.pf-btn{padding:4px 11px;border-radius:20px;border:1.5px solid var(--g200);background:white;color:var(--g600);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .18s;}
+.pf-btn:hover{border-color:var(--red);color:var(--red);}
+.pf-btn.pf-active{background:var(--red);border-color:var(--red);color:white;}
 .tuition-card{background:white;border-radius:14px;padding:24px;box-shadow:var(--sh);}
 .progress-track{background:var(--g100);border-radius:99px;height:10px;overflow:hidden;margin:10px 0;}
 .progress-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--red),var(--rlight));transition:width .8s ease;}
@@ -267,12 +270,21 @@ body{background:var(--bg)!important;}
       <div style="font-size:18px;font-weight:700;margin-bottom:16px;">Pending Homework</div>
       <div class="hw-grid" id="hwGrid"><p style="color:var(--g400);font-size:13px;">No pending homework.</p></div>
       <div id="overdueSection" style="margin-top:28px;display:none;">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
           <div style="flex:1;height:1px;background:var(--g200)"></div>
           <button onclick="toggleOverdue()" style="display:inline-flex;align-items:center;gap:7px;background:#202124;color:white;font-size:13px;font-weight:700;padding:6px 14px;border-radius:20px;border:none;cursor:pointer">
             <span id="overdueTitle">Past homework</span><span id="overdueChevron" style="font-size:10px;transition:transform .25s">▼</span>
           </button>
           <div style="flex:1;height:1px;background:var(--g200)"></div>
+        </div>
+        <!-- Past date range filter -->
+        <div id="pastFilterBar" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;padding:0 2px">
+          <span style="font-size:11px;font-weight:600;color:var(--g600);align-self:center">Show:</span>
+          <button onclick="setPastRange(30,this)" id="pfBtn30" class="pf-btn pf-active">Last 30 days</button>
+          <button onclick="setPastRange(60,this)" id="pfBtn60" class="pf-btn">Last 2 months</button>
+          <button onclick="setPastRange(90,this)" id="pfBtn90" class="pf-btn">Last 3 months</button>
+          <button onclick="setPastRange(0,this)" id="pfBtnAll" class="pf-btn">All</button>
+          <span id="pastHiddenNote" style="font-size:11px;color:var(--g400);align-self:center"></span>
         </div>
         <div id="overdueBody"><div class="hw-grid" id="hwGridOverdue"></div></div>
       </div>
@@ -452,38 +464,95 @@ function renderCalendar() {
   document.getElementById('calGrid').innerHTML = html;
 }
 
+var _pastRange = 30; // default: last 30 days
+
+function _todayStr(){
+  var d=new Date(), y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), dd=String(d.getDate()).padStart(2,'0');
+  return y+'-'+m+'-'+dd;
+}
+function _dateAddDays(dateStr, days){
+  var d=new Date(dateStr+'T00:00:00'); d.setDate(d.getDate()+days);
+  var y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), dd=String(d.getDate()).padStart(2,'0');
+  return y+'-'+m+'-'+dd;
+}
+
+function setPastRange(days, btn) {
+  _pastRange = days;
+  document.querySelectorAll('.pf-btn').forEach(function(b){b.classList.remove('pf-active');});
+  if(btn) btn.classList.add('pf-active');
+  renderHomework();
+}
+
 function renderHomework() {
-  var all=sd.homework||[];
-  var hw=all.filter(function(h){return h.daysLeft>=0;});
-  var hwOv=all.filter(function(h){return h.daysLeft<0;});
-  hw.sort(function(a,b){return(a.deadline||'')>(b.deadline||'')?1:-1;});
-  hwOv.sort(function(a,b){return(a.deadline||'')<(b.deadline||'')?1:-1;});
-  var ovSec=document.getElementById('overdueSection');
-  if(hwOv.length){ovSec.style.display='';document.getElementById('overdueTitle').textContent='Past homework ('+hwOv.length+')';}
-  else{ovSec.style.display='none';}
-  if(!hw.length)document.getElementById('hwGrid').innerHTML='<p style="color:var(--g400);font-size:13px;grid-column:1/-1;padding:40px;text-align:center;">No pending homework!</p>';
-  var tN={W:'Writing',L:'Listening',S:'Speaking',V:'Vocab',R:'Reading',G:'Grammar'};
-  var dN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  var sCfg={Done:{bg:'#dcfce7',color:'#166534',icon:'Done'},Late:{bg:'#fef9c3',color:'#854d0e',icon:'Late'},Partial:{bg:'#dbeafe',color:'#1e40af',icon:'Partial'},Undone:{bg:'#fee2e2',color:'#991b1b',icon:'Undone'}};
-  function mkCard(h){
-    var d=h.daysLeft,st=h.status||'Undone',cfg=sCfg[st]||sCfg.Undone;
-    var ct=d===0?'Due today!':d===1?'1 day left':(d>0?d+' days left':'Overdue');
-    var badge=(st!=='Undone'||d<0)?'<div style="display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:6px;font-size:11px;font-weight:700;background:'+cfg.bg+';color:'+cfg.color+';margin-top:8px">'+cfg.icon+'</div>':'';
-    var ddsp=h.deadline||'--';
-    if(h.deadline&&h.deadline.length===10){var dd=new Date(h.deadline+'T00:00:00');ddsp=dN[dd.getDay()]+', '+fmtDFull(h.deadline);}
-    var ch=(h.content||'--').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
-    return '<div class="hw-card '+(h.type||'W')+'" style="'+(st==='Done'?'opacity:.65;border-left-color:#ccc':'')+(d<0&&st!=='Done'?';border-left-color:#dc2626;background:linear-gradient(135deg,#fff1f1 0%,white 70%)':'')+'">'
-      +'<div class="hw-top">'
-        +'<span class="hw-badge hb-'+(h.type||'W')+'">'+(tN[h.type]||h.type)+'</span>'
-        +(h.isExtra?'<span style="font-size:10px;background:#fef9c3;color:#854d0e;border-radius:5px;padding:2px 7px;font-weight:700">Extra</span>':'')
-        +'<span class="hw-countdown '+(d<0&&st!=='Done'?'bad':d<=1&&st!=='Done'?'warn':'good')+'">'+(st==='Done'?'Done':ct)+'</span>'
-      +'</div>'
-      +'<div class="hw-content" style="white-space:pre-wrap;word-break:break-word">'+ch+'</div>'
-      +'<div class="hw-deadline">Deadline: '+ddsp+'</div>'
-      +badge+'</div>';
+  var all = sd.homework || [];
+  var today = _todayStr();
+  var hw = all.filter(function(h){return h.daysLeft >= 0;});
+  var hwOvAll = all.filter(function(h){return h.daysLeft < 0;});
+  hw.sort(function(a,b){return (a.deadline||'') > (b.deadline||'') ? 1 : -1;});
+  hwOvAll.sort(function(a,b){return (a.deadline||'') < (b.deadline||'') ? 1 : -1;}); // newest past first
+
+  // Apply date range filter to past
+  var hwOv;
+  if (_pastRange > 0) {
+    var cutoffStr = _dateAddDays(today, -_pastRange);
+    hwOv = hwOvAll.filter(function(h){ return !h.deadline || h.deadline >= cutoffStr; });
+  } else {
+    hwOv = hwOvAll;
   }
-  if(hw.length)document.getElementById('hwGrid').innerHTML=hw.map(mkCard).join('');
-  if(hwOv.length)document.getElementById('hwGridOverdue').innerHTML=hwOv.map(mkCard).join('');
+
+  var ovSec = document.getElementById('overdueSection');
+  var hiddenCount = hwOvAll.length - hwOv.length;
+  var noteEl = document.getElementById('pastHiddenNote');
+
+  if (hwOvAll.length) {
+    ovSec.style.display = '';
+    document.getElementById('overdueTitle').textContent = 'Past homework (' + hwOv.length + ')';
+    if (noteEl) {
+      noteEl.textContent = hiddenCount > 0
+        ? hiddenCount + ' older assignment(s) hidden — select a wider range above.'
+        : '';
+    }
+  } else {
+    ovSec.style.display = 'none';
+  }
+
+  if (!hw.length) document.getElementById('hwGrid').innerHTML = '<p style="color:var(--g400);font-size:13px;grid-column:1/-1;padding:40px;text-align:center;">No pending homework!</p>';
+  var tN = {W:'Writing',L:'Listening',S:'Speaking',V:'Vocab',R:'Reading',G:'Grammar'};
+  var dN = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  var sCfg = {
+    Done:{bg:'#dcfce7',color:'#166534',icon:'Done'},
+    Late:{bg:'#fef9c3',color:'#854d0e',icon:'Late'},
+    Partial:{bg:'#dbeafe',color:'#1e40af',icon:'Partial'},
+    Undone:{bg:'#fee2e2',color:'#991b1b',icon:'Undone'}
+  };
+  function mkCard(h) {
+    var d = h.daysLeft, st = h.status || 'Undone', cfg = sCfg[st] || sCfg.Undone;
+    var ct = d === 0 ? 'Due today!' : d === 1 ? '1 day left' : (d > 0 ? d + ' days left' : 'Overdue');
+    var badge = (st !== 'Undone' || d < 0)
+      ? '<div style="display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:6px;font-size:11px;font-weight:700;background:'+cfg.bg+';color:'+cfg.color+';margin-top:8px">'+cfg.icon+'</div>'
+      : '';
+    var ddsp = h.deadline || '--';
+    if (h.deadline && h.deadline.length === 10) {
+      var dd = new Date(h.deadline + 'T00:00:00');
+      ddsp = dN[dd.getDay()] + ', ' + fmtDFull(h.deadline);
+    }
+    var ch = (h.content || '--').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+    return '<div class="hw-card ' + (h.type || 'W') + '" style="'
+      + (st === 'Done' ? 'opacity:.65;border-left-color:#ccc' : '')
+      + (d < 0 && st !== 'Done' ? ';border-left-color:#dc2626;background:linear-gradient(135deg,#fff1f1 0%,white 70%)' : '') + '">'
+      + '<div class="hw-top">'
+        + '<span class="hw-badge hb-' + (h.type || 'W') + '">' + (tN[h.type] || h.type) + '</span>'
+        + (h.isExtra ? '<span style="font-size:10px;background:#fef9c3;color:#854d0e;border-radius:5px;padding:2px 7px;font-weight:700">Extra</span>' : '')
+        + '<span class="hw-countdown ' + (d < 0 && st !== 'Done' ? 'bad' : d <= 1 && st !== 'Done' ? 'warn' : 'good') + '">' + (st === 'Done' ? 'Done' : ct) + '</span>'
+      + '</div>'
+      + '<div class="hw-content" style="white-space:pre-wrap;word-break:break-word">' + ch + '</div>'
+      + '<div class="hw-deadline">Deadline: ' + ddsp + '</div>'
+      + badge + '</div>';
+  }
+  if (hw.length) document.getElementById('hwGrid').innerHTML = hw.map(mkCard).join('');
+  document.getElementById('hwGridOverdue').innerHTML = hwOv.length
+    ? hwOv.map(mkCard).join('')
+    : '<p style="color:var(--g400);font-size:13px;padding:16px 0">No past homework in this period.</p>';
 }
 function toggleOverdue(){
   var b=document.getElementById('overdueBody'),c=document.getElementById('overdueChevron');
