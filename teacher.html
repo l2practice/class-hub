@@ -479,7 +479,10 @@ textarea.fc{resize:vertical;min-height:60px;}
     <div id="sec-homework" class="sec">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px">
         <div class="ctabs" id="hwTrackerTabs" style="margin-bottom:0"><button class="ctab active">Select a class</button></div>
-        <button class="btn btn-o btn-sm" onclick="openExtraHW()" style="white-space:nowrap">⭐ Extra Homework</button>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button class="btn btn-o btn-sm" onclick="openExtraHW()" style="white-space:nowrap">⭐ Extra HW</button>
+          <button class="btn btn-g btn-sm" onclick="endCurrentMonth()" id="btnEndMonth" style="white-space:nowrap;display:none">🔒 End Month</button>
+        </div>
       </div>
       <div id="hwTrackerContent">
         <p style="padding:40px;text-align:center;color:var(--g400)">Select a class above to view homework submissions.</p>
@@ -997,7 +1000,8 @@ async function preloadAllClasses(){
       if(tuitionCache[cid]&&allSchedules[cid]) continue; // already loaded
       var r=await api('getAttendanceMatrix',{classId:cid});
       if(r&&r.success){
-        allSchedules[cid]=r.sessions||[];
+        // Save to allSchedules so Weekly Schedule renders instantly from cache
+        if(r.sessions&&r.sessions.length) allSchedules[cid]=r.sessions;
         var students=r.students||[];
         students.forEach(function(s){ s.sessDetail=s.attendance||{}; });
         tuitionCache[cid]=students;
@@ -1169,10 +1173,15 @@ async function loadWeekly() {
   if(!classData.length){
     document.getElementById('weeklyWrap').innerHTML='<p style="padding:40px;text-align:center;color:var(--g400)">Load overview first.</p>'; return;
   }
-  for(var i=0;i<classData.length;i++){
-    var cls=classData[i];
-    if(!allSchedules[cls.classId]){
-      try{var rs=await api('getClassDetail',{classId:cls.classId});if(rs.success)allSchedules[cls.classId]=rs.schedule||[];}catch{}
+  // Render immediately from cache if available, otherwise fetch
+  var allCached=classData.every(function(c){return !!allSchedules[c.classId];});
+  if(!allCached){
+    document.getElementById('weeklyWrap').innerHTML='<p style="padding:40px;text-align:center;color:var(--g400)"><span style="font-size:20px">⏳</span> Loading…</p>';
+    for(var i=0;i<classData.length;i++){
+      var cls=classData[i];
+      if(!allSchedules[cls.classId]){
+        try{var rs=await api('getClassDetail',{classId:cls.classId});if(rs.success)allSchedules[cls.classId]=rs.schedule||[];}catch(e){}
+      }
     }
   }
   var dateStrs=dates.map(fmtD);
@@ -1517,18 +1526,18 @@ function buildPaidCell(cell,classId,email,moNo,paid,paidDate,note){
   wrap.appendChild(topRow);
 
   if(paidDate&&paidDate.length>10)paidDate=paidDate.slice(0,10);
-  if(paid){
-    var ni=document.createElement('input'); ni.type='text'; ni.value=note||''; ni.placeholder='Note…';
-    ni.style='font-size:10px;border:1px solid var(--g200);border-radius:4px;padding:2px 6px;width:100%;color:var(--g600);outline:none;';
-    ni.onfocus=function(){this.style.borderColor='var(--primary)';};
-    ni.dataset.original=note||'';
-    ni.onblur=(function(cid,em,mo,nEl,pd){return function(){
-      if(nEl.value===nEl.dataset.original) return;
-      api('markTuitionPaid',{classId:cid,studentEmail:em,monthNo:mo,paid:true,paidDate:pd||localToday(),note:nEl.value})
-        .then(function(){nEl.dataset.original=nEl.value;}).catch(function(){});
-    };})(classId,email,moNo,ni,paidDate);
-    wrap.appendChild(ni);
-  }
+  // Note field always visible — useful for recording payment status or reminders
+  var ni=document.createElement('input'); ni.type='text'; ni.value=note||''; ni.placeholder=paid?'Note…':'Ghi chú…';
+  ni.style='font-size:10px;border:1px solid var(--g200);border-radius:4px;padding:2px 6px;width:100%;color:var(--g600);outline:none;';
+  ni.onfocus=function(){this.style.borderColor='var(--primary)';};
+  ni.dataset.original=note||'';
+  ni.onblur=(function(cid,em,mo,nEl,isPaid,pd){return function(){
+    if(nEl.value===nEl.dataset.original) return;
+    // Save note regardless of paid state — for unpaid: save with current paid status
+    api('markTuitionPaid',{classId:cid,studentEmail:em,monthNo:mo,paid:isPaid,paidDate:isPaid?(pd||localToday()):'',note:nEl.value})
+      .then(function(){nEl.dataset.original=nEl.value;}).catch(function(){});
+  };})(classId,email,moNo,ni,paid,paidDate);
+  wrap.appendChild(ni);
   cell.appendChild(wrap);
 }
 
@@ -1971,6 +1980,12 @@ async function filterHWTracker(classId,btn){
   await loadHWTracker(classId);
 }
 
+function expandHWMonth(classId, month){
+  if(!_hwTrackerCollapsed[classId])return;
+  _hwTrackerCollapsed[classId].delete(month);
+  renderHWTracker(classId);
+}
+
 async function loadHWTracker(classId){
   var el=document.getElementById('hwTrackerContent');
   // Use cache if available
@@ -1980,17 +1995,78 @@ async function loadHWTracker(classId){
   }
   el.innerHTML='<p style="padding:30px;text-align:center;color:var(--g400)">Loading…</p>';
   try{
-    var r=await api('getHomeworkTracker',{classId:classId});
+    // Load tracker data + ended month status in parallel
+    var [r, rStatus] = await Promise.all([
+      api('getHomeworkTracker',{classId:classId}),
+      api('getHWMonthStatus',{classId:classId})
+    ]);
     if(!r.success){el.innerHTML='<p style="color:var(--red);padding:20px">Error: '+r.message+'</p>';return;}
     hwTrackerCache[classId]=r;
+    if(rStatus&&rStatus.success){
+      _hwTrackerEndedMonths[classId]=rStatus.ended||{};
+      // Auto-collapse all ended months except the 2 most recent
+      var endedNos=Object.keys(rStatus.ended||{}).map(Number).sort(function(a,b){return a-b;});
+      if(!_hwTrackerCollapsed[classId]) _hwTrackerCollapsed[classId]=new Set();
+      endedNos.slice(0,-2).forEach(function(mo){_hwTrackerCollapsed[classId].add(mo);});
+    }
     renderHWTracker(classId);
   }catch(e){el.innerHTML='<p style="color:var(--red);padding:20px">Connection error</p>';}
+}
+
+var _hwTrackerEndedMonths={}; // classId → {monthNo: endedDate}
+var _hwTrackerCollapsed={}; // classId → Set of collapsed month numbers
+
+async function endCurrentMonth(){
+  var activeBtn=document.querySelector('#hwTrackerTabs .ctab.active');
+  if(!activeBtn)return;
+  var classId=activeBtn.textContent;
+  var data=hwTrackerCache[classId];
+  if(!data)return;
+  // Find current (latest non-ended) month
+  var ended=_hwTrackerEndedMonths[classId]||{};
+  var hwList=data.homework||[];
+  var seen={},regularHW=[];
+  hwList.forEach(function(hw){
+    if(hw.dayLabel==='EXTRA'||!hw.sessionDate)return;
+    var key=hw.sessionDate+'_'+(hw.type||'');
+    if(!seen[key]){seen[key]=true;regularHW.push(hw);}
+  });
+  regularHW.sort(function(a,b){return a.sessionDate>b.sessionDate?1:-1;});
+  var monthsAll=buildHWMonths(regularHW);
+  var currentMonthIdx=monthsAll.findIndex(function(m){return !ended[String(m.month)];});
+  if(currentMonthIdx<0){toast('All months already ended','ok');return;}
+  var mo=monthsAll[currentMonthIdx];
+  if(!confirm('End Month '+mo.month+'? Students will no longer see this month as active. You can still view it by expanding.')){return;}
+  try{
+    var r=await api('endHWMonth',{classId:classId,monthNo:mo.month});
+    if(r.success){
+      if(!_hwTrackerEndedMonths[classId])_hwTrackerEndedMonths[classId]={};
+      _hwTrackerEndedMonths[classId][String(mo.month)]=localToday();
+      if(!_hwTrackerCollapsed[classId])_hwTrackerCollapsed[classId]=new Set();
+      _hwTrackerCollapsed[classId].add(mo.month);
+      toast('Month '+mo.month+' ended ✓','ok');
+      renderHWTracker(classId);
+    }else toast('Error: '+r.message,'err');
+  }catch(e){toast('Connection error','err');}
+}
+
+function buildHWMonths(regularHW){
+  // Group by actual session dates from allSchedules if available
+  // Each 8 scheduled non-Day0 sessions = 1 month
+  var months=[];
+  for(var i=0;i<regularHW.length;i+=8){
+    months.push({month:Math.floor(i/8)+1, hw:regularHW.slice(i,i+8)});
+  }
+  if(!months.length) months=[{month:1,hw:[]}];
+  return months;
 }
 
 function renderHWTracker(classId){
   var data=hwTrackerCache[classId]; if(!data)return;
   var el=document.getElementById('hwTrackerContent');
   var hwList=data.homework||[], students=data.students||[];
+  // Show End Month button
+  document.getElementById('btnEndMonth').style.display='';
 
   if(!hwList.length){
     el.innerHTML='<div class="card"><div style="padding:40px;text-align:center;color:var(--g400)">'+
@@ -2015,7 +2091,6 @@ function renderHWTracker(classId){
   var regularHW=[], extraHW=[];
   hwList.forEach(function(hw){
     var isExtra = hw.dayLabel==='EXTRA' || !hw.sessionDate;
-    // Extra HW: keyed by deadline+type
     var key = isExtra ? ('EXTRA_'+hw.deadline+'_'+(hw.type||'')) : (hw.sessionDate+'_'+(hw.type||''));
     if(!seen[key]){
       seen[key]=true;
@@ -2029,20 +2104,56 @@ function renderHWTracker(classId){
   });
   extraHW.sort(function(a,b){ return (a.deadline||'')>(b.deadline||'')?1:-1; });
 
-  // Group regular by month (8 = 1 month)
-  var months=[];
-  for(var i=0;i<regularHW.length;i+=8){
-    months.push({month:Math.floor(i/8)+1, hw:regularHW.slice(i,i+8)});
-  }
-  if(!months.length) months=[{month:1,hw:[]}];
-  var dedupedHW=regularHW; // for wire dropdowns below
+  var months=buildHWMonths(regularHW);
+  var ended=_hwTrackerEndedMonths[classId]||{};
+  var collapsed=_hwTrackerCollapsed[classId]||new Set();
 
-  // ── Month header (regular + extra group)
+  // Show only: current month + previous 2 visible months
+  // Older ended months → collapsed accordion
+  var visibleCount=0;
+  var monthsWithVisibility=months.map(function(mo){
+    var isEnded=!!ended[String(mo.month)];
+    var isCollapsed=collapsed.has(mo.month);
+    if(!isEnded||!isCollapsed){visibleCount++;return Object.assign({},mo,{collapsed:false,ended:isEnded});}
+    // Ended + explicitly collapsed
+    if(months.length-mo.month<=2){visibleCount++;return Object.assign({},mo,{collapsed:false,ended:true});}
+    return Object.assign({},mo,{collapsed:true,ended:true});
+  });
+
+  // Render collapsed months as accordion rows before main table
+  var collapsedHtml='';
+  var visibleMonths=monthsWithVisibility.filter(function(mo){return !mo.collapsed;});
+  var collapsedMonths=monthsWithVisibility.filter(function(mo){return mo.collapsed;});
+  if(collapsedMonths.length){
+    collapsedHtml='<div style="margin-bottom:12px">';
+    collapsedMonths.forEach(function(mo){
+      var moDone=0,moTotal=0;
+      mo.hw.forEach(function(hw){
+        students.forEach(function(s){var sb=s.submissions[hw.hwId];if(sb&&sb.status==='Done')moDone++;moTotal++;});
+      });
+      collapsedHtml+='<div style="background:white;border:1px solid var(--g200);border-radius:8px;margin-bottom:6px;overflow:hidden">'+
+        '<div style="padding:10px 16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;background:var(--g50)" '+
+          'onclick="expandHWMonth(\''+classId+'\','+mo.month+')">'+
+          '<div style="display:flex;align-items:center;gap:10px">'+
+            '<span style="font-size:13px;font-weight:700">Month '+mo.month+'</span>'+
+            '<span style="font-size:10px;font-weight:700;background:#dcfce7;color:#166534;padding:2px 7px;border-radius:5px">🔒 Ended</span>'+
+            '<span style="font-size:11px;color:var(--g400)">'+mo.hw.length+' assignments · '+moDone+'/'+moTotal+' done</span>'+
+          '</div>'+
+          '<span style="font-size:12px;color:var(--primary);font-weight:600">Expand ›</span>'+
+        '</div>'+
+      '</div>';
+    });
+    collapsedHtml+='</div>';
+  }
+
+  // ── Month header (visible months only)
+  var months=visibleMonths; // use only visible for the main table
   var monthHeaders='<th style="padding:0;background:var(--g900);position:sticky;left:0;z-index:10;min-width:155px;box-shadow:2px 0 8px rgba(0,0,0,.1)"></th>';
   months.forEach(function(mo){
     var bg=mo.month%2===0?'#e8e6e2':'var(--g100)';
+    var endedBadge=mo.ended?'<span style="font-size:9px;background:#dcfce7;color:#166534;padding:1px 6px;border-radius:4px;margin-left:4px">🔒</span>':'';
     monthHeaders+='<th colspan="'+(mo.hw.length+1)+'" style="padding:7px 4px;text-align:center;background:'+bg+
-      ';border-right:2px solid var(--g200);border-left:1px solid var(--g200);font-size:11px;font-weight:700;color:var(--g600)">Month '+mo.month+'</th>';
+      ';border-right:2px solid var(--g200);border-left:1px solid var(--g200);font-size:11px;font-weight:700;color:var(--g600)">Month '+mo.month+endedBadge+'</th>';
   });
   if(extraHW.length){
     monthHeaders+='<th colspan="'+(extraHW.length+1)+'" style="padding:7px 4px;text-align:center;background:#fef9c3;border-right:2px solid #fde047;border-left:1px solid #fde047;font-size:11px;font-weight:700;color:#854d0e">⭐ Extra</th>';
@@ -2150,9 +2261,12 @@ function renderHWTracker(classId){
       '</td>'+cells+'</tr>';
   }).join('');
 
-  el.innerHTML='<div class="card"><div class="ch">'+
+  el.innerHTML=collapsedHtml+'<div class="card"><div class="ch">'+
     '<div class="ct">'+classId+' — Homework Tracker</div>'+
-    '<span style="font-size:12px;color:var(--g400)">'+regularHW.length+' session(s) · '+months.length+' month(s)'+(extraHW.length?' · '+extraHW.length+' extra':'')+'</span>'+
+    '<div style="display:flex;align-items:center;gap:8px">'+
+      '<span style="font-size:12px;color:var(--g400)">'+regularHW.length+' sessions · '+months.length+' months'+(extraHW.length?' · '+extraHW.length+' extra':'')+'</span>'+
+      '<button class="btn btn-g btn-sm" onclick="printHWReport(\''+classId+'\')" style="white-space:nowrap">📊 PDF Report</button>'+
+    '</div>'+
     '</div>'+
     '<div class="tw"><table style="border-collapse:collapse;font-size:12px">'+
       '<thead>'+
@@ -2173,6 +2287,88 @@ function renderHWTracker(classId){
       if(cell)buildHWCell(cell,classId,s.email,hw,status,sub?sub.note:'');
     });
   });
+}
+
+function printHWReport(classId){
+  var data=hwTrackerCache[classId]; if(!data)return;
+  var hwList=data.homework||[], students=data.students||[];
+  var typeNames={W:'Writing',L:'Listening',S:'Speaking',V:'Vocabulary',R:'Reading',G:'Grammar'};
+  var typeColors={W:'#f97316',L:'#3b82f6',S:'#8b5cf6',V:'#22c55e',R:'#ec4899',G:'#6b7280'};
+  // Build skill stats
+  var skills={};
+  hwList.forEach(function(hw){
+    var t=hw.type||'?';
+    if(!skills[t])skills[t]={type:t,total:0,done:0,late:0,partial:0,undone:0,perStudent:{}};
+    var sk=skills[t];
+    sk.total+=students.length;
+    students.forEach(function(s){
+      var sub=s.submissions[hw.hwId];
+      var st=sub?sub.status:'Undone';
+      if(st==='Done')sk.done++;
+      else if(st==='Late')sk.late++;
+      else if(st==='Partial')sk.partial++;
+      else sk.undone++;
+      if(!sk.perStudent[s.email])sk.perStudent[s.email]={name:s.name,done:0,late:0,partial:0,undone:0,total:0};
+      sk.perStudent[s.email].total++;
+      if(st==='Done')sk.perStudent[s.email].done++;
+      else if(st==='Late')sk.perStudent[s.email].late++;
+      else if(st==='Partial')sk.perStudent[s.email].partial++;
+      else sk.perStudent[s.email].undone++;
+    });
+  });
+  var today=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+  var skillHtml=Object.keys(skills).map(function(t){
+    var sk=skills[t];
+    var pct=sk.total>0?Math.round((sk.done+sk.late+sk.partial)/sk.total*100):0;
+    var donePct=sk.total>0?Math.round(sk.done/sk.total*100):0;
+    var col=typeColors[t]||'#6b7280';
+    var barColor=donePct>=80?'#34A853':donePct>=50?'#FBBC05':'#EA4335';
+    var rows=Object.values(sk.perStudent).sort(function(a,b){return b.done-a.done;}).map(function(p){
+      var pp=p.total>0?Math.round((p.done+p.late+p.partial)/p.total*100):0;
+      return '<tr style="border-bottom:1px solid #f1f3f4"><td style="padding:5px 10px">'+p.name+'</td>'
+        +'<td style="padding:5px 10px;text-align:center;color:#34A853;font-weight:700">'+p.done+'</td>'
+        +'<td style="padding:5px 10px;text-align:center;color:#FBBC05">'+p.late+'</td>'
+        +'<td style="padding:5px 10px;text-align:center;color:#9c27b0">'+p.partial+'</td>'
+        +'<td style="padding:5px 10px;text-align:center;color:#EA4335">'+p.undone+'</td>'
+        +'<td style="padding:5px 10px;text-align:center;font-weight:700;color:'+(pp>=80?'#34A853':pp>=50?'#FBBC05':'#EA4335')+'">'+pp+'%</td>'
+        +'</tr>';
+    }).join('');
+    return '<div style="margin-bottom:24px;page-break-inside:avoid">'
+      +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">'
+        +'<span style="width:12px;height:12px;border-radius:3px;background:'+col+';display:inline-block"></span>'
+        +'<span style="font-size:16px;font-weight:700;color:'+col+'">'+(typeNames[t]||t)+'</span>'
+        +'<span style="font-size:13px;color:#5f6368">'+sk.done+' done / '+sk.total+' total</span>'
+        +'<span style="margin-left:auto;font-size:14px;font-weight:700;color:'+barColor+'">'+donePct+'% completed</span>'
+      +'</div>'
+      +'<div style="background:#f1f3f4;border-radius:4px;height:8px;overflow:hidden;margin-bottom:10px">'
+        +'<div style="height:100%;width:'+donePct+'%;background:'+barColor+';border-radius:4px"></div>'
+      +'</div>'
+      +'<table style="width:100%;border-collapse:collapse;font-size:12px">'
+        +'<thead><tr style="background:#f1f3f4">'
+          +'<th style="padding:6px 10px;text-align:left;font-weight:700">Student</th>'
+          +'<th style="padding:6px 10px;text-align:center;color:#34A853">Done</th>'
+          +'<th style="padding:6px 10px;text-align:center;color:#FBBC05">Late</th>'
+          +'<th style="padding:6px 10px;text-align:center;color:#9c27b0">Partial</th>'
+          +'<th style="padding:6px 10px;text-align:center;color:#EA4335">Undone</th>'
+          +'<th style="padding:6px 10px;text-align:center">Rate</th>'
+        +'</tr></thead>'
+        +'<tbody>'+rows+'</tbody>'
+      +'</table>'
+    +'</div>';
+  }).join('');
+  var win=window.open('','_blank');
+  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>HW Report — '+classId+'</title>'
+    +'<style>body{font-family:Arial,sans-serif;color:#202124;margin:32px 40px;max-width:900px}'
+    +'h1{font-size:22px;margin:0 0 4px}p{margin:0 0 20px;color:#5f6368;font-size:13px}'
+    +'@media print{body{margin:20px}@page{margin:20mm}}</style></head>'
+    +'<body>'
+    +'<h1>Homework Report — '+classId+'</h1>'
+    +'<p>Generated '+today+' · '+hwList.length+' assignments · '+students.length+' students</p>'
+    +'<hr style="border:none;border-top:2px solid #202124;margin-bottom:20px">'
+    +skillHtml
+    +'<script>window.onload=function(){window.print();}<\/script>'
+    +'</body></html>');
+  win.document.close();
 }
 
 async function deleteHWCol(classId, sessionDate, type){
@@ -2229,28 +2425,39 @@ function buildHWCell(cell,classId,email,hw,status,note){
 // ═══════════════════════════════════════════════════════
 // HOMEWORK BOOK
 // ═══════════════════════════════════════════════════════
+var _hwBookRange = 30; // days — current Past filter
 function buildHWBookTabs(){
   var el=document.getElementById('hwBookTabs');el.innerHTML='';
   if(!classData.length)return;
   classData.forEach(function(cls,i){
     var b=document.createElement('button');
-    b.className='ctab'+(i===0?' active':'');b.textContent=cls.classId;
+    b.className='ctab'; b.textContent=cls.classId;
+    // No auto-load on first render — wait for explicit class selection
     b.onclick=(function(cid,btn){return function(){loadHWBook(cid,btn);};})(cls.classId,b);
     el.appendChild(b);
   });
-  loadHWBook(classData[0].classId,el.firstChild);
+  // Do NOT auto-load first class — user picks explicitly
 }
 async function loadHWBook(classId,btn){
   document.querySelectorAll('#hwBookTabs .ctab').forEach(function(b){b.classList.remove('active');});
   if(btn)btn.classList.add('active');
+  _hwBookRange=30; // reset to 30-day view on class change
   var el=document.getElementById('hwBookContent');
   if(hwBookCache[classId]){renderHWBook(classId);return;}
-  el.innerHTML='<p style="padding:40px;text-align:center;color:var(--g400)">Loading...</p>';
+  el.innerHTML='<p style="padding:40px;text-align:center;color:var(--g400)">⏳ Loading…</p>';
   try{
     var r=await api('getHomeworkTracker',{classId:classId});
     if(!r.success){el.innerHTML='<p style="color:var(--red);padding:20px">Error: '+r.message+'</p>';return;}
     hwBookCache[classId]=r;renderHWBook(classId);
   }catch(e){el.innerHTML='<p style="color:var(--red);padding:20px">Connection error</p>';}
+}
+function setHWBookRange(days){
+  _hwBookRange=days;
+  // Find active class
+  var activeBtn=document.querySelector('#hwBookTabs .ctab.active');
+  if(!activeBtn)return;
+  var classId=activeBtn.textContent;
+  renderHWBook(classId);
 }
 function renderHWBook(classId){
   var data=hwBookCache[classId];if(!data)return;
@@ -2258,10 +2465,17 @@ function renderHWBook(classId){
   var hwList=data.homework||[];
   var today=localToday();
   if(!hwList.length){el.innerHTML='<div class="card"><div style="padding:40px;text-align:center;color:var(--g400)"><div style="font-size:32px">&#128214;</div><div style="font-weight:600;margin-top:8px">No homework assigned yet</div></div></div>';return;}
-  var seen={},pending=[],past=[];
-  hwList.forEach(function(hw){if(seen[hw.hwId])return;seen[hw.hwId]=true;(hw.deadline&&hw.deadline<today?past:pending).push(hw);});
+  var seen={},pending=[],pastAll=[];
+  hwList.forEach(function(hw){if(seen[hw.hwId])return;seen[hw.hwId]=true;(hw.deadline&&hw.deadline<today?pastAll:pending).push(hw);});
   pending.sort(function(a,b){return(a.deadline||'')>(b.deadline||'')?1:-1;});
-  past.sort(function(a,b){return(a.deadline||'')<(b.deadline||'')?1:-1;});
+  pastAll.sort(function(a,b){return(a.deadline||'')<(b.deadline||'')?1:-1;});
+  // Apply date range filter to Past
+  var cutoff='';
+  if(_hwBookRange>0){
+    var cd=new Date(today+'T00:00:00'); cd.setDate(cd.getDate()-_hwBookRange);
+    cutoff=fmtD(cd);
+  }
+  var past=_hwBookRange>0?pastAll.filter(function(hw){return !hw.deadline||hw.deadline>=cutoff;}):pastAll;
   var tN={W:'Writing',L:'Listening',S:'Speaking',V:'Vocab',R:'Reading',G:'Grammar'};
   var tBg={W:'#ffedd5',L:'#dbeafe',S:'#ede9fe',V:'#dcfce7',R:'#fce7f3',G:'#f3f4f6'};
   var tCl={W:'#7c2d12',L:'#1e40af',S:'#4c1d95',V:'#166534',R:'#9d174d',G:'#374151'};
@@ -2272,8 +2486,8 @@ function renderHWBook(classId){
     var t=tN[hw.type]||hw.type||'--',bd=tBd[hw.type]||'#6b7280';
     var ct=(hw.content||'--').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
     var sd=hw.sessionDate?fmtBrit(hw.sessionDate):(hw.isExtra?'Extra':'--');
-    var cd='';
-    if(!isPast&&hw.deadline){var df=Math.ceil((new Date(hw.deadline+'T00:00:00')-new Date(today+'T00:00:00'))/86400000);var cc=df<=1?'#dc2626':df<=3?'#d97706':'#34A853';cd='<span style="font-size:12px;font-weight:700;color:'+cc+'">'+(df===0?'Due today':df===1?'1 day left':df+' days left')+'</span>';}
+    var cd2='';
+    if(!isPast&&hw.deadline){var df=Math.ceil((new Date(hw.deadline+'T00:00:00')-new Date(today+'T00:00:00'))/86400000);var cc=df<=1?'#dc2626':df<=3?'#d97706':'#34A853';cd2='<span style="font-size:12px;font-weight:700;color:'+cc+'">'+(df===0?'Due today':df===1?'1 day left':df+' days left')+'</span>';}
     var stu=data.students||[],tot=stu.length,dn=0;
     stu.forEach(function(s){var sb=s.submissions[hw.hwId];if(sb&&sb.status==='Done')dn++;});
     var pc=tot?Math.round((dn/tot)*100):0,rb=pc>=80?'#e6f4ea':pc>=40?'#fef9c3':'#fce8e6',rc=pc>=80?'#137333':pc>=40?'#854d0e':'#c5221f';
@@ -2284,15 +2498,37 @@ function renderHWBook(classId){
           +(hw.isExtra?'<span style="padding:2px 7px;border-radius:6px;font-size:10px;font-weight:700;background:#fef9c3;color:#854d0e">Extra</span>':'')
           +'<span style="font-size:11px;color:var(--g400)">'+sd+'</span>'
         +'</div>'
-        +'<div style="display:flex;align-items:center;gap:8px;">'+cd+'<span style="padding:3px 10px;border-radius:6px;font-size:11px;font-weight:700;background:'+rb+';color:'+rc+'">'+dn+'/'+tot+' done</span></div>'
+        +'<div style="display:flex;align-items:center;gap:8px;">'+cd2+'<span style="padding:3px 10px;border-radius:6px;font-size:11px;font-weight:700;background:'+rb+';color:'+rc+'">'+dn+'/'+tot+' done</span></div>'
       +'</div>'
       +'<div style="font-size:13px;color:var(--g900);line-height:1.6;margin-bottom:10px;white-space:pre-wrap;word-break:break-word">'+ct+'</div>'
       +'<div style="font-size:11px;color:var(--g400)">Deadline: <strong style="color:'+(isPast?'#9aa0a6':'var(--g900)')+'">'+dl(hw.deadline||'')+'</strong></div>'
       +'<div style="margin-top:10px;background:var(--g100);border-radius:4px;height:5px;overflow:hidden"><div style="height:100%;background:'+bd+';width:'+pc+'%;border-radius:4px;transition:width .5s"></div></div>'
     +'</div>';
   }
-  function grid(arr,p){if(!arr.length)return '<p style="color:var(--g400);font-size:13px;padding:12px 0">'+(p?'No past homework.':'No upcoming homework.')+'</p>';return '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px">'+arr.map(function(h){return card(h,p);}).join('')+'</div>';}
-  el.innerHTML='<div><div style="font-size:15px;font-weight:700;margin-bottom:14px">Pending ('+pending.length+')</div>'+grid(pending,false)+(past.length?'<div style="display:flex;align-items:center;gap:10px;margin:24px 0 16px"><div style="flex:1;height:1px;background:var(--g200)"></div><div style="background:var(--g900);color:white;font-size:13px;font-weight:700;padding:5px 14px;border-radius:20px">Past ('+past.length+')</div><div style="flex:1;height:1px;background:var(--g200)"></div></div>'+grid(past,true):'')+'</div>';
+  function grid(arr,p){if(!arr.length)return '<p style="color:var(--g400);font-size:13px;padding:12px 0">'+(p?'No homework in this period.':'No upcoming homework.')+'</p>';return '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px">'+arr.map(function(h){return card(h,p);}).join('')+'</div>';}
+  // Past filter bar
+  var filterLabels=[{v:30,l:'Last 30 days'},{v:60,l:'Last 2 months'},{v:90,l:'Last 3 months'},{v:0,l:'All'}];
+  var filterBar='<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">'
+    +'<span style="font-size:11px;font-weight:600;color:var(--g600);align-self:center">Past:</span>'
+    +filterLabels.map(function(f){
+      var active=_hwBookRange===f.v;
+      return '<button onclick="setHWBookRange('+f.v+')" style="padding:4px 11px;border-radius:20px;border:1.5px solid '+(active?'var(--red)':'var(--g200)')+';background:'+(active?'var(--red)':'white')+';color:'+(active?'white':'var(--g600)')+';font-size:11px;font-weight:600;cursor:pointer">'+f.l+'</button>';
+    }).join('')
+  +'</div>';
+  var hiddenCount=pastAll.length-past.length;
+  var hiddenNote=hiddenCount>0?'<p style="font-size:11px;color:var(--g400);margin-top:6px">'+hiddenCount+' older assignment(s) hidden — select a wider range above to show.</p>':'';
+  el.innerHTML='<div>'
+    +'<div style="font-size:15px;font-weight:700;margin-bottom:14px">Pending ('+pending.length+')</div>'
+    +grid(pending,false)
+    +(pastAll.length?'<div style="display:flex;align-items:center;gap:10px;margin:24px 0 16px">'
+      +'<div style="flex:1;height:1px;background:var(--g200)"></div>'
+      +'<div style="background:var(--g900);color:white;font-size:13px;font-weight:700;padding:5px 14px;border-radius:20px">Past</div>'
+      +'<div style="flex:1;height:1px;background:var(--g200)"></div>'
+    +'</div>'
+    +filterBar
+    +grid(past,true)
+    +hiddenNote:'')
+  +'</div>';
 }
 function buildPartTabs(){
   var el=document.getElementById('partTabs');
@@ -2464,8 +2700,9 @@ function filterDiligence(classId,btn){
   loadDiligence(classId);
 }
 
-var _diligenceReqId=0;
-var _diligenceCache={};  // classId → months data
+var _diligenceMonthsCache={};  // classId → [{month, dates}]
+var _diligenceMonthDataCache={}; // classId_month → month detail
+var _diligenceExpandedMonths={}; // classId → Set of expanded month numbers
 
 async function loadDiligence(classId){
   var el=document.getElementById('diligenceContent');
@@ -2483,65 +2720,137 @@ async function loadDiligence(classId){
       '</tr>';}).join('')+'</tbody></table></div></div>';
     return;
   }
-  // Cancel any previous pending request
-  var myReqId=++_diligenceReqId;
-  // Use cache if available
-  if(_diligenceCache[classId]){
-    renderDiligence(classId, _diligenceCache[classId]);
+  // Use months cache if available
+  if(_diligenceMonthsCache[classId]){
+    renderDiligenceMonthList(classId);
     return;
   }
-  el.innerHTML='<div style="padding:60px;text-align:center;color:var(--g400)">'+
-    '<div style="font-size:28px;animation:spin 1s linear infinite;display:inline-block">⏳</div>'+
-    '<div style="margin-top:12px;font-size:13px">Loading diligent report…</div></div>';
+  el.innerHTML='<div style="padding:60px;text-align:center;color:var(--g400)"><div style="font-size:28px;animation:spin 1s linear infinite;display:inline-block">⏳</div><div style="margin-top:12px;font-size:13px">Loading months…</div></div>';
   try{
-    var r2=await api('getRewards',{classId:classId});
-    if(myReqId!==_diligenceReqId) return;
-    if(!r2.success){el.innerHTML='<p style="color:var(--red);padding:20px">Error: '+r2.message+'</p>';return;}
-    if(!r2.months||!r2.months.length){el.innerHTML='<p style="padding:40px;text-align:center;color:var(--g400)">No data yet — complete at least 1 session first.</p>';return;}
-    _diligenceCache[classId]=r2.months;
-    renderDiligence(classId, r2.months);
-  }catch(e){el.innerHTML='<p style="color:var(--red);padding:20px">Error: '+e.message+'<br><small>Open console for details.</small></p>';}
+    var r=await api('getRewardsMonths',{classId:classId});
+    if(!r.success){el.innerHTML='<p style="color:var(--red);padding:20px">Error: '+r.message+'</p>';return;}
+    if(!r.months||!r.months.length){el.innerHTML='<p style="padding:40px;text-align:center;color:var(--g400)">No data yet — complete at least 1 session first.</p>';return;}
+    _diligenceMonthsCache[classId]=r.months;
+    // Auto-expand latest month
+    if(!_diligenceExpandedMonths[classId]) _diligenceExpandedMonths[classId]=new Set();
+    var latestMonth=r.months[r.months.length-1].month;
+    _diligenceExpandedMonths[classId].add(latestMonth);
+    renderDiligenceMonthList(classId);
+    // Auto-load latest month data
+    loadDiligenceMonth(classId, latestMonth);
+  }catch(e){el.innerHTML='<p style="color:var(--red);padding:20px">Error: '+e.message+'</p>';}
 }
 
-function renderDiligence(classId, months){
+function renderDiligenceMonthList(classId){
   var el=document.getElementById('diligenceContent');
+  var months=_diligenceMonthsCache[classId]||[];
+  var expanded=_diligenceExpandedMonths[classId]||new Set();
   el.innerHTML=months.map(function(mo){
-    var sessCount=mo.dates.length;
-    mo.students.forEach(function(s){
-      s.diligent=s.absent===0&&s.late===0&&s.tuitionPaid&&s.hwDue>0&&s.hwDone>=s.hwDue;
-    });
-    var eligible=mo.students.filter(function(s){return s.diligent;});
-    var sorted=[].concat(mo.students).sort(function(a,b){
-      if(a.diligent!==b.diligent)return a.diligent?-1:1;
-      return b.present-a.present;
-    });
-    return '<div class="card">'+
-      '<div class="ch"><div class="ct">Month '+mo.month+'</div>'+
-      '<div style="display:flex;align-items:center;gap:10px">'+
-        '<span style="font-size:12px;color:var(--g400)">'+sessCount+' sessions</span>'+
-        (eligible.length>0?'<a href="random.html?class='+encodeURIComponent(classId)+'&month='+mo.month+'" target="_blank" class="btn btn-r btn-sm" style="text-decoration:none">🎰 Random Draw ('+eligible.length+')</a>':'')+
-      '</div></div>'+
-      '<div class="rcard-wrap">'+
-        (eligible[0]?'<div class="rcard rcard-gold"><div class="rcard-lbl">🏆 Most Diligent #1</div><div class="rcard-name">'+eligible[0].name+'</div><div class="rcard-sub">'+eligible[0].present+'P · 0L · 0A · HW '+eligible[0].hwDone+'/'+eligible[0].hwDue+' · Paid</div></div>':'')+
-        (eligible[1]?'<div class="rcard rcard-silver"><div class="rcard-lbl">🥈 Most Diligent #2</div><div class="rcard-name">'+eligible[1].name+'</div><div class="rcard-sub">'+eligible[1].present+'P · 0L · 0A · HW '+eligible[1].hwDone+'/'+eligible[1].hwDue+' · Paid</div></div>':'')+
+    var isExpanded=expanded.has(mo.month);
+    var cacheKey=classId+'_'+mo.month;
+    var cached=_diligenceMonthDataCache[cacheKey];
+    return '<div class="acc" id="dil-acc-'+mo.month+'">'+
+      '<div class="acc-h" onclick="toggleDiligenceMonth(\''+classId+'\','+mo.month+')">'+
+        '<div style="display:flex;align-items:center;gap:12px">'+
+          '<span style="font-family:var(--serif);font-size:15px;font-weight:700">Month '+mo.month+'</span>'+
+          '<span style="font-size:11px;color:var(--g400)">'+mo.dates.length+' sessions</span>'+
+          (cached&&cached.rewards&&cached.rewards.diligent1?'<span style="font-size:11px;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:5px">⭐ '+cached.rewards.diligent1.name+'</span>':'')+
+        '</div>'+
+        '<span style="font-size:18px;color:var(--g400);transform:'+(isExpanded?'rotate(90deg)':'rotate(0deg)')+';transition:.2s;display:inline-block">›</span>'+
       '</div>'+
-      '<div class="tw"><table>'+
-        '<thead><tr><th>Student</th><th>Present</th><th>Absent</th><th>Late</th><th>HW</th><th>Tuition</th><th>Diligent?</th></tr></thead>'+
-        '<tbody>'+sorted.map(function(s){
-          var hwBadge=s.hwDue>0
-            ?'<span class="badge '+(s.hwDone>=s.hwDue?'bp':'ba')+'">'+s.hwDone+'/'+s.hwDue+'</span>'
-            :'<span style="color:var(--g400)">—</span>';
-          return '<tr>'+
-            '<td style="padding:8px 12px;border-bottom:1px solid var(--g100)"><strong>'+s.name+'</strong></td>'+
-            '<td style="padding:8px 12px;border-bottom:1px solid var(--g100)"><span class="badge bp">'+s.present+'</span></td>'+
-            '<td style="padding:8px 12px;border-bottom:1px solid var(--g100)"><span class="badge '+(s.absent>0?'ba':'bp')+'">'+s.absent+'</span></td>'+
-            '<td style="padding:8px 12px;border-bottom:1px solid var(--g100)"><span class="badge '+(s.late>0?'bl':'bp')+'">'+s.late+'</span></td>'+
-            '<td style="padding:8px 12px;border-bottom:1px solid var(--g100)">'+hwBadge+'</td>'+
-            '<td style="padding:8px 12px;border-bottom:1px solid var(--g100)">'+(s.tuitionPaid?'<span class="badge bpaid">✓ Paid</span>':'<span class="badge bunpaid">Unpaid</span>')+'</td>'+
-            '<td style="padding:8px 12px;border-bottom:1px solid var(--g100)">'+(s.diligent?'<span class="badge bstar">⭐</span>':'—')+'</td>'+
-          '</tr>';
-        }).join('')+'</tbody></table></div></div>';
+      '<div class="acc-b" '+(isExpanded?'style="display:block"':'')+' id="dil-body-'+mo.month+'">'+
+        (cached?renderDiligenceMonthHTML(classId,cached):'<div style="padding:20px;text-align:center;color:var(--g400);font-size:13px" id="dil-loading-'+mo.month+'">⏳ Loading…</div>')+
+      '</div>'+
+    '</div>';
   }).join('')||'<p style="padding:40px;text-align:center;color:var(--g400)">No data yet.</p>';
+}
+
+async function toggleDiligenceMonth(classId, month){
+  if(!_diligenceExpandedMonths[classId]) _diligenceExpandedMonths[classId]=new Set();
+  var expanded=_diligenceExpandedMonths[classId];
+  var body=document.getElementById('dil-body-'+month);
+  var acc=document.getElementById('dil-acc-'+month);
+  if(!body)return;
+  if(expanded.has(month)){
+    expanded.delete(month);
+    body.style.display='none';
+    var arrow=acc.querySelector('.acc-h span:last-child');
+    if(arrow)arrow.style.transform='rotate(0deg)';
+  } else {
+    expanded.add(month);
+    body.style.display='block';
+    var arrow2=acc.querySelector('.acc-h span:last-child');
+    if(arrow2)arrow2.style.transform='rotate(90deg)';
+    // Load data if not cached
+    var cacheKey=classId+'_'+month;
+    if(!_diligenceMonthDataCache[cacheKey]) await loadDiligenceMonth(classId,month);
+  }
+}
+
+async function loadDiligenceMonth(classId, month){
+  var cacheKey=classId+'_'+month;
+  if(_diligenceMonthDataCache[cacheKey]){
+    var body=document.getElementById('dil-body-'+month);
+    if(body) body.innerHTML=renderDiligenceMonthHTML(classId,_diligenceMonthDataCache[cacheKey]);
+    return;
+  }
+  try{
+    var r=await api('getRewardsMonth',{classId:classId,month:month});
+    if(!r.success){
+      var body2=document.getElementById('dil-body-'+month);
+      if(body2) body2.innerHTML='<p style="color:var(--red);padding:16px">Error: '+r.message+'</p>';
+      return;
+    }
+    _diligenceMonthDataCache[cacheKey]=r;
+    var body3=document.getElementById('dil-body-'+month);
+    if(body3) body3.innerHTML=renderDiligenceMonthHTML(classId,r);
+    // Refresh accordion header (show winner name)
+    renderDiligenceMonthList(classId);
+    // Re-expand the one we just loaded (renderDiligenceMonthList collapses all)
+    var b=document.getElementById('dil-body-'+month);
+    if(b) b.style.display='block';
+  }catch(e){
+    var body4=document.getElementById('dil-body-'+month);
+    if(body4) body4.innerHTML='<p style="color:var(--red);padding:16px">Connection error</p>';
+  }
+}
+
+function renderDiligenceMonthHTML(classId,mo){
+  var sessCount=mo.dates?mo.dates.length:0;
+  var students=mo.students||[];
+  students.forEach(function(s){
+    s.diligent=s.absent===0&&s.late===0&&s.tuitionPaid&&s.hwDue>0&&s.hwDone>=s.hwDue;
+  });
+  var eligible=students.filter(function(s){return s.diligent;});
+  var sorted=[].concat(students).sort(function(a,b){
+    if(a.diligent!==b.diligent)return a.diligent?-1:1;
+    return b.present-a.present;
+  });
+  return '<div class="rcard-wrap">'+
+      (eligible[0]?'<div class="rcard rcard-gold"><div class="rcard-lbl">🏆 Most Diligent #1</div><div class="rcard-name">'+eligible[0].name+'</div><div class="rcard-sub">'+eligible[0].present+'P · 0L · 0A · HW '+eligible[0].hwDone+'/'+eligible[0].hwDue+' · Paid</div></div>':'')+
+      (eligible[1]?'<div class="rcard rcard-silver"><div class="rcard-lbl">🥈 Most Diligent #2</div><div class="rcard-name">'+eligible[1].name+'</div><div class="rcard-sub">'+eligible[1].present+'P · 0L · 0A · HW '+eligible[1].hwDone+'/'+eligible[1].hwDue+' · Paid</div></div>':'')+
+    '</div>'+
+    '<div style="padding:8px 18px 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">'+
+      '<span style="font-size:11px;color:var(--g400)">'+sessCount+' sessions · '+eligible.length+' eligible · HW per month: '+((students[0]&&students[0].hwDue)||0)+'</span>'+
+      (eligible.length>0?'<a href="random.html?class='+encodeURIComponent(classId)+'&month='+mo.month+'" target="_blank" class="btn btn-r btn-sm" style="text-decoration:none">🎰 Random Draw ('+eligible.length+')</a>':'')+
+    '</div>'+
+    '<div class="tw"><table>'+
+      '<thead><tr><th>Student</th><th>Present</th><th>Absent</th><th>Late</th><th>HW Done</th><th>HW Due</th><th>Tuition</th><th>Diligent?</th></tr></thead>'+
+      '<tbody>'+sorted.map(function(s){
+        var hwBadge=s.hwDue>0
+          ?'<span class="badge '+(s.hwDone>=s.hwDue?'bp':'ba')+'">'+s.hwDone+'</span>'
+          :'<span style="color:var(--g400)">—</span>';
+        return '<tr>'+
+          '<td style="padding:8px 12px;border-bottom:1px solid var(--g100)"><strong>'+s.name+'</strong></td>'+
+          '<td style="padding:8px 12px;border-bottom:1px solid var(--g100)"><span class="badge bp">'+s.present+'</span></td>'+
+          '<td style="padding:8px 12px;border-bottom:1px solid var(--g100)"><span class="badge '+(s.absent>0?'ba':'bp')+'">'+s.absent+'</span></td>'+
+          '<td style="padding:8px 12px;border-bottom:1px solid var(--g100)"><span class="badge '+(s.late>0?'bl':'bp')+'">'+s.late+'</span></td>'+
+          '<td style="padding:8px 12px;border-bottom:1px solid var(--g100)">'+hwBadge+'</td>'+
+          '<td style="padding:8px 12px;border-bottom:1px solid var(--g100);color:var(--g600)">'+s.hwDue+'</td>'+
+          '<td style="padding:8px 12px;border-bottom:1px solid var(--g100)">'+(s.tuitionPaid?'<span class="badge bpaid">✓ Paid</span>':'<span class="badge bunpaid">Unpaid</span>')+'</td>'+
+          '<td style="padding:8px 12px;border-bottom:1px solid var(--g100)">'+(s.diligent?'<span class="badge bstar">⭐</span>':'—')+'</td>'+
+        '</tr>';
+      }).join('')+'</tbody></table></div>';
 }
 
 // ─── Random Spin
