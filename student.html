@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
+
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="IELTS Hub"/>
+<meta name="theme-color" content="#E01A22"/>
+<link rel="apple-touch-icon" href="icons/icon-192.png"/>
+<link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152.png"/>
+<link rel="apple-touch-icon" sizes="144x144" href="icons/icon-144.png"/>
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png"/>
+<title>IELTS Hub — Student</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root{--red:#E01A22;--red-dark:#b01018;--rlight:#ff3a42;--white:#fff;--off:#f8f7f5;--g100:#f1f0ee;--g200:#e2e0dc;--g400:#9d9b96;--g600:#5c5a56;--g900:#1a1916;--sw:240px;--sh:0 2px 12px rgba(0,0,0,.08);--shm:0 4px 24px rgba(0,0,0,.12);}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--off);color:var(--g900);}
+.layout{display:flex;min-height:100vh;}
+.sidebar{width:var(--sw);background:#1a1916;color:white;display:flex;flex-direction:column;position:fixed;inset:0 auto 0 0;z-index:40;}
+.sb-header{padding:24px 20px 16px;border-bottom:1px solid rgba(255,255,255,.08);}
+.brand{display:flex;align-items:center;gap:10px;}
+.brand-icon{width:36px;height:36px;background:var(--red);border-radius:7px;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:18px;font-weight:900;}
+.brand-name{font-family:'Playfair Display',serif;font-size:17px;font-weight:700;}
+.brand-name span{color:#ff3a42;}
+.user-info{padding:16px 20px;border-bottom:1px solid rgba(255,255,255,.08);}
+.user-av{width:40px;height:40px;background:var(--red);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;margin-bottom:10px;}
+.user-name{font-size:14px;font-weight:600;}
+.user-class{font-size:11px;color:rgba(255,255,255,.4);margin-top:2px;}
+.nav{flex:1;padding:12px 10px;overflow-y:auto;}
+.nav-lbl{font-size:9px;letter-spacing:1.5px;color:rgba(255,255,255,.3);font-weight:600;padding:0 10px;margin:14px 0 6px;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px;border-radius:9px;cursor:pointer;color:rgba(255,255,255,.5);font-size:13px;font-weight:500;transition:all .2s;margin-bottom:2px;}
+.nav-item:hover{background:rgba(255,255,255,.07);color:white;}
+.nav-item.active{background:var(--red);color:white;}
+.sb-footer{padding:12px 10px;border-top:1px solid rgba(255,255,255,.08);}
+.btn-logout{display:flex;align-items:center;gap:8px;width:100%;padding:10px;border:none;background:transparent;color:rgba(255,255,255,.4);cursor:pointer;border-radius:9px;font-family:'DM Sans',sans-serif;font-size:13px;transition:all .2s;}
+.btn-logout:hover{background:rgba(224,26,34,.15);color:#ff3a42;}
+.main{margin-left:var(--sw);flex:1;display:flex;flex-direction:column;}
+.topbar{background:white;border-bottom:1px solid var(--g200);padding:16px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:30;}
+.page-title{font-family:'Playfair Display',serif;font-size:20px;font-weight:700;}
+.content{padding:28px;flex:1;}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px;}
+.stat-card{background:white;border-radius:14px;padding:20px;box-shadow:var(--sh);}
+.stat-icon{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:12px;}
+.si-red{background:rgba(224,26,34,.1);}.si-green{background:rgba(34,197,94,.1);}.si-blue{background:rgba(59,130,246,.1);}.si-orange{background:rgba(249,115,22,.1);}
+.stat-val{font-family:'Playfair Display',serif;font-size:28px;font-weight:700;line-height:1;}
+.stat-lbl{font-size:12px;color:var(--g400);margin-top:4px;}
+.stat-sub{font-size:11px;margin-top:6px;font-weight:500;}
+.good{color:#22c55e;}.warn{color:#f97316;}.bad{color:var(--red);}
+.cal-card{background:white;border-radius:14px;box-shadow:var(--sh);overflow:hidden;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--g100);}
+.cal-dh{background:white;padding:10px 6px;text-align:center;font-size:10px;font-weight:600;color:var(--g400);letter-spacing:.5px;}
+.cal-day{background:white;padding:8px;min-height:90px;transition:background .15s;}
+.cal-day:hover{background:rgba(224,26,34,.03);}
+.cal-day.other .dn{color:var(--g200);}
+.dn{font-size:13px;font-weight:500;margin-bottom:4px;}
+.today-dot{width:26px;height:26px;background:var(--red);color:white;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;}
+.ev{font-size:12px;padding:3px 6px;border-radius:5px;margin-bottom:2px;white-space:normal;line-height:1.4;word-break:break-word;}
+.ev-present{background:#dcfce7;color:#166534;}.ev-absent{background:#fee2e2;color:#991b1b;}.ev-late{background:#fef9c3;color:#854d0e;}.ev-class{background:#dbeafe;color:#1e40af;}
+/* List view */
+.list-row{display:flex;align-items:flex-start;gap:0;border-bottom:1px solid var(--g100);}
+.list-row:last-child{border-bottom:none;}
+.list-date{min-width:110px;padding:14px 16px;font-size:13px;font-weight:600;flex-shrink:0;border-right:1px solid var(--g100);}
+.list-date .ldate-day{font-size:11px;color:var(--g400);}
+.list-content{padding:12px 16px;flex:1;}
+.list-skill{display:inline-block;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:700;margin-right:6px;margin-bottom:4px;}
+.list-lesson{font-size:13px;color:var(--g900);line-height:1.5;}
+.list-status{padding:12px 16px;flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:4px;}
+/* View toggle */
+.view-toggle{display:flex;background:var(--g100);border-radius:8px;padding:3px;gap:2px;}
+.vt-btn{padding:6px 12px;border:none;background:transparent;border-radius:6px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;color:var(--g400);transition:all .2s;}
+.vt-btn.active{background:white;color:var(--g900);box-shadow:0 1px 4px rgba(0,0,0,.1);}
+.hw-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;}
+.hw-card{background:white;border-radius:12px;padding:18px;box-shadow:var(--sh);border-left:4px solid transparent;}
+.hw-card.W{border-left-color:#f97316;}.hw-card.L{border-left-color:#3b82f6;}.hw-card.S{border-left-color:#8b5cf6;}.hw-card.V{border-left-color:#22c55e;}
+.hw-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
+.hw-badge{padding:3px 9px;border-radius:6px;font-size:10px;font-weight:700;}
+.hb-W{background:#ffedd5;color:#7c2d12;}.hb-L{background:#dbeafe;color:#1e40af;}.hb-S{background:#ede9fe;color:#4c1d95;}.hb-V{background:#dcfce7;color:#166534;}
+.hw-countdown{font-size:12px;font-weight:700;}
+.hw-content{font-size:13px;color:var(--g900);margin-bottom:6px;line-height:1.5;}
+.hw-deadline{font-size:11px;color:var(--g400);}
+.tuition-card{background:white;border-radius:14px;padding:24px;box-shadow:var(--sh);}
+.progress-track{background:var(--g100);border-radius:99px;height:10px;overflow:hidden;margin:10px 0;}
+.progress-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--red),var(--rlight));transition:width .8s ease;}
+.session-dots{display:flex;gap:5px;flex-wrap:wrap;margin-top:14px;}
+.sd{width:34px;height:34px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;}
+.sd.done{background:var(--red);color:white;}.sd.absent{background:#fee2e2;color:#991b1b;}.sd.rem{background:var(--g100);color:var(--g400);}
+.part-card{background:white;border-radius:14px;box-shadow:var(--sh);overflow:hidden;}
+.acc-item{border-bottom:1px solid var(--g100);}.acc-item:last-child{border-bottom:none;}
+.acc-header{padding:16px 20px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:background .15s;}
+.acc-header:hover{background:var(--g100);}
+.acc-title{font-size:14px;font-weight:600;}
+.acc-meta{display:flex;align-items:center;gap:14px;}
+.acc-avg{font-size:12px;color:var(--g400);}
+.acc-avg span{font-weight:700;color:var(--g900);}
+.acc-arrow{transition:transform .3s;font-size:11px;color:var(--g400);}
+.acc-item.open .acc-arrow{transform:rotate(180deg);}
+.acc-body{display:none;padding:0 20px 16px;}
+.acc-item.open .acc-body{display:block;}
+table.pt{width:100%;border-collapse:collapse;font-size:13px;}
+table.pt th{text-align:left;padding:7px 0;font-size:11px;font-weight:600;color:var(--g400);border-bottom:1px solid var(--g100);}
+table.pt td{padding:9px 0;border-bottom:1px solid var(--g100);}
+table.pt tr:last-child td{border-bottom:none;}
+.sc-badge{display:inline-block;padding:3px 9px;border-radius:6px;font-size:11px;font-weight:700;}
+.sc-h{background:#dcfce7;color:#166534;}.sc-m{background:#fef9c3;color:#854d0e;}.sc-l{background:#fee2e2;color:#991b1b;}
+.section{display:none;}.section.active{display:block;}
+.loading{display:none;position:fixed;inset:0;background:rgba(248,247,245,.85);z-index:999;align-items:center;justify-content:center;flex-direction:column;gap:12px;}
+.loading.show{display:flex;}
+.lspin{width:36px;height:36px;border:3px solid var(--g200);border-top-color:var(--red);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media(max-width:1100px){.stats-grid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:900px){.main{margin-left:0;}.sidebar{display:none;}.content{padding:14px;}}
+@media(max-width:600px){.stats-grid{grid-template-columns:1fr;}}
+
+/* MOBILE */
+@media(max-width:768px){
+  .main{margin-left:0;}.sidebar{display:none;}
+  .content{padding:10px 10px 80px;}
+  .topbar{padding:10px 14px;}
+  .page-title{font-size:16px;}
+  .stats-grid{grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px;}
+  .stat-card{padding:14px;}
+  .stat-val{font-size:22px;}
+  .stat-icon{width:30px;height:30px;font-size:14px;margin-bottom:8px;}
+  .cal-day{min-height:52px;padding:4px;}
+  .dn{font-size:11px;}
+  .today-dot{width:20px;height:20px;font-size:11px;}
+  .ev{font-size:10px;padding:2px 4px;}
+  .cal-dh{padding:6px 2px;font-size:9px;}
+  .list-date{min-width:76px;padding:10px;}
+  .list-content{padding:10px;}
+  .list-status{padding:10px;}
+  .hw-grid{grid-template-columns:1fr;}
+  .hw-card{padding:14px;}
+  .tuition-card{padding:16px;}
+  .sd{width:28px;height:28px;font-size:9px;}
+  .vt-btn{padding:5px 8px;font-size:11px;}
+}
+
+/* BOTTOM NAV */
+.mob-nav{
+  display:none;position:fixed;bottom:0;left:0;right:0;z-index:50;
+  background:#1a1916;padding:6px 0 env(safe-area-inset-bottom,6px);
+  border-top:1px solid rgba(255,255,255,.1);
+}
+.mob-nav-inner{display:flex;justify-content:space-around;align-items:center;}
+.mnb{
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+  background:none;border:none;cursor:pointer;
+  color:rgba(255,255,255,.4);padding:4px 6px;min-width:52px;
+  font-family:'DM Sans',sans-serif;transition:color .18s;
+}
+.mnb.active{color:white;}
+.mnb .mi{font-size:20px;line-height:1;}
+.mnb .ml{font-size:9px;font-weight:600;}
+@media(max-width:768px){.mob-nav{display:block;}}
+
+/* Google Material Light */
+:root{--primary:#4285F4;--primary-dk:#1a73e8;--primary-tint:#e8f0fe;--g-red:#EA4335;--g-green:#34A853;--g-yellow:#FBBC05;--surface:#fff;--bg:#f1f3f4;--border:#dadce0;--on-bg:#202124;--on-sub:#5f6368;}
+body{background:var(--bg)!important;}
+.sidebar{background:var(--surface)!important;border-right:1px solid var(--border);}
+.sb-header{border-bottom:1px solid var(--border)!important;}
+.brand-name{color:var(--on-bg)!important;}.brand-name span{color:var(--primary)!important;}
+.user-name{color:var(--on-bg)!important;}.user-class{color:var(--on-sub)!important;}
+.nav-lbl{color:var(--on-sub)!important;}
+.nav-item{color:var(--on-sub)!important;}
+.nav-item:hover{background:var(--bg)!important;color:var(--on-bg)!important;}
+.nav-item.active{background:var(--primary-tint)!important;color:var(--primary)!important;font-weight:700;}
+.sb-footer{border-top:1px solid var(--border)!important;}
+.btn-logout{color:var(--on-sub)!important;}
+.btn-logout:hover{background:var(--primary-tint)!important;color:var(--primary)!important;}
+.topbar{background:var(--surface)!important;border-bottom:1px solid var(--border)!important;box-shadow:0 1px 2px rgba(60,64,67,.1);}
+.mob-nav{background:var(--surface)!important;border-top:1px solid var(--border)!important;}
+.mnb{color:var(--on-sub)!important;}.mnb.active{color:var(--primary)!important;}
+</style>
+</head>
+<body>
+<div class="loading" id="loading">
+  <div class="lspin"></div>
+  <p style="font-size:13px;color:var(--g400)">Loading your data…</p>
+</div>
+
+<div class="layout">
+<aside class="sidebar">
+  <div class="sb-header">
+    <div class="brand"><div class="brand-icon">I</div><div class="brand-name"><span style="color:#4285F4">E</span><span style="color:#EA4335">d</span><span style="color:#FBBC05">u</span><span style="color:#34A853">Portal</span></div></div>
+  </div>
+  <div class="user-info">
+    <div class="user-av" id="uAvatar">?</div>
+    <div class="user-name" id="uName">Loading…</div>
+    <div class="user-class" id="uClass">—</div>
+    <div id="uStudentId" style="display:none;background:rgba(255,255,255,.12);color:white;font-size:10px;font-weight:700;padding:2px 8px;border-radius:5px;margin-top:4px;font-family:monospace;letter-spacing:.5px;"></div>
+  </div>
+  <nav class="nav">
+    <div class="nav-lbl">LEARNING</div>
+    <div class="nav-item active" onclick="nav('schedule')"><span>📅</span>Schedule</div>
+    <div class="nav-item" onclick="nav('homework')"><span>📝</span>Homework</div>
+    <div class="nav-lbl">PROGRESS</div>
+    <div class="nav-item" onclick="nav('tuition')"><span>💳</span>Tuition</div>
+    <div class="nav-item" onclick="nav('participation')"><span>⭐</span>Participation</div>
+  </nav>
+  <div class="sb-footer">
+    <button class="btn-logout" onclick="nav('settings')" style="color:var(--on-sub);">⚙️ Settings</button>
+    <button class="btn-logout" onclick="doLogout()">🚪 Sign Out</button>
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <div class="page-title" id="pageTitle">Schedule</div>
+    <div id="notifWrap" style="display:none">
+      <span style="background:var(--red);color:white;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600">⚠ Attendance Warning</span>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon si-red">📚</div>
+        <div class="stat-val" id="sSessions">–</div>
+        <div class="stat-lbl">Total Sessions</div>
+        <div class="stat-sub warn" id="sMonths">–</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon si-green">✅</div>
+        <div class="stat-val" id="sPresent">–</div>
+        <div class="stat-lbl">Present</div>
+        <div class="stat-sub bad" id="sAbsent">–</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon si-orange">📋</div>
+        <div class="stat-val" id="sHW">–</div>
+        <div class="stat-lbl">Upcoming Homework</div>
+        <div class="stat-sub warn" id="sHWsub">–</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon si-blue">⭐</div>
+        <div class="stat-val" id="sScore">–</div>
+        <div class="stat-lbl">Avg Participation</div>
+        <div class="stat-sub good">This month</div>
+      </div>
+    </div>
+
+    <!-- SCHEDULE -->
+    <div id="section-schedule" class="section active">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+        <div style="font-family:'Playfair Display',serif;font-size:18px;font-weight:700;">Class Schedule</div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div class="view-toggle">
+            <button class="vt-btn active" id="btnCalView" onclick="setScheduleView('cal')">📅 Calendar</button>
+            <button class="vt-btn" id="btnListView" onclick="setScheduleView('list')">📋 List</button>
+          </div>
+          <div id="calNavWrap" style="display:flex;align-items:center;gap:8px;">
+            <button onclick="changeMonth(-1)" style="width:30px;height:30px;border:1px solid var(--g200);background:white;border-radius:7px;cursor:pointer;font-size:13px;">‹</button>
+            <div style="font-family:'Playfair Display',serif;font-size:17px;font-weight:700;min-width:140px;text-align:center" id="calMonth">—</div>
+            <button onclick="changeMonth(1)" style="width:30px;height:30px;border:1px solid var(--g200);background:white;border-radius:7px;cursor:pointer;font-size:13px;">›</button>
+          </div>
+        </div>
+      </div>
+      <div class="cal-card"><div id="calGrid"></div></div>
+    </div>
+
+    <!-- HOMEWORK -->
+    <div id="section-homework" class="section">
+      <div style="font-size:18px;font-weight:700;margin-bottom:16px;">Pending Homework</div>
+      <div class="hw-grid" id="hwGrid"><p style="color:var(--g400);font-size:13px;">No pending homework.</p></div>
+      <div id="overdueSection" style="margin-top:28px;display:none;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+          <div style="flex:1;height:1px;background:var(--g200)"></div>
+          <button onclick="toggleOverdue()" style="display:inline-flex;align-items:center;gap:7px;background:#202124;color:white;font-size:13px;font-weight:700;padding:6px 14px;border-radius:20px;border:none;cursor:pointer">
+            <span id="overdueTitle">Past homework</span><span id="overdueChevron" style="font-size:10px;transition:transform .25s">▼</span>
+          </button>
+          <div style="flex:1;height:1px;background:var(--g200)"></div>
+        </div>
+        <div id="overdueBody"><div class="hw-grid" id="hwGridOverdue"></div></div>
+      </div>
+    </div>
+
+    <!-- TUITION -->
+    <div id="section-tuition" class="section">
+      <div style="font-family:'Playfair Display',serif;font-size:18px;font-weight:700;margin-bottom:16px;">Tuition Tracker</div>
+      <div class="tuition-card" id="tuitionContent"><p style="color:var(--g400)">Loading…</p></div>
+    </div>
+
+    <!-- PARTICIPATION -->
+    <div id="section-participation" class="section">
+      <div style="display:flex;gap:20px;margin-bottom:24px;flex-wrap:wrap;">
+        <!-- My scores accordion -->
+        <div style="flex:1;min-width:300px;">
+          <div style="font-family:'Playfair Display',serif;font-size:18px;font-weight:700;margin-bottom:16px;">My Participation Scores</div>
+          <div class="part-card" id="partCard"><p style="padding:40px;text-align:center;color:var(--g400)">Loading…</p></div>
+        </div>
+        <!-- Class ranking -->
+        <div style="flex:1;min-width:280px;">
+          <div style="font-family:'Playfair Display',serif;font-size:18px;font-weight:700;margin-bottom:16px;">Class Ranking</div>
+          <div style="background:white;border-radius:14px;box-shadow:var(--sh);overflow:hidden;" id="rankingCard">
+            <p style="padding:40px;text-align:center;color:var(--g400)">Loading…</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- SETTINGS -->
+    <div id="section-settings" class="section">
+      <div style="font-family:'Playfair Display',serif;font-size:18px;font-weight:700;margin-bottom:20px;">Account Settings</div>
+      <div style="background:white;border-radius:14px;padding:28px;box-shadow:var(--sh);max-width:480px;">
+        <div style="display:flex;align-items:center;gap:14px;padding-bottom:20px;border-bottom:1px solid var(--g100);margin-bottom:20px;">
+          <div id="settingsAvatar" style="width:52px;height:52px;background:var(--red);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:white;flex-shrink:0">?</div>
+          <div>
+            <div id="settingsName" style="font-size:16px;font-weight:600;">—</div>
+            <div id="settingsEmail" style="font-size:12px;color:var(--g400);margin-top:2px;">—</div>
+            <div id="settingsClass" style="font-size:12px;color:var(--g400);margin-top:1px;">—</div>
+          </div>
+        </div>
+        <div style="font-size:14px;font-weight:600;margin-bottom:16px;">Change Password</div>
+        <div id="pwAlert" style="display:none;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:14px;"></div>
+        <div style="margin-bottom:14px;">
+          <label style="display:block;font-size:12px;font-weight:600;color:var(--g600);margin-bottom:6px;">Current Password</label>
+          <input type="password" id="pwCurrent" placeholder="Enter current password" style="width:100%;padding:11px 14px;border:2px solid var(--g200);border-radius:9px;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:border-color .2s;" onfocus="this.style.borderColor='var(--red)'" onblur="this.style.borderColor='var(--g200)'"/>
+        </div>
+        <div style="margin-bottom:14px;">
+          <label style="display:block;font-size:12px;font-weight:600;color:var(--g600);margin-bottom:6px;">New Password</label>
+          <input type="password" id="pwNew" placeholder="Min 6 characters" style="width:100%;padding:11px 14px;border:2px solid var(--g200);border-radius:9px;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:border-color .2s;" onfocus="this.style.borderColor='var(--red)'" onblur="this.style.borderColor='var(--g200)'"/>
+        </div>
+        <div style="margin-bottom:20px;">
+          <label style="display:block;font-size:12px;font-weight:600;color:var(--g600);margin-bottom:6px;">Confirm New Password</label>
+          <input type="password" id="pwConfirm" placeholder="Repeat new password" style="width:100%;padding:11px 14px;border:2px solid var(--g200);border-radius:9px;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:border-color .2s;" onfocus="this.style.borderColor='var(--red)'" onblur="this.style.borderColor='var(--g200)'"/>
+        </div>
+        <button onclick="changePassword()" style="width:100%;padding:13px;border:none;border-radius:9px;background:var(--red);color:white;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:background .2s;" onmouseover="this.style.background='var(--red-dark)'" onmouseout="this.style.background='var(--red)'">
+          Update Password
+        </button>
+      </div>
+    </div>
+
+  </div>
+</main>
+</div>
+
+<script data-cfasync="false">
+const GAS = 'https://script.google.com/macros/s/AKfycbw8nmCHNITHKB8sdt6ysWLBs3C2uRZQL-eM1O61r9oU1UoB4lax5hMmqxv3GBdFdeOK/exec';
+const sess = JSON.parse(localStorage.getItem('userSession')||'null');
+if (!sess || sess.Role === 'Teacher') { location.href = 'index.html'; }
+
+if (sess && sess.Role !== 'Teacher') {
+
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+let curDate = new Date();
+let sd = null;
+
+document.getElementById('uName').textContent = sess.FullName || '—';
+document.getElementById('uClass').textContent = 'Class: ' + (sess.Class || '—');
+document.getElementById('uAvatar').textContent = (sess.FullName||'S')[0].toUpperCase();
+// Show student ID if available
+if (sess.StudentID) {
+  var idEl = document.getElementById('uStudentId');
+  if (idEl) { idEl.textContent = sess.StudentID; idEl.style.display='inline'; }
+}
+
+async function api(action, data={}, _retry=false) {
+  try {
+    const res = await fetch(GAS, { method:'POST', redirect:'follow', body: JSON.stringify({action,...data}) });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return await res.json();
+  } catch(e) {
+    if (!_retry) {
+      await new Promise(r => setTimeout(r, 2000));
+      return api(action, data, true);
+    }
+    throw e;
+  }
+}
+
+async function init() {
+  document.getElementById('loading').classList.add('show');
+  try {
+    const r = await api('getStudentData', { studentEmail: sess.Email, classId: sess.Class });
+    if (r.success) {
+      sd = r;
+      // Auto-navigate to month containing first upcoming session (or first session)
+      const allSessions = (r.sessions||[]).filter(s=>s.date);
+      if (allSessions.length) {
+        // Find first upcoming session >= today
+        const todayStr = new Date().toISOString().split('T')[0];
+        const upcoming = allSessions.find(s=>s.date>=todayStr) || allSessions[0];
+        if (upcoming && upcoming.date) {
+          const d = new Date(upcoming.date);
+          if (!isNaN(d)) curDate = new Date(d.getFullYear(), d.getMonth(), 1);
+        }
+      }
+      renderStats(); renderCalendar(); renderHomework(); renderTuition(); renderParticipation(); loadRanking();
+    } else console.error(r.message);
+  } catch(e) { console.error(e); }
+  document.getElementById('loading').classList.remove('show');
+}
+
+function renderStats() {
+  // att = only sessions that have been attended (status not null)
+  const att = (sd.attendance || []).filter(a=>a.status!==null);
+  const present = att.filter(a=>a.status==='Present').length;
+  const absent  = att.filter(a=>a.status==='Absent').length;
+  const total   = att.length; // real attended sessions only
+  const hw = (sd.homework||[]).filter(h=>h.daysLeft>=0);
+  const monthAtt = att.slice((sd.tuition.monthsUsed||0)*8);
+  const scored = monthAtt.filter(a=>a.score>0);
+  const avg = scored.length ? (scored.reduce((s,x)=>s+x.score,0)/scored.length).toFixed(1) : '–';
+
+  document.getElementById('sSessions').textContent = total;
+  document.getElementById('sMonths').textContent = `Month ${(sd.tuition.monthsUsed||0)+1} — ${sd.tuition.sessInCycle||0}/8 sessions`;
+  document.getElementById('sPresent').textContent = present;
+  document.getElementById('sAbsent').textContent = absent + ' absence(s)';
+  document.getElementById('sHW').textContent = hw.length;
+  document.getElementById('sHWsub').textContent = hw.filter(h=>h.daysLeft<=1).length + ' expiring soon';
+  document.getElementById('sScore').textContent = avg;
+  if (absent >= 3) document.getElementById('notifWrap').style.display = '';
+}
+
+function renderCalendar() {
+  const y = curDate.getFullYear(), m = curDate.getMonth();
+  document.getElementById('calMonth').textContent = MONTHS[m] + ' ' + y;
+  const firstDay = new Date(y,m,1).getDay();
+  const daysInMonth = new Date(y,m+1,0).getDate();
+  const today = new Date();
+  const att = sd ? sd.attendance : [];
+  const sessions = sd ? sd.sessions : [];
+
+  let html = '<div class="cal-grid">';
+  DAYS.forEach(d => html += `<div class="cal-dh">${d}</div>`);
+  const prev = new Date(y,m,0).getDate();
+  for (let i=firstDay-1;i>=0;i--) html+=`<div class="cal-day other"><div class="dn">${prev-i}</div></div>`;
+
+  for (let day=1;day<=daysInMonth;day++) {
+    const ds = `${y}-${String(m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const isToday = today.getDate()===day&&today.getMonth()===m&&today.getFullYear()===y;
+    const a = att.find(x=>x.date===ds);
+    const s = sessions.find(x=>x.date===ds);
+    let events = '';
+    if (s) {
+      const skillLabel = s.skill ? `<span style="font-weight:700">${s.skill}</span> · ` : '';
+      events += `<div class="ev ev-class">📘 ${skillLabel}${s.content||''}</div>`;
+    }
+    if (a && a.status) {
+      const label = a.status==='Present'?'✓ Present':a.status==='Absent'?'✗ Absent':'⏱ Late';
+      events += `<div class="ev ev-${a.status.toLowerCase()}">${label}${a.score>0?' · '+a.score+'pts':''}</div>`;
+    }
+    html += `<div class="cal-day"><div class="dn">${isToday?`<span class="today-dot">${day}</span>`:day}</div>${events}</div>`;
+  }
+  const extra = (7-(firstDay+daysInMonth)%7)%7;
+  for (let i=1;i<=extra;i++) html+=`<div class="cal-day other"><div class="dn">${i}</div></div>`;
+  html += '</div>';
+  document.getElementById('calGrid').innerHTML = html;
+}
+
+function renderHomework() {
+  var all=sd.homework||[];
+  var hw=all.filter(function(h){return h.daysLeft>=0;});
+  var hwOv=all.filter(function(h){return h.daysLeft<0;});
+  hw.sort(function(a,b){return(a.deadline||'')>(b.deadline||'')?1:-1;});
+  hwOv.sort(function(a,b){return(a.deadline||'')<(b.deadline||'')?1:-1;});
+  var ovSec=document.getElementById('overdueSection');
+  if(hwOv.length){ovSec.style.display='';document.getElementById('overdueTitle').textContent='Past homework ('+hwOv.length+')';}
+  else{ovSec.style.display='none';}
+  if(!hw.length)document.getElementById('hwGrid').innerHTML='<p style="color:var(--g400);font-size:13px;grid-column:1/-1;padding:40px;text-align:center;">No pending homework!</p>';
+  var tN={W:'Writing',L:'Listening',S:'Speaking',V:'Vocab',R:'Reading',G:'Grammar'};
+  var dN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  var sCfg={Done:{bg:'#dcfce7',color:'#166534',icon:'Done'},Late:{bg:'#fef9c3',color:'#854d0e',icon:'Late'},Partial:{bg:'#dbeafe',color:'#1e40af',icon:'Partial'},Undone:{bg:'#fee2e2',color:'#991b1b',icon:'Undone'}};
+  function mkCard(h){
+    var d=h.daysLeft,st=h.status||'Undone',cfg=sCfg[st]||sCfg.Undone;
+    var ct=d===0?'Due today!':d===1?'1 day left':(d>0?d+' days left':'Overdue');
+    var badge=(st!=='Undone'||d<0)?'<div style="display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:6px;font-size:11px;font-weight:700;background:'+cfg.bg+';color:'+cfg.color+';margin-top:8px">'+cfg.icon+'</div>':'';
+    var ddsp=h.deadline||'--';
+    if(h.deadline&&h.deadline.length===10){var dd=new Date(h.deadline+'T00:00:00');ddsp=dN[dd.getDay()]+', '+fmtDFull(h.deadline);}
+    var ch=(h.content||'--').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+    return '<div class="hw-card '+(h.type||'W')+'" style="'+(st==='Done'?'opacity:.65;border-left-color:#ccc':'')+(d<0&&st!=='Done'?';border-left-color:#dc2626;background:linear-gradient(135deg,#fff1f1 0%,white 70%)':'')+'">'
+      +'<div class="hw-top">'
+        +'<span class="hw-badge hb-'+(h.type||'W')+'">'+(tN[h.type]||h.type)+'</span>'
+        +(h.isExtra?'<span style="font-size:10px;background:#fef9c3;color:#854d0e;border-radius:5px;padding:2px 7px;font-weight:700">Extra</span>':'')
+        +'<span class="hw-countdown '+(d<0&&st!=='Done'?'bad':d<=1&&st!=='Done'?'warn':'good')+'">'+(st==='Done'?'Done':ct)+'</span>'
+      +'</div>'
+      +'<div class="hw-content" style="white-space:pre-wrap;word-break:break-word">'+ch+'</div>'
+      +'<div class="hw-deadline">Deadline: '+ddsp+'</div>'
+      +badge+'</div>';
+  }
+  if(hw.length)document.getElementById('hwGrid').innerHTML=hw.map(mkCard).join('');
+  if(hwOv.length)document.getElementById('hwGridOverdue').innerHTML=hwOv.map(mkCard).join('');
+}
+function toggleOverdue(){
+  var b=document.getElementById('overdueBody'),c=document.getElementById('overdueChevron');
+  var h=b.style.display==='none';b.style.display=h?'':'none';c.style.transform=h?'':'rotate(-90deg)';
+}
+
+function renderTuition() {
+  const t = sd.tuition || {};
+  const total = t.total||0, monthsUsed = t.monthsUsed||0, sessInCycle = t.sessInCycle||0;
+  const pct = Math.round((sessInCycle/8)*100);
+  const payments = t.payments || {}; // { "1":{date,note}, "2":{date,note} }
+  // Only count non-Day-0 sessions with real attendance
+  const att = (sd.attendance||[]).filter(a=>a.status && a.dayLabel && a.dayLabel.toLowerCase().replace(/ /g,'').replace('day','')!=='0');
+  const allSessions = sd.sessions||[];
+  const schedSessions = allSessions.filter(s=>s.dayLabel && s.dayLabel.toLowerCase().replace(/ /g,'').replace('day','')!=='0' && s.date);
+
+  // Show all scheduled months (not just attended ones)
+  const totalScheduledMonths = t.totalScheduledMonths || Math.max(monthsUsed+1, Math.ceil(schedSessions.length/8)||1);
+
+  const fmtDot = (d) => {
+    if(!d) return '';
+    return fmtD(d);
+  };
+
+  const monthsHtml = Array(totalScheduledMonths).fill(0).map((_,mo)=>{
+    const chunk = att.slice(mo*8, mo*8+8);
+    const isComplete = chunk.length===8;
+    const isCurrent = mo===monthsUsed;
+    const isFuture = mo > monthsUsed;
+    const schedChunk = schedSessions.slice(mo*8, mo*8+8);
+    const lastDate = chunk.length ? chunk[chunk.length-1].date : null;
+    const moNo = String(mo+1);
+    const payment = payments[moNo];
+    const paid = !!payment;
+
+    const dots = Array(8).fill(0).map((_,i)=>{
+      const attended = chunk[i];
+      const sched = schedChunk[i];
+      if(attended) {
+        // Has real attendance record
+        const isAbsent = attended.status==='Absent';
+        const isLate   = attended.status==='Late';
+        const bg = isAbsent?'#fee2e2':isLate?'#fef9c3':'#16a34a';
+        const co = isAbsent?'#991b1b':isLate?'#854d0e':'white';
+        const icon = isAbsent?'&#10005;':isLate?'&#9200;':'&#10003;';
+        return '<div title="'+attended.date+' - '+attended.status+'" style="width:52px;height:52px;border-radius:9px;background:'+bg+';color:'+co+';display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-weight:700;flex-shrink:0;">'+
+          '<span style="font-size:14px">'+icon+'</span>'+
+          '<span style="font-size:9px;opacity:.85">'+fmtDot(attended.date)+'</span>'+
+        '</div>';
+      } else if(sched && isCurrent) {
+        // Upcoming — show scheduled date in dashed box
+        return '<div title="'+sched.date+' - Upcoming" style="width:52px;height:52px;border-radius:9px;background:var(--g100);border:1px dashed var(--g200);color:var(--g400);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;flex-shrink:0;">'+
+          '<span style="font-size:11px">'+(i+1)+'</span>'+
+          '<span style="font-size:9px">'+fmtDot(sched.date)+'</span>'+
+        '</div>';
+      }
+      return '<div style="width:52px;height:52px;border-radius:9px;background:var(--g100);color:var(--g400);display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;">'+(i+1)+'</div>';
+    }).join('');
+
+      return '<div style="background:'+(isCurrent?'white':isComplete?'#f0fdf4':isFuture?'#fafaf9':'white')+';border:1px solid '+(isCurrent?'var(--red)':isComplete?'#86efac':isFuture?'var(--g100)':'var(--g200)')+';border-radius:10px;padding:16px;margin-bottom:10px;'+(isFuture?'opacity:.7':'')+'" >'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">'+
+        '<div style="font-size:14px;font-weight:700;">Month '+(mo+1)+
+          (isCurrent?' <span style="color:var(--red);font-size:11px;margin-left:6px">&#9679; Current</span>':
+           isComplete?' <span style="color:#16a34a;font-size:11px;margin-left:6px">&#10003; Complete</span>':
+           isFuture?' <span style="color:var(--g400);font-size:11px;margin-left:6px">Upcoming</span>':'')+
+        '</div>'+
+        // Payment status badge
+        '<div style="display:flex;align-items:center;gap:8px;">'+
+          (lastDate?'<span style="font-size:11px;color:var(--g400)">Last: '+fmtDot(lastDate)+'</span>':'')+
+          '<span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:'+(paid?'#dcfce7':'#fee2e2')+';color:'+(paid?'#166534':'#991b1b')+'">'+
+            (paid?'&#10003; Paid '+fmtDot(payment.date):'Unpaid')+
+          '</span>'+
+          (paid && payment.note?'<span style="font-size:10px;color:var(--g400);font-style:italic">'+payment.note+'</span>':'')+
+        '</div>'+
+      '</div>'+
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;">'+dots+'</div>'+
+      (isCurrent?'<div style="margin-top:12px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px"><span style="font-weight:600">'+sessInCycle+'/8 sessions</span><span style="color:var(--g400)">'+pct+'%</span></div><div class="progress-track"><div class="progress-fill" style="width:'+pct+'%"></div></div></div>':'')+
+    '</div>';
+  }).join('');
+
+  document.getElementById('tuitionContent').innerHTML =
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">'+
+      '<div>'+
+        '<div style="font-family:\'Playfair Display\',serif;font-size:18px;font-weight:700;">Tuition History</div>'+
+        '<div style="font-size:12px;color:var(--g400);margin-top:2px">'+total+' sessions counted &middot; '+att.filter(a=>a.status==='Absent').length+' absence(s)</div>'+
+      '</div>'+
+      '<div style="text-align:right">'+
+        '<div style="font-family:\'Playfair Display\',serif;font-size:28px;font-weight:700;color:var(--red)">'+monthsUsed+'</div>'+
+        '<div style="font-size:11px;color:var(--g400)">month(s) completed</div>'+
+      '</div>'+
+    '</div>'+monthsHtml;
+}
+
+function renderParticipation() {
+  const months = sd.participation||[];
+  if (!months.length) {
+    document.getElementById('partCard').innerHTML = '<p style="padding:40px;text-align:center;color:var(--g400)">No participation data yet.</p>';
+    return;
+  }
+  document.getElementById('partCard').innerHTML = months.map((mo,idx)=>`
+    <div class="acc-item ${idx===0?'open':''}">
+      <div class="acc-header" onclick="this.parentElement.classList.toggle('open')">
+        <div class="acc-title">Month ${mo.month} <span style="font-weight:400;color:var(--g400);font-size:12px">(${mo.sessions.length} sessions)</span></div>
+        <div class="acc-meta">
+          <div class="acc-avg">Avg: <span>${mo.avg}</span>/10</div>
+          <div class="acc-arrow">▼</div>
+        </div>
+      </div>
+      <div class="acc-body">
+        <table class="pt">
+          <thead><tr><th>Session</th><th>Date</th><th>Status</th><th>Score</th></tr></thead>
+          <tbody>${mo.sessions.map(s=>{
+            const cls=s.score>=8?'sc-h':s.score>=5?'sc-m':'sc-l';
+            const statusLabel=s.status==='Present'?'✅ Present':s.status==='Late'?'🕐 Late':'❌ Absent';
+            return `<tr>
+              <td>${s.dayLabel||'—'}</td>
+              <td>${s.date}</td>
+              <td><span style="font-size:12px">${statusLabel}</span></td>
+              <td>${s.score>0?`<span class="sc-badge ${cls}">${s.score}/10</span>`:'<span style="color:var(--g400)">—</span>'}</td>
+            </tr>`;
+          }).join('')}</tbody>
+        </table>
+      </div>
+    </div>`).join('');
+}
+
+function changeMonth(dir) {
+  curDate = new Date(curDate.getFullYear(), curDate.getMonth()+dir, 1);
+  if(scheduleView==='cal') renderCalendar();
+  else renderListView();
+}
+
+let scheduleView = 'cal';
+function setScheduleView(v) {
+  scheduleView = v;
+  document.getElementById('btnCalView').classList.toggle('active', v==='cal');
+  document.getElementById('btnListView').classList.toggle('active', v==='list');
+  document.getElementById('calNavWrap').style.display = v==='cal' ? 'flex' : 'none';
+  if(v==='cal') renderCalendar();
+  else renderListView();
+}
+
+function renderListView() {
+  if(!sd) return;
+  const sessions = (sd.sessions||[]).filter(s=>s.date); // Day 0 included as orientation
+  const att = sd.attendance||[];
+  const attMap = {};
+  att.forEach(a=>{ if(a.date) attMap[a.date]=a; });
+  const today = new Date().toISOString().split('T')[0];
+
+  const skillColors = {
+    WRITING: {bg:'#ffedd5',color:'#7c2d12'},
+    SPEAKING:{bg:'#ede9fe',color:'#4c1d95'},
+    LISTENING:{bg:'#dbeafe',color:'#1e40af'},
+    READING: {bg:'#dcfce7',color:'#166534'},
+    GRAMMAR: {bg:'#f1f0ee',color:'#5c5a56'},
+  };
+
+  const rows = sessions.map(s=>{
+    const a = attMap[s.date];
+    const isPast = s.date <= today;
+    const skill = (s.skill||'').toUpperCase();
+    const sc = Object.entries(skillColors).find(([k])=>skill.includes(k))?.[1] || {bg:'#f1f0ee',color:'#5c5a56'};
+    const dateObj = new Date(s.date);
+    const dayName = dateObj.toLocaleDateString('en-GB',{weekday:'short'});
+    const dateStr = dateObj.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+    let statusHtml = '';
+    if(a && a.status) {
+      const stc = a.status==='Present'?'#dcfce7,#166534':a.status==='Absent'?'#fee2e2,#991b1b':'#fef9c3,#854d0e';
+      const [bg2,co2] = stc.split(',');
+      const lbl = a.status==='Present'?'✓ Present':a.status==='Absent'?'✗ Absent':'⏱ Late';
+      statusHtml = `<span style="background:${bg2};color:${co2};padding:3px 8px;border-radius:5px;font-size:11px;font-weight:600">${lbl}</span>`;
+      if(a.score>0) statusHtml += `<span style="font-size:11px;color:var(--g400)"> ${a.score}pts</span>`;
+    } else if(isPast) {
+      statusHtml = '<span style="font-size:11px;color:var(--g400)">No record</span>';
+    } else {
+      statusHtml = '<span style="font-size:11px;color:var(--g400)">Upcoming</span>';
+    }
+    const isToday = s.date===today;
+    return `<div class="list-row" style="${isToday?'background:rgba(224,26,34,.03)':''}">
+      <div class="list-date" style="${isToday?'color:var(--red);font-weight:700':''}">
+        <div>${dateStr}</div>
+        <div class="ldate-day">${dayName} · ${s.dayLabel}</div>
+      </div>
+      <div class="list-content">
+        <span class="list-skill" style="background:${sc.bg};color:${sc.color}">${s.skill||'—'}</span>
+        <span class="list-lesson">${s.content||'—'}</span>
+      </div>
+      <div class="list-status">${statusHtml}</div>
+    </div>`;
+  });
+
+  document.getElementById('calGrid').innerHTML = rows.length
+    ? `<div style="font-size:13px;font-weight:600;color:var(--g400);padding:12px 16px;border-bottom:1px solid var(--g100)">All Sessions — ${sessions.length} total</div>${rows.join('')}`
+    : '<p style="padding:40px;text-align:center;color:var(--g400)">No sessions found.</p>';
+}
+
+const navTitles = {schedule:'Schedule',homework:'Homework',tuition:'Tuition',participation:'Participation',settings:'Settings'};
+function nav(name) {
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('section-'+name).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.toggle('active',el.textContent.trim().startsWith(navTitles[name].slice(0,4))));
+  document.getElementById('pageTitle').textContent = navTitles[name];
+  if (name==='settings') renderSettings();
+}
+
+function renderSettings() {
+  document.getElementById('settingsAvatar').textContent = (sess.FullName||'?')[0].toUpperCase();
+  document.getElementById('settingsName').textContent   = sess.FullName || '—';
+  document.getElementById('settingsEmail').textContent  = sess.Email || '—';
+  document.getElementById('settingsClass').textContent  = 'Class: ' + (sess.Class || '—');
+}
+
+async function changePassword() {
+  const current = document.getElementById('pwCurrent').value;
+  const newPw   = document.getElementById('pwNew').value;
+  const confirm = document.getElementById('pwConfirm').value;
+  const alertEl = document.getElementById('pwAlert');
+
+  const showMsg = (msg, ok) => {
+    alertEl.textContent = msg;
+    alertEl.style.display = 'block';
+    alertEl.style.background = ok ? '#dcfce7' : '#fee2e2';
+    alertEl.style.color = ok ? '#166534' : '#991b1b';
+    alertEl.style.border = ok ? '1px solid #86efac' : '1px solid #fca5a5';
+  };
+
+  if (!current || !newPw || !confirm) return showMsg('Please fill in all fields.', false);
+  if (newPw.length < 6) return showMsg('New password must be at least 6 characters.', false);
+  if (newPw !== confirm) return showMsg('Passwords do not match.', false);
+
+  try {
+    const r = await api('changePassword', { email: sess.Email, currentPassword: current, newPassword: newPw });
+    if (r.success) {
+      showMsg('Password updated successfully! ✓', true);
+      document.getElementById('pwCurrent').value = '';
+      document.getElementById('pwNew').value = '';
+      document.getElementById('pwConfirm').value = '';
+    } else {
+      showMsg(r.message || 'Error updating password.', false);
+    }
+  } catch(e) { showMsg('Connection error.', false); }
+}
+
+async function loadRanking() {
+  try {
+    const r = await api('getRewards',{classId:sess.Class});
+    if(!r.success || !r.months||!r.months.length) {
+      document.getElementById('rankingCard').innerHTML='<p style="padding:30px;text-align:center;color:var(--g400);font-size:13px">No ranking data yet.</p>';
+      return;
+    }
+    // Show latest month ranking
+    const latestMonth = r.months[r.months.length-1];
+    const sorted = [...latestMonth.students].sort((a,b)=>b.avgScore-a.avgScore);
+    const medals = ['🥇','🥈','🥉'];
+    const rows = sorted.map((s,i)=>{
+      const isMe = s.name === sess.FullName || s.email === sess.Email;
+      return `<tr style="${isMe?'background:rgba(224,26,34,.05);font-weight:700':''}">
+        <td style="padding:10px 14px;border-bottom:1px solid var(--g100)">${medals[i]||i+1}</td>
+        <td style="padding:10px 14px;border-bottom:1px solid var(--g100)">${s.name}${isMe?' <span style="color:var(--red);font-size:11px">(you)</span>':''}</td>
+        <td style="padding:10px 14px;border-bottom:1px solid var(--g100);text-align:center">
+          ${s.avgScore>0?`<span style="background:${s.avgScore>=8?'#dcfce7':s.avgScore>=5?'#fef9c3':'#fee2e2'};color:${s.avgScore>=8?'#166534':s.avgScore>=5?'#854d0e':'#991b1b'};padding:3px 9px;border-radius:6px;font-size:12px;font-weight:700">${s.avgScore}</span>`:'<span style="color:var(--g400)">—</span>'}
+        </td>
+        <td style="padding:10px 14px;border-bottom:1px solid var(--g100);font-size:12px;color:var(--g400)">${s.present}P ${s.absent>0?`· ${s.absent}A`:''}</td>
+      </tr>`;
+    }).join('');
+    document.getElementById('rankingCard').innerHTML=`
+      <div style="padding:16px 18px;border-bottom:1px solid var(--g100);display:flex;justify-content:space-between;align-items:center">
+        <div style="font-size:14px;font-weight:600">Month ${latestMonth.month}</div>
+        <div style="font-size:11px;color:var(--g400)">${latestMonth.dates.length} sessions</div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="background:var(--g100)">
+          <th style="padding:8px 14px;text-align:left">#</th>
+          <th style="padding:8px 14px;text-align:left">Student</th>
+          <th style="padding:8px 14px;text-align:center">Avg Score</th>
+          <th style="padding:8px 14px;text-align:left">Attendance</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  } catch(e){ console.error(e); }
+}
+
+function doLogout() { localStorage.removeItem('userSession'); location.href='index.html'; }
+init();
+
+} // end if(sess)
+</script>
+
+<!-- MOBILE BOTTOM NAV -->
+<nav class="mob-nav">
+  <div class="mob-nav-inner">
+    <button class="mnb active" id="mnb-schedule" onclick="mobNav('schedule',this)">
+      <span class="mi">📅</span><span class="ml">Schedule</span>
+    </button>
+    <button class="mnb" id="mnb-homework" onclick="mobNav('homework',this)">
+      <span class="mi">📝</span><span class="ml">Homework</span>
+    </button>
+    <button class="mnb" id="mnb-tuition" onclick="mobNav('tuition',this)">
+      <span class="mi">💳</span><span class="ml">Tuition</span>
+    </button>
+    <button class="mnb" id="mnb-participation" onclick="mobNav('participation',this)">
+      <span class="mi">⭐</span><span class="ml">Score</span>
+    </button>
+    <button class="mnb" id="mnb-settings" onclick="mobNav('settings',this)">
+      <span class="mi">⚙️</span><span class="ml">Settings</span>
+    </button>
+    <button class="mnb" onclick="if(confirm('Sign out?'))doLogout()" style="color:rgba(255,100,100,.7)">
+      <span class="mi">🚪</span><span class="ml">Sign Out</span>
+    </button>
+  </div>
+</nav>
+<script>
+
+// ── Date formatter: 'yyyy-MM-dd' → '26-Mar' or '26-Mar-2026'
+function fmtD(dateStr, showYear){
+  if(!dateStr||dateStr.length<10) return dateStr||'—';
+  var months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var d=parseInt(dateStr.slice(8),10);
+  var m=parseInt(dateStr.slice(5,7),10)-1;
+  var y=dateStr.slice(0,4);
+  return d+'-'+months[m]+(showYear?'-'+y:'');
+}
+function fmtDFull(dateStr){return fmtD(dateStr,true);}
+function mobNav(secId, btn){
+  if(typeof nav==='function') nav(secId);
+  document.querySelectorAll('.mnb').forEach(function(b){b.classList.remove('active');});
+  if(btn) btn.classList.add('active');
+}
+// Sync sidebar nav clicks to update mobile nav
+(function(){
+  var orig = typeof nav === 'function' ? nav : null;
+  if(!orig) return;
+  window._origNav = orig;
+  window.nav = function(id){
+    orig(id);
+    var map = {schedule:'mnb-schedule',homework:'mnb-homework',
+               tuition:'mnb-tuition',participation:'mnb-participation',settings:'mnb-settings'};
+    document.querySelectorAll('.mnb').forEach(function(b){b.classList.remove('active');});
+    if(map[id]){var el=document.getElementById(map[id]);if(el)el.classList.add('active');}
+  };
+})();
+</script>
+<script>
+// Remove stale service workers (sw.js does not exist)
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(function(regs) {
+    regs.forEach(function(r){ r.unregister(); });
+  });
+}
+</script>
+</body>
+</html>

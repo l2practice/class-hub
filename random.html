@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>IELTS Hub — Random Draw</title>
+<style>
+:root{--red:#E01A22;--gold:#f59e0b;--dark:#1a1916;--g50:#f8f7f5;--g100:#f0eeea;--g200:#e2e0db;--g400:#9d9b96;--g600:#5c5a56;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--dark);font-family:'Helvetica Neue',Arial,sans-serif;min-height:100vh;color:white;}
+
+.header{background:rgba(0,0,0,.5);border-bottom:1px solid rgba(255,255,255,.1);padding:14px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+.logo{font-size:18px;font-weight:800;color:white;text-decoration:none;}
+.logo span{color:var(--red);}
+.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex:1;}
+select{padding:7px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid rgba(255,255,255,.2);outline:none;background:rgba(255,255,255,.1);color:white;}
+select option{background:#2a2825;color:white;}
+button{padding:7px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;outline:none;}
+.btn-load{background:var(--red);color:white;}
+.btn-load:hover{background:#c4151c;}
+.btn-reset{background:rgba(255,255,255,.1);color:white;border:1px solid rgba(255,255,255,.2);}
+.btn-add{background:rgba(255,255,255,.15);color:white;border:1px solid rgba(255,255,255,.2);}
+.status-bar{font-size:12px;color:rgba(255,255,255,.45);margin-left:auto;white-space:nowrap;}
+
+/* WALL */
+.wall{padding:24px;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;}
+.tile{border-radius:12px;padding:16px 12px;text-align:center;font-size:14px;font-weight:700;color:white;
+  transition:transform .15s,opacity .3s,box-shadow .15s;min-height:64px;
+  display:flex;align-items:center;justify-content:center;position:relative;}
+.tile.eliminated{opacity:.15;transform:scale(.9);}
+.tile.winner{box-shadow:0 0 28px rgba(255,215,0,.7);outline:3px solid gold;transform:scale(1.1);}
+.tile.spinning{animation:sf .12s infinite alternate;}
+@keyframes sf{from{filter:brightness(1.7);}to{filter:brightness(.6);}}
+
+/* DISPLAY */
+.spin-display{margin:20px 24px 0;background:rgba(255,255,255,.06);border:2px solid rgba(255,255,255,.1);
+  border-radius:16px;padding:20px;text-align:center;}
+.spin-name{font-size:36px;font-weight:900;min-height:52px;letter-spacing:.5px;transition:color .1s;}
+.spin-btn{margin-top:14px;width:64px;height:64px;border-radius:50%;background:var(--red);
+  font-size:28px;cursor:pointer;border:none;color:white;transition:transform .15s,box-shadow .15s;}
+.spin-btn:hover{transform:scale(1.08);box-shadow:0 4px 20px rgba(224,26,34,.5);}
+.spin-btn:disabled{opacity:.5;cursor:default;transform:none;}
+
+/* ADD NAME */
+.add-row{display:flex;gap:8px;padding:0 24px;margin-top:16px;}
+.add-row input{flex:1;padding:8px 14px;border-radius:8px;background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.2);color:white;font-size:13px;outline:none;}
+.add-row input::placeholder{color:rgba(255,255,255,.35);}
+.add-row input:focus{border-color:rgba(255,255,255,.5);}
+
+/* WINNERS LOG */
+.win-log{display:flex;gap:8px;flex-wrap:wrap;padding:16px 24px 0;}
+.win-badge{padding:5px 14px;border-radius:8px;background:linear-gradient(135deg,#f59e0b,#d97706);
+  color:white;font-size:12px;font-weight:700;}
+
+/* EMPTY */
+.empty{padding:80px 24px;text-align:center;color:rgba(255,255,255,.25);font-size:15px;line-height:1.8;}
+.loading{padding:60px;text-align:center;color:rgba(255,255,255,.35);font-size:14px;}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}
+.spinner{display:inline-block;font-size:28px;animation:spin 1s linear infinite;}
+.pulse{animation:pulse 1.5s ease-in-out infinite;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <a href="teacher.html" class="logo">IELTS <span>Hub</span></a>
+  <div class="controls">
+    <select id="selClass" onchange="onClassChange()"><option value="">— Class —</option></select>
+    <select id="selMonth"><option value="">— Month —</option></select>
+    <button class="btn-load" onclick="loadCandidates()">▶ Load</button>
+    <button class="btn-reset" onclick="resetDraw()">↺ Reset</button>
+  </div>
+  <div class="status-bar" id="statusBar"></div>
+</div>
+
+<div class="win-log" id="winLog"></div>
+
+<div class="spin-display">
+  <div class="spin-name" id="spinName">—</div>
+  <button class="spin-btn" id="btnSpin" onclick="doSpin()">🎯</button>
+</div>
+
+<div class="add-row">
+  <input type="text" id="addInput" placeholder="+ Add a name manually…" onkeydown="if(event.key==='Enter')addName()"/>
+  <button class="btn-add" onclick="addName()">+ Add</button>
+</div>
+
+<div class="wall" id="wall">
+  <div class="empty">Select a class and month,<br>then click ▶ Load.</div>
+</div>
+
+<script>
+const GAS='https://script.google.com/macros/s/AKfycbw8nmCHNITHKB8sdt6ysWLBs3C2uRZQL-eM1O61r9oU1UoB4lax5hMmqxv3GBdFdeOK/exec';
+const COLORS=['#e11d48','#7c3aed','#1d4ed8','#0891b2','#059669','#d97706','#dc2626','#9333ea','#2563eb','#16a34a','#ca8a04','#0284c7','#be185d','#0369a1','#15803d'];
+
+var candidates=[], winners=[], spinning=false;
+
+async function gasCall(action,data){
+  const r=await fetch(GAS,{method:'POST',headers:{'Content-Type':'text/plain'},
+    body:JSON.stringify(Object.assign({action},data))});
+  return r.json();
+}
+
+// ── Init: read URL params then load classes
+window.addEventListener('load', async function(){
+  const p=new URLSearchParams(location.search);
+  const preClass=p.get('class'), preMonth=p.get('month');
+
+  // Load classes
+  var selClass=document.getElementById('selClass');
+  selClass.innerHTML='<option value="">&#9203; Loading…</option>';
+  try{
+    var r=await gasCall('getClassNames');
+    selClass.innerHTML='<option value="">— Class —</option>';
+    (r.classes||[]).forEach(function(name){
+      var o=document.createElement('option');
+      o.value=name; o.textContent=name;
+      if(preClass&&name===preClass) o.selected=true;
+      selClass.appendChild(o);
+    });
+  }catch(e){ selClass.innerHTML='<option value="">Error loading</option>'; }
+
+  // If URL has class → load its months
+  if(preClass){
+    await loadMonths(preClass, preMonth?parseInt(preMonth):null);
+    // Auto-load candidates if month also provided
+    if(preMonth) loadCandidates();
+  }
+});
+
+async function onClassChange(){
+  var cls=document.getElementById('selClass').value;
+  if(cls) await loadMonths(cls, null);
+}
+
+async function loadMonths(classId, autoMonth){
+  var sel=document.getElementById('selMonth');
+  sel.innerHTML='<option value="">&#9203; Loading…</option>';
+  try{
+    var r=await gasCall('getRewards',{classId:classId});
+    sel.innerHTML='<option value="">— Month —</option>';
+    (r.months||[]).forEach(function(mo){
+      var o=document.createElement('option');
+      o.value=mo.month;
+      o.textContent='Month '+mo.month+' ('+mo.dates.length+' sessions)';
+      if(autoMonth&&mo.month===autoMonth) o.selected=true;
+      sel.appendChild(o);
+    });
+    // Default to latest month if no autoMonth
+    if(!autoMonth&&r.months&&r.months.length)
+      sel.value=r.months[r.months.length-1].month;
+  }catch(e){ sel.innerHTML='<option value="">Error</option>'; }
+}
+
+async function loadCandidates(){
+  var classId=document.getElementById('selClass').value;
+  var month=parseInt(document.getElementById('selMonth').value);
+  var wall=document.getElementById('wall');
+  winners=[]; spinning=false;
+  document.getElementById('winLog').innerHTML='';
+  document.getElementById('spinName').textContent='—';
+  document.getElementById('spinName').style.color='white';
+
+  if(!classId||!month){
+    wall.innerHTML='<div class="empty">Please select a class and month.</div>';
+    return;
+  }
+  wall.innerHTML='<div class="loading"><div class="spinner">&#9203;</div><div style="margin-top:14px" class="pulse">Loading eligible students…</div></div>';
+  document.getElementById('statusBar').textContent='';
+
+  try{
+    var r=await gasCall('getRewards',{classId:classId});
+    var mo=(r.months||[]).find(function(m){return m.month===month;});
+    if(!mo){wall.innerHTML='<div class="empty">No data for this month.</div>';return;}
+
+    // Diligent: 0 absent, 0 late, full HW, tuition paid
+    candidates=mo.students.filter(function(s){
+      return s.absent===0&&s.late===0&&s.tuitionPaid&&s.hwDue>0&&s.hwDone>=s.hwDue;
+    }).map(function(s){return s.name;});
+
+    if(!candidates.length){
+      wall.innerHTML='<div class="empty">No students meet the diligent criteria.<br><small style="opacity:.5">Criteria: 0 absent · 0 late · full homework · tuition paid</small></div>';
+      return;
+    }
+    renderWall();
+    document.getElementById('statusBar').textContent=candidates.length+' eligible';
+  }catch(e){
+    wall.innerHTML='<div class="empty">Failed to load. Check GAS deployment.</div>';
+  }
+}
+
+function renderWall(){
+  var wall=document.getElementById('wall');
+  wall.innerHTML='';
+  candidates.forEach(function(name,i){
+    var tile=document.createElement('div');
+    tile.className='tile'+(winners.includes(name)?' eliminated':'');
+    tile.id='t'+i;
+    tile.style.background=COLORS[i%COLORS.length];
+    // Name + remove button
+    tile.innerHTML='<span>'+name+'</span>'+
+      '<button onclick="removeName(\''+name.replace(/'/g,"\\'")+'\')" '+
+        'style="position:absolute;top:4px;right:6px;background:none;border:none;color:rgba(255,255,255,.5);'+
+        'font-size:11px;cursor:pointer;padding:0;line-height:1" title="Remove">✕</button>';
+    wall.appendChild(tile);
+  });
+}
+
+function addName(){
+  var inp=document.getElementById('addInput');
+  var name=(inp.value||'').trim();
+  if(!name)return;
+  if(candidates.includes(name)){inp.value='';return;}
+  candidates.push(name);
+  inp.value='';
+  renderWall();
+  document.getElementById('statusBar').textContent=candidates.length+' eligible';
+}
+
+function removeName(name){
+  candidates=candidates.filter(function(n){return n!==name;});
+  winners=winners.filter(function(n){return n!==name;});
+  renderWall();
+  document.getElementById('statusBar').textContent=candidates.length+' eligible';
+}
+
+function resetDraw(){
+  winners=[]; spinning=false;
+  document.getElementById('winLog').innerHTML='';
+  document.getElementById('spinName').textContent='—';
+  document.getElementById('spinName').style.color='white';
+  document.getElementById('btnSpin').disabled=false;
+  renderWall();
+}
+
+function doSpin(){
+  if(spinning)return;
+  var available=candidates.filter(function(n){return !winners.includes(n);});
+  if(!available.length){
+    document.getElementById('spinName').textContent='All drawn! ↺ Reset';
+    return;
+  }
+  spinning=true;
+  document.getElementById('btnSpin').disabled=true;
+
+  var winner=available[Math.floor(Math.random()*available.length)];
+  var display=document.getElementById('spinName');
+  var idx=0, total=24+Math.floor(Math.random()*14);
+
+  // Flash all remaining tiles
+  candidates.forEach(function(n,i){
+    if(!winners.includes(n)){
+      var t=document.getElementById('t'+i);
+      if(t)t.classList.add('spinning');
+    }
+  });
+
+  var iv=setInterval(function(){
+    idx++;
+    var pick=available[Math.floor(Math.random()*available.length)];
+    display.textContent=pick;
+    display.style.color='rgba(255,255,255,.7)';
+    display.style.fontSize='32px';
+
+    if(idx>=total){
+      clearInterval(iv);
+      // Stop all spinning
+      candidates.forEach(function(n,i){
+        var t=document.getElementById('t'+i);
+        if(t) t.classList.remove('spinning');
+      });
+
+      // Show winner
+      display.textContent='🎉  '+winner;
+      display.style.color='#fbbf24';
+      display.style.fontSize='36px';
+
+      // Mark winner tile
+      var wi=candidates.indexOf(winner);
+      var wt=document.getElementById('t'+wi);
+      if(wt){wt.classList.add('winner');}
+
+      // Dim others
+      candidates.forEach(function(n,i){
+        if(n!==winner&&!winners.includes(n)){
+          var t=document.getElementById('t'+i);
+          if(t) t.style.opacity='.2';
+        }
+      });
+
+      winners.push(winner);
+      updateWinLog();
+      spinning=false;
+      document.getElementById('btnSpin').disabled=false;
+
+      // Restore wall after 1.8s
+      setTimeout(function(){
+        renderWall();
+      },1800);
+    }
+  },75);
+}
+
+function updateWinLog(){
+  document.getElementById('winLog').innerHTML=
+    winners.map(function(n,i){
+      return '<div class="win-badge">🏆 #'+(i+1)+'  '+n+'</div>';
+    }).join('');
+}
+</script>
+</body>
+</html>

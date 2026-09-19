@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>IELTS Hub — Student Portal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --red: #E01A22;
+  --red-dark: #b01018;
+  --red-light: #ff3a42;
+  --white: #ffffff;
+  --off-white: #f8f7f5;
+  --gray-100: #f1f0ee;
+  --gray-200: #e2e0dc;
+  --gray-400: #9d9b96;
+  --gray-600: #5c5a56;
+  --gray-900: #1a1916;
+  --shadow: 0 4px 24px rgba(26,25,22,0.12);
+  --shadow-lg: 0 16px 48px rgba(26,25,22,0.18);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px;scroll-behavior:smooth}
+body{font-family:'DM Sans',sans-serif;background:var(--off-white);color:var(--gray-900);min-height:100vh;overflow-x:hidden;}
+.bg-pattern{position:fixed;inset:0;z-index:0;background:linear-gradient(135deg,#1a1916 0%,#2d1a1b 50%,#1a1916 100%);}
+.bg-pattern::before{content:'';position:absolute;inset:0;background-image:repeating-linear-gradient(0deg,transparent,transparent 59px,rgba(224,26,34,0.06) 60px),repeating-linear-gradient(90deg,transparent,transparent 59px,rgba(224,26,34,0.06) 60px);}
+.bg-orb{position:absolute;border-radius:50%;filter:blur(80px);opacity:0.3;}
+.orb1{width:500px;height:500px;background:radial-gradient(circle,#E01A22,transparent);top:-100px;right:-100px;}
+.orb2{width:400px;height:400px;background:radial-gradient(circle,#8b0a0f,transparent);bottom:-100px;left:-100px;}
+.auth-container{position:relative;z-index:1;min-height:100vh;display:grid;grid-template-columns:1fr 1fr;}
+.left-panel{display:flex;flex-direction:column;justify-content:center;padding:60px;color:white;}
+.brand-logo{display:flex;align-items:center;gap:12px;margin-bottom:80px;}
+.brand-icon{width:48px;height:48px;background:var(--red);border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:24px;font-weight:900;color:white;flex-shrink:0;}
+.brand-name{font-family:'Playfair Display',serif;font-size:22px;font-weight:700;letter-spacing:-0.5px;}
+.brand-name span{color:var(--red-light);}
+.hero-text h1{font-family:'Playfair Display',serif;font-size:clamp(42px,4vw,58px);line-height:1.1;margin-bottom:24px;letter-spacing:-1px;}
+.hero-text h1 em{font-style:italic;color:var(--red-light);}
+.hero-text p{font-size:17px;line-height:1.7;color:rgba(255,255,255,0.6);max-width:400px;}
+.stats-row{display:flex;gap:48px;margin-top:60px;}
+.stat-num{font-family:'Playfair Display',serif;font-size:36px;font-weight:700;color:var(--red-light);}
+.stat-label{font-size:13px;color:rgba(255,255,255,0.5);margin-top:4px;letter-spacing:0.5px;}
+.right-panel{display:flex;align-items:center;justify-content:center;padding:40px;}
+.auth-card{background:white;border-radius:20px;padding:48px;width:100%;max-width:460px;box-shadow:var(--shadow-lg);animation:fadeUp 0.5s ease both;}
+.auth-card-header{margin-bottom:36px;}
+.auth-card-header h2{font-family:'Playfair Display',serif;font-size:28px;font-weight:700;margin-bottom:8px;}
+.auth-card-header p{color:var(--gray-400);font-size:14px;}
+.tabs{display:flex;background:var(--gray-100);border-radius:10px;padding:4px;margin-bottom:32px;}
+.tab-btn{flex:1;padding:10px 16px;border:none;background:transparent;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;color:var(--gray-400);transition:all 0.25s;}
+.tab-btn.active{background:white;color:var(--gray-900);box-shadow:0 2px 8px rgba(0,0,0,0.1);}
+.tab-panel{display:none;}
+.tab-panel.active{display:block;}
+.form-group{margin-bottom:20px;position:relative;}
+.form-label{display:block;font-size:13px;font-weight:600;color:var(--gray-600);margin-bottom:8px;letter-spacing:0.3px;}
+.form-control{width:100%;padding:13px 16px;border:2px solid var(--gray-200);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:15px;color:var(--gray-900);background:var(--off-white);transition:all 0.2s;outline:none;}
+.form-control:focus{border-color:var(--red);background:white;box-shadow:0 0 0 4px rgba(224,26,34,0.08);}
+.form-control::placeholder{color:var(--gray-400);}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.btn-primary{width:100%;padding:14px;border:none;border-radius:10px;background:var(--red);color:white;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;transition:all 0.2s;letter-spacing:0.3px;}
+.btn-primary:hover{background:var(--red-dark);transform:translateY(-1px);box-shadow:0 6px 20px rgba(224,26,34,0.35);}
+.btn-primary:active{transform:translateY(0);}
+.btn-primary:disabled{opacity:0.6;cursor:not-allowed;transform:none;}
+.btn-link{background:none;border:none;color:var(--red);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;cursor:pointer;text-decoration:underline;padding:0;}
+.forgot-row{display:flex;justify-content:flex-end;margin-top:-12px;margin-bottom:20px;}
+.teacher-separator{display:flex;align-items:center;gap:12px;margin:20px 0 0;}
+.teacher-separator::before,.teacher-separator::after{content:'';flex:1;height:1px;background:var(--gray-200);}
+.teacher-separator span{font-size:13px;color:var(--gray-400);white-space:nowrap;}
+.btn-teacher{width:100%;padding:12px;border:2px dashed var(--gray-200);border-radius:10px;background:transparent;color:var(--gray-600);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;cursor:pointer;transition:all 0.2s;margin-top:12px;}
+.btn-teacher:hover{border-color:var(--red);color:var(--red);background:rgba(224,26,34,0.04);}
+.alert{padding:12px 16px;border-radius:8px;font-size:14px;margin-bottom:16px;display:none;align-items:center;gap:10px;}
+.alert.show{display:flex;}
+.alert-error{background:#fff0f0;border:1px solid #ffd0d2;color:#c01018;}
+.alert-success{background:#f0fff4;border:1px solid #c3e6cb;color:#155724;}
+.otp-section{display:none;}
+.otp-section.active{display:block;}
+.otp-inputs{display:flex;gap:10px;justify-content:center;margin:16px 0;}
+.otp-input{width:48px;height:56px;text-align:center;font-size:22px;font-weight:700;border:2px solid var(--gray-200);border-radius:10px;font-family:'Playfair Display',serif;color:var(--gray-900);outline:none;transition:all 0.2s;}
+.otp-input:focus{border-color:var(--red);box-shadow:0 0 0 4px rgba(224,26,34,0.08);}
+.modal-overlay{display:none;position:fixed;inset:0;z-index:100;background:rgba(26,25,22,0.7);backdrop-filter:blur(4px);align-items:center;justify-content:center;}
+.modal-overlay.show{display:flex;}
+.modal{background:white;border-radius:16px;padding:40px;max-width:400px;width:90%;}
+.modal h3{font-family:'Playfair Display',serif;font-size:22px;margin-bottom:8px;}
+.modal p{color:var(--gray-400);font-size:14px;margin-bottom:24px;}
+.modal-actions{display:flex;gap:12px;}
+.btn-cancel{flex:1;padding:12px;border:2px solid var(--gray-200);border-radius:10px;background:transparent;color:var(--gray-600);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;cursor:pointer;}
+.spinner{display:inline-block;width:18px;height:18px;border:2px solid rgba(255,255,255,0.3);border-top-color:white;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:8px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:900px){.auth-container{grid-template-columns:1fr;}.left-panel{display:none;}}
+@media(max-width:480px){.auth-card{padding:32px 24px;}}
+</style>
+</head>
+<body>
+<div class="bg-pattern">
+  <div class="bg-orb orb1"></div>
+  <div class="bg-orb orb2"></div>
+</div>
+
+<div class="auth-container">
+  <div class="left-panel">
+    <div class="brand-logo">
+      <div class="brand-icon">I</div>
+      <div class="brand-name">IELTS <span>Hub</span></div>
+    </div>
+    <div class="hero-text">
+      <h1>Your path to <em>Band 7+</em> starts here.</h1>
+      <p>Track your progress, manage homework, and stay ahead of your IELTS preparation with real-time insights.</p>
+    </div>
+    <div class="stats-row">
+      <div class="stat-item"><div class="stat-num">8</div><div class="stat-label">Sessions / Month</div></div>
+      <div class="stat-item"><div class="stat-num">4</div><div class="stat-label">Skill Areas</div></div>
+      <div class="stat-item"><div class="stat-num">24/7</div><div class="stat-label">Progress Access</div></div>
+    </div>
+  </div>
+
+  <div class="right-panel">
+    <div class="auth-card">
+      <div class="auth-card-header">
+        <h2>Welcome Back</h2>
+        <p>Sign in to access your learning dashboard</p>
+      </div>
+
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('login')">Sign In</button>
+        <button class="tab-btn" onclick="switchTab('register')">Register</button>
+      </div>
+
+      <div id="alertBox" class="alert alert-error"><span id="alertIcon">⚠</span><span id="alertMsg">Error message</span></div>
+
+      <!-- LOGIN TAB -->
+      <div id="panel-login" class="tab-panel active">
+        <div class="form-group">
+          <label class="form-label">Email Address</label>
+          <input type="email" class="form-control" id="loginEmail" placeholder="your@email.com"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" class="form-control" id="loginPassword" placeholder="Enter your password"/>
+        </div>
+        <div class="forgot-row">
+          <button class="btn-link" onclick="openForgot()">Forgot Password?</button>
+        </div>
+        <button class="btn-primary" id="loginBtn" onclick="handleLogin()">Sign In</button>
+        <div class="teacher-separator"><span>For educators</span></div>
+        <button class="btn-teacher" onclick="openTeacherModal()">🎓 Teacher Access</button>
+      </div>
+
+      <!-- REGISTER TAB -->
+      <div id="panel-register" class="tab-panel">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Full Name</label>
+            <input type="text" class="form-control" id="regName" placeholder="Nguyễn Văn A"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Class</label>
+            <select class="form-control" id="regClass"><option value="">Select class…</option></select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Date of Birth</label>
+            <input type="date" class="form-control" id="regDOB"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Phone</label>
+            <input type="tel" class="form-control" id="regPhone" placeholder="09x-xxx-xxxx"/>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email Address</label>
+          <input type="email" class="form-control" id="regEmail" placeholder="your@email.com"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" class="form-control" id="regPassword" placeholder="Min 6 characters"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Confirm Password</label>
+          <input type="password" class="form-control" id="regPassword2" placeholder="Retype password"/>
+        </div>
+        <button class="btn-primary" id="regBtn" onclick="handleRegister()">Create Account</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Teacher Modal -->
+<div class="modal-overlay" id="teacherModal">
+  <div class="modal">
+    <h3>Teacher Access</h3>
+    <p>Enter the teacher access code to continue.</p>
+    <div class="form-group">
+      <label class="form-label">Access Code</label>
+      <input type="password" class="form-control" id="teacherCode" placeholder="Enter access code"
+             onkeydown="if(event.key==='Enter')verifyTeacher()"/>
+    </div>
+    <div id="teacherAlert" class="alert alert-error" style="margin-bottom:16px"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeTeacherModal()">Cancel</button>
+      <button class="btn-primary" onclick="verifyTeacher()" style="flex:1">Continue</button>
+    </div>
+  </div>
+</div>
+
+<!-- Forgot Password Modal -->
+<div class="modal-overlay" id="forgotModal">
+  <div class="modal" style="max-width:440px;">
+    <h3>Reset Password</h3>
+    <div id="forgotStep1">
+      <p>Enter your email to receive a 6-digit OTP code.</p>
+      <div class="form-group">
+        <label class="form-label">Email Address</label>
+        <input type="email" class="form-control" id="forgotEmail" placeholder="your@email.com"/>
+      </div>
+      <div id="forgotAlert" class="alert alert-error" style="margin-bottom:16px"></div>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeForgot()">Cancel</button>
+        <button class="btn-primary" id="sendOtpBtn" onclick="sendOTP()" style="flex:1">Send OTP</button>
+      </div>
+    </div>
+    <div id="forgotStep2" style="display:none;">
+      <p>Enter the 6-digit code sent to your email, then set a new password.</p>
+      <div class="otp-inputs">
+        <input class="otp-input" maxlength="1" oninput="otpNext(this,0)"/>
+        <input class="otp-input" maxlength="1" oninput="otpNext(this,1)"/>
+        <input class="otp-input" maxlength="1" oninput="otpNext(this,2)"/>
+        <input class="otp-input" maxlength="1" oninput="otpNext(this,3)"/>
+        <input class="otp-input" maxlength="1" oninput="otpNext(this,4)"/>
+        <input class="otp-input" maxlength="1" oninput="otpNext(this,5)"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">New Password</label>
+        <input type="password" class="form-control" id="newPassword" placeholder="New password"/>
+      </div>
+      <div id="otpAlert" class="alert alert-error" style="margin-bottom:16px"></div>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeForgot()">Cancel</button>
+        <button class="btn-primary" onclick="verifyOTP()" style="flex:1">Reset Password</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbw8nmCHNITHKB8sdt6ysWLBs3C2uRZQL-eM1O61r9oU1UoB4lax5hMmqxv3GBdFdeOK/exec';
+
+function switchTab(tab) {
+  if(tab==='register') loadClassDropdown();
+  document.querySelectorAll('.tab-btn').forEach((b,i) =>
+    b.classList.toggle('active', (i===0&&tab==='login')||(i===1&&tab==='register')));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-'+tab).classList.add('active');
+  hideAlert();
+}
+
+function showAlert(msg, type='error'){
+  const box = document.getElementById('alertBox');
+  box.className = `alert alert-${type} show`;
+  document.getElementById('alertMsg').textContent = msg;
+}
+function hideAlert(){ document.getElementById('alertBox').className='alert alert-error'; }
+
+async function callGAS(action, data={}, _retry=false) {
+  try {
+    const res = await fetch(GAS_URL, {
+      method: 'POST', redirect: 'follow',
+      body: JSON.stringify({action, ...data})
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return await res.json();
+  } catch(e) {
+    if (!_retry) {
+      await new Promise(r => setTimeout(r, 2000));
+      return callGAS(action, data, true);
+    }
+    throw e;
+  }
+}
+
+// ── LOGIN ──
+async function handleLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  if(!email||!password) return showAlert('Please fill in all fields.');
+  const btn = document.getElementById('loginBtn');
+  btn.innerHTML='<span class="spinner"></span>Signing in…';btn.disabled=true;
+  try {
+    const res = await callGAS('login',{email,password});
+    if(res.success){
+      localStorage.setItem('userSession', JSON.stringify(res.user));
+      window.location.href = res.user.Role==='Teacher' ? 'teacher.html' : 'student.html';
+    } else showAlert(res.message||'Invalid credentials.');
+  } catch(e){ showAlert('Connection error. Please try again.'); }
+  finally{ btn.textContent='Sign In';btn.disabled=false; }
+}
+
+// ── REGISTER: class dropdown — dùng getClassNames thay vì getClassList
+// getClassNames chỉ đọc sheet names → O(1), không scan Attendance
+var _classDropdownLoaded = false;
+async function loadClassDropdown() {
+  if (_classDropdownLoaded) return;
+  var sel = document.getElementById('regClass');
+  sel.innerHTML = '<option value="">⏳ Loading…</option>';
+  try {
+    var r = await callGAS('getClassNames');
+    sel.innerHTML = '<option value="">Select your class</option>';
+    (r.classes||[]).forEach(function(name){
+      var o = document.createElement('option');
+      o.value = name; o.textContent = name;
+      sel.appendChild(o);
+    });
+    _classDropdownLoaded = true;
+  } catch(e) {
+    sel.innerHTML = '<option value="">Error loading — tap to retry</option>';
+    sel.addEventListener('focus', function retry(){
+      sel.removeEventListener('focus', retry);
+      _classDropdownLoaded = false;
+      loadClassDropdown();
+    });
+  }
+}
+
+async function handleRegister() {
+  const data = {
+    fullName: document.getElementById('regName').value.trim(),
+    dob: document.getElementById('regDOB').value,
+    email: document.getElementById('regEmail').value.trim(),
+    phone: document.getElementById('regPhone').value.trim(),
+    classId: document.getElementById('regClass').value,
+    password: document.getElementById('regPassword').value,
+  };
+  const pw2 = (document.getElementById('regPassword2')||{}).value || '';
+  if(!data.fullName||!data.email||!data.password||!data.classId)
+    return showAlert('Please fill in all required fields.');
+  if(data.password.length<6) return showAlert('Password must be at least 6 characters.');
+  if(pw2 && data.password !== pw2) return showAlert('Passwords do not match.');
+  const btn=document.getElementById('regBtn');
+  btn.innerHTML='<span class="spinner"></span>Creating Account…';btn.disabled=true;
+  try {
+    const res = await callGAS('register',data);
+    if(res.success){ showAlert('Account created! Your Student ID has been sent to your email. Please sign in.','success'); switchTab('login'); }
+    else showAlert(res.message||'Registration failed.');
+  } catch(e){ showAlert('Connection error. Please try again.'); }
+  finally{ btn.textContent='Create Account';btn.disabled=false; }
+}
+
+// ── TEACHER ──
+const TEACHER_PASS = 'TEA@tudragon220406';
+function openTeacherModal(){ document.getElementById('teacherModal').classList.add('show'); setTimeout(()=>document.getElementById('teacherCode').focus(),100); }
+function closeTeacherModal(){ document.getElementById('teacherModal').classList.remove('show'); document.getElementById('teacherCode').value=''; }
+function verifyTeacher(){
+  const code = document.getElementById('teacherCode').value;
+  const alertEl = document.getElementById('teacherAlert');
+  if(code===TEACHER_PASS){
+    localStorage.setItem('userSession',JSON.stringify({Role:'Teacher',FullName:'Teacher',Email:'teacher@ielts.edu'}));
+    window.location.href='teacher.html';
+  } else {
+    alertEl.textContent='Incorrect access code.';alertEl.classList.add('show');
+  }
+}
+
+// ── FORGOT PASSWORD ──
+let otpEmail='';
+function openForgot(){ document.getElementById('forgotModal').classList.add('show'); }
+function closeForgot(){
+  document.getElementById('forgotModal').classList.remove('show');
+  document.getElementById('forgotStep1').style.display='';
+  document.getElementById('forgotStep2').style.display='none';
+  document.getElementById('forgotEmail').value='';
+  document.querySelectorAll('.otp-input').forEach(i=>i.value='');
+}
+async function sendOTP(){
+  const email=document.getElementById('forgotEmail').value.trim();
+  const alertEl=document.getElementById('forgotAlert');
+  if(!email){alertEl.textContent='Enter your email.';alertEl.classList.add('show');return;}
+  const btn=document.getElementById('sendOtpBtn');
+  btn.innerHTML='<span class="spinner"></span>Sending…';btn.disabled=true;
+  try{
+    const res=await callGAS('sendOTP',{email});
+    if(res.success){
+      otpEmail=email;
+      document.getElementById('forgotStep1').style.display='none';
+      document.getElementById('forgotStep2').style.display='block';
+    } else {alertEl.textContent=res.message||'Email not found.';alertEl.classList.add('show');}
+  } catch(e){alertEl.textContent='Connection error.';alertEl.classList.add('show');}
+  finally{btn.textContent='Send OTP';btn.disabled=false;}
+}
+function otpNext(el,idx){
+  const inputs=document.querySelectorAll('.otp-input');
+  if(el.value&&idx<5) inputs[idx+1].focus();
+}
+async function verifyOTP(){
+  const otp=Array.from(document.querySelectorAll('.otp-input')).map(i=>i.value).join('');
+  const newPassword=document.getElementById('newPassword').value;
+  const alertEl=document.getElementById('otpAlert');
+  if(otp.length<6){alertEl.textContent='Enter all 6 digits.';alertEl.classList.add('show');return;}
+  if(!newPassword||newPassword.length<6){alertEl.textContent='Password must be at least 6 characters.';alertEl.classList.add('show');return;}
+  try{
+    const res=await callGAS('resetPassword',{email:otpEmail,otp,newPassword});
+    if(res.success){ closeForgot(); showAlert('Password reset! Please sign in.','success'); }
+    else {alertEl.textContent=res.message||'Invalid or expired OTP.';alertEl.classList.add('show');}
+  } catch(e){alertEl.textContent='Connection error.';alertEl.classList.add('show');}
+}
+
+// Already logged in banner
+const _sess = localStorage.getItem('userSession');
+if (_sess) {
+  try {
+    const _u = JSON.parse(_sess);
+    const banner = document.createElement('div');
+    banner.style = 'background:#1a1916;border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;';
+    banner.innerHTML = `
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="width:36px;height:36px;background:#E01A22;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:white;flex-shrink:0">${(_u.FullName||'?')[0].toUpperCase()}</div>
+        <div>
+          <div style="font-size:13px;font-weight:600;color:white">Logged in as <strong>${_u.FullName}</strong></div>
+          <div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:2px">${_u.Role==='Teacher'?'Teacher':'Student · '+(_u.Class||'')}</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-shrink:0;">
+        <button onclick="window.location.href='${_u.Role==='Teacher'?'teacher.html':'student.html'}'"
+          style="padding:8px 16px;border:none;border-radius:8px;background:#E01A22;color:white;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;">
+          Continue →
+        </button>
+        <button onclick="localStorage.removeItem('userSession');this.closest('div[style]').remove()"
+          style="padding:8px 16px;border:2px solid rgba(255,255,255,.2);border-radius:8px;background:transparent;color:rgba(255,255,255,.7);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;">
+          Sign Out
+        </button>
+      </div>`;
+    const card = document.querySelector('.auth-card');
+    if (card) card.insertBefore(banner, card.firstChild);
+  } catch(e) { localStorage.removeItem('userSession'); }
+}
+</script>
+</body>
+</html>
