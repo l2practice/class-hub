@@ -448,13 +448,16 @@ textarea.fc{resize:vertical;min-height:60px;}
           <div class="sec-title">Weekly Schedule</div>
           <div class="sec-sub" id="weekRange"></div>
         </div>
-        <div style="display:flex;gap:7px;">
+        <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
+          <select id="weeklyClassSel" class="fc" style="max-width:180px;padding:6px 10px;font-size:13px" onchange="onWeeklyClassChange()">
+            <option value="">— Select class —</option>
+          </select>
           <button class="btn btn-g" onclick="changeWeek(-1)">‹ Prev</button>
           <button class="btn btn-g" onclick="changeWeek(0)">Today</button>
           <button class="btn btn-g" onclick="changeWeek(1)">Next ›</button>
         </div>
       </div>
-      <div class="card"><div class="tw" id="weeklyWrap"><p style="padding:40px;text-align:center;color:var(--g400)">Loading…</p></div></div>
+      <div class="card"><div class="tw" id="weeklyWrap"><p style="padding:40px;text-align:center;color:var(--g400)">Select a class above to view its schedule.</p></div></div>
     </div>
 
     <!-- ③ TUITION & ATTENDANCE -->
@@ -904,7 +907,7 @@ function showSec(id) {
   });
   document.getElementById('pageTitle').textContent = TITLES[id]||id;
   // Lazy load
-  if (id==='weekly') loadWeekly();
+  if (id==='weekly') { buildWeeklyClassSel(); if(_weeklyClassId) loadWeekly(); }
   if (id==='archive') loadArchive();
   if (id==='participation' && classData.length) buildPartTabs();
   if (id==='homework' && classData.length) buildHWTrackerTabs();
@@ -974,6 +977,7 @@ async function init() {
     buildDiligenceTabs();
     buildPartTabs();
     buildHWTrackerTabs();
+    buildWeeklyClassSel();
     updateStats();
     // Background preload: silently fetch data for all classes after UI is ready
     setTimeout(function(){ preloadAllClasses(); }, 800);
@@ -1162,7 +1166,37 @@ function fmtBrit(dateStr, showYear){
 function fmtBritFull(dateStr){return fmtBrit(dateStr,true);}
 
 
+var _weeklyClassId = null;
+
+function buildWeeklyClassSel(){
+  var sel=document.getElementById('weeklyClassSel');
+  if(!sel||!classData.length)return;
+  var cur=sel.value||_weeklyClassId||'';
+  sel.innerHTML='<option value="">— Select class —</option>';
+  classData.forEach(function(c){
+    var o=document.createElement('option');
+    o.value=c.classId; o.textContent=c.classId;
+    if(c.classId===cur) o.selected=true;
+    sel.appendChild(o);
+  });
+}
+
+async function onWeeklyClassChange(){
+  var sel=document.getElementById('weeklyClassSel');
+  _weeklyClassId=sel?sel.value:'';
+  if(!_weeklyClassId){
+    document.getElementById('weeklyWrap').innerHTML='<p style="padding:40px;text-align:center;color:var(--g400)">Select a class above to view its schedule.</p>';
+    document.getElementById('weekRange').textContent='';
+    return;
+  }
+  await loadWeekly();
+}
+
 async function loadWeekly() {
+  if(!_weeklyClassId){
+    document.getElementById('weeklyWrap').innerHTML='<p style="padding:40px;text-align:center;color:var(--g400)">Select a class above to view its schedule.</p>';
+    return;
+  }
   var dates=getWeekDates(weekOffset);
   var DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
   var today=fmtD(new Date());
@@ -1170,57 +1204,48 @@ async function loadWeekly() {
   function _fmtHd(d){return d.getDate()+' '+_mo[d.getMonth()]+' '+d.getFullYear();}
   function _fmtCol(d){return d.getDate()+' '+_mo[d.getMonth()];}
   document.getElementById('weekRange').textContent=_fmtHd(dates[0])+' — '+_fmtHd(dates[6]);
-  if(!classData.length){
-    document.getElementById('weeklyWrap').innerHTML='<p style="padding:40px;text-align:center;color:var(--g400)">Load overview first.</p>'; return;
+  // Fetch schedule for selected class only if not cached
+  if(!allSchedules[_weeklyClassId]){
+    document.getElementById('weeklyWrap').innerHTML='<p style="padding:40px;text-align:center;color:var(--g400)"><span style="font-size:20px">⏳</span> Loading schedule…</p>';
+    try{
+      var rs=await api('getClassDetail',{classId:_weeklyClassId});
+      if(rs.success) allSchedules[_weeklyClassId]=rs.schedule||[];
+    }catch(e){}
   }
-  // Render immediately from cache if available, otherwise fetch
-  var allCached=classData.every(function(c){return !!allSchedules[c.classId];});
-  if(!allCached){
-    document.getElementById('weeklyWrap').innerHTML='<p style="padding:40px;text-align:center;color:var(--g400)"><span style="font-size:20px">⏳</span> Loading…</p>';
-    for(var i=0;i<classData.length;i++){
-      var cls=classData[i];
-      if(!allSchedules[cls.classId]){
-        try{var rs=await api('getClassDetail',{classId:cls.classId});if(rs.success)allSchedules[cls.classId]=rs.schedule||[];}catch(e){}
-      }
-    }
-  }
+  var cls=classData.find(function(c){return c.classId===_weeklyClassId;});
+  var sch=allSchedules[_weeklyClassId]||[];
   var dateStrs=dates.map(fmtD);
   var SKILL_COLORS={WRITING:'#f97316',SPEAKING:'#8b5cf6',LISTENING:'#3b82f6',READING:'#22c55e',GRAMMAR:'#6b7280'};
-  var thead='<tr><th style="background:var(--g900);color:white;min-width:110px;text-align:left;padding:10px 13px">Class</th>';
+  var thead='<tr><th style="background:var(--g900);color:white;min-width:80px;text-align:left;padding:10px 13px">Session</th>';
   dates.forEach(function(d,i){
     var isT=fmtD(d)===today;
     thead+='<th style="min-width:130px;text-align:center;background:'+(isT?'var(--red)':'var(--g900)')+';color:white;padding:10px 8px">'+
       DAYS[i]+'<br><span style="font-weight:400;font-size:10px;opacity:.7">'+_fmtCol(d)+'</span></th>';
   });
   thead+='</tr>';
-  var tbody='';
-  classData.forEach(function(cls){
-    var sch=allSchedules[cls.classId]||[];
-    var cells='';
-    dateStrs.forEach(function(ds){
-      var isT=ds===today;
-      var sessions=sch.filter(function(s){return s.date===ds&&s.dayLabel.toLowerCase()!=='day 0';});
-      var html='';
-      if(sessions.length){
-        html=sessions.map(function(s){
-          var skill=(s.skill||'').toUpperCase();
-          var color='#6b7280';
-          Object.keys(SKILL_COLORS).forEach(function(k){if(skill.includes(k))color=SKILL_COLORS[k];});
-          return '<div style="border-radius:7px;padding:6px 8px;margin-bottom:4px;background:'+color+'18;border-left:3px solid '+color+'">'+
-            '<div style="font-size:9px;font-weight:700;color:'+color+';letter-spacing:.3px">'+(s.skill||'—')+'</div>'+
-            '<div style="font-size:11px;color:var(--g900);margin-top:1px;line-height:1.4">'+(s.content||'')+'</div>'+
-            '<div style="font-size:9px;color:var(--g400);margin-top:2px">'+s.dayLabel+'</div>'+
-          '</div>';
-        }).join('');
-      }
-      cells+='<td style="padding:7px;vertical-align:top;'+(isT?'background:rgba(224,26,34,.04)':'')+'">'+
-        (html||'<span style="color:var(--g200);font-size:11px">—</span>')+'</td>';
-    });
-    tbody+='<tr><td style="padding:9px 13px;font-weight:700;vertical-align:top;white-space:nowrap;background:var(--g100)">'+
-      '<div style="font-size:13px;font-weight:700">'+cls.classId+'</div>'+
-      '<div style="font-size:10px;color:var(--g400)">'+cls.students.length+' students</div>'+
-      '</td>'+cells+'</tr>';
+  var tbody='<tr><td style="padding:9px 13px;font-weight:700;vertical-align:top;background:var(--g100)">'+
+    '<div style="font-size:13px;font-weight:700">'+_weeklyClassId+'</div>'+
+    (cls?'<div style="font-size:10px;color:var(--g400)">'+cls.students.length+' students</div>':'')+'</td>';
+  dateStrs.forEach(function(ds){
+    var isT=ds===today;
+    var sessions=sch.filter(function(s){return s.date===ds&&s.dayLabel.toLowerCase()!=='day 0';});
+    var html='';
+    if(sessions.length){
+      html=sessions.map(function(s){
+        var skill=(s.skill||'').toUpperCase();
+        var color='#6b7280';
+        Object.keys(SKILL_COLORS).forEach(function(k){if(skill.includes(k))color=SKILL_COLORS[k];});
+        return '<div style="border-radius:7px;padding:6px 8px;margin-bottom:4px;background:'+color+'18;border-left:3px solid '+color+'">'+
+          '<div style="font-size:9px;font-weight:700;color:'+color+';letter-spacing:.3px">'+(s.skill||'—')+'</div>'+
+          '<div style="font-size:11px;color:var(--g900);margin-top:1px;line-height:1.4">'+(s.content||'')+'</div>'+
+          '<div style="font-size:9px;color:var(--g400);margin-top:2px">'+s.dayLabel+'</div>'+
+        '</div>';
+      }).join('');
+    }
+    tbody+='<td style="padding:7px;vertical-align:top;'+(isT?'background:rgba(224,26,34,.04)':'')+'">'+
+      (html||'<span style="color:var(--g200);font-size:11px">—</span>')+'</td>';
   });
+  tbody+='</tr>';
   document.getElementById('weeklyWrap').innerHTML='<table style="width:100%;border-collapse:collapse"><thead>'+thead+'</thead><tbody>'+tbody+'</tbody></table>';
 }
 
@@ -1965,11 +1990,11 @@ function buildHWTrackerTabs(){
   if(!classData.length){el.innerHTML='<p style="color:var(--g400);font-size:13px">No classes</p>';return;}
   classData.forEach(function(cls,i){
     var b=document.createElement('button');
-    b.className='ctab'+(i===0?' active':''); b.textContent=cls.classId;
+    b.className='ctab'; b.textContent=cls.classId;
     b.onclick=(function(cid,btn){return function(){filterHWTracker(cid,btn);};})(cls.classId,b);
     el.appendChild(b);
   });
-  filterHWTracker(classData[0].classId, el.firstChild);
+  // Do NOT auto-load — user picks class explicitly
 }
 
 async function filterHWTracker(classId,btn){
@@ -2051,12 +2076,24 @@ async function endCurrentMonth(){
 }
 
 function buildHWMonths(regularHW){
-  // Group by actual session dates from allSchedules if available
-  // Each 8 scheduled non-Day0 sessions = 1 month
-  var months=[];
-  for(var i=0;i<regularHW.length;i+=8){
-    months.push({month:Math.floor(i/8)+1, hw:regularHW.slice(i,i+8)});
-  }
+  // Month grouping rule: HW is in the month of the SESSION it was assigned in.
+  // Sessions are numbered by date order. Sessions 1-8 = Month 1, 9-16 = Month 2, etc.
+  // Each unique sessionDate is one session. We get session index from sorted unique dates.
+  // HW assigned in session N → month = Math.ceil(N/8)
+  var uniqueDates=[...new Set(regularHW.map(function(h){return h.sessionDate;}))].sort();
+  var dateToSessionIdx={};
+  uniqueDates.forEach(function(d,i){dateToSessionIdx[d]=i+1; // 1-based
+  });
+  var monthMap={};
+  regularHW.forEach(function(hw){
+    var sessIdx=dateToSessionIdx[hw.sessionDate]||1;
+    var mo=Math.ceil(sessIdx/8);
+    if(!monthMap[mo])monthMap[mo]=[];
+    monthMap[mo].push(hw);
+  });
+  var months=Object.keys(monthMap).map(Number).sort(function(a,b){return a-b;}).map(function(mo){
+    return {month:mo, hw:monthMap[mo]};
+  });
   if(!months.length) months=[{month:1,hw:[]}];
   return months;
 }
@@ -2290,7 +2327,7 @@ function renderHWTracker(classId){
 }
 
 function printHWReport(classId){
-  var data=hwTrackerCache[classId]; if(!data)return;
+  var data=hwTrackerCache[classId]; if(!data){toast('Load homework tracker first','err');return;}
   var hwList=data.homework||[], students=data.students||[];
   var typeNames={W:'Writing',L:'Listening',S:'Speaking',V:'Vocabulary',R:'Reading',G:'Grammar'};
   var typeColors={W:'#f97316',L:'#3b82f6',S:'#8b5cf6',V:'#22c55e',R:'#ec4899',G:'#6b7280'};
@@ -2369,6 +2406,30 @@ function printHWReport(classId){
     +'<script>window.onload=function(){window.print();}<\/script>'
     +'</body></html>');
   win.document.close();
+}
+
+async function updateHWDeadlineFromBook(classId, sessionDate, type, newDeadline, hwId, inputId){
+  var statusEl=document.getElementById(inputId+'-status');
+  if(statusEl)statusEl.textContent='Saving…';
+  try{
+    var r=await api('updateHomeworkDeadline',{classId:classId,sessionDate:sessionDate,type:type,deadline:newDeadline});
+    if(r.success){
+      if(statusEl)statusEl.textContent='✓ Saved';
+      setTimeout(function(){if(statusEl)statusEl.textContent='';},2000);
+      // Invalidate caches so tracker and book both reflect new deadline
+      if(hwTrackerCache[classId]) delete hwTrackerCache[classId];
+      if(hwBookCache[classId]) delete hwBookCache[classId];
+      // Also update the in-memory diligence cache (hwDue may have changed)
+      delete _diligenceMonthDataCache[classId+'_'+1];
+      toast('Deadline updated + email rescheduled ✓','ok');
+    } else {
+      if(statusEl){statusEl.textContent='✗ Error';statusEl.style.color='#dc2626';}
+      toast('Error: '+r.message,'err');
+    }
+  }catch(e){
+    if(statusEl){statusEl.textContent='✗ Connection error';statusEl.style.color='#dc2626';}
+    toast('Connection error','err');
+  }
 }
 
 async function deleteHWCol(classId, sessionDate, type){
@@ -2491,6 +2552,17 @@ function renderHWBook(classId){
     var stu=data.students||[],tot=stu.length,dn=0;
     stu.forEach(function(s){var sb=s.submissions[hw.hwId];if(sb&&sb.status==='Done')dn++;});
     var pc=tot?Math.round((dn/tot)*100):0,rb=pc>=80?'#e6f4ea':pc>=40?'#fef9c3':'#fce8e6',rc=pc>=80?'#137333':pc>=40?'#854d0e':'#c5221f';
+    // Editable deadline — inline date input
+    var dlEditId='dl-'+hw.hwId.replace(/[^a-zA-Z0-9]/g,'_');
+    var dlEdit='<div style="display:flex;align-items:center;gap:6px;margin-top:8px;flex-wrap:wrap">'
+      +'<span style="font-size:11px;color:var(--g600);font-weight:600">Deadline:</span>'
+      +'<input type="date" id="'+dlEditId+'" value="'+(hw.deadline||'')+'" '
+        +'style="font-size:11px;border:1px solid var(--g200);border-radius:5px;padding:2px 7px;color:var(--g900);outline:none;cursor:pointer" '
+        +'onfocus="this.style.borderColor=\'var(--red)\'" '
+        +'onblur="this.style.borderColor=\'var(--g200)\'" '
+        +'onchange="updateHWDeadlineFromBook(\''+classId+'\',\''+hw.sessionDate+'\',\''+hw.type+'\',this.value,\''+hw.hwId+'\',\''+dlEditId+'\')">'
+      +'<span id="'+dlEditId+'-status" style="font-size:10px;color:var(--g400)"></span>'
+    +'</div>';
     return '<div style="background:white;border-radius:10px;padding:16px 18px;border-left:4px solid '+bd+';box-shadow:var(--sh)'+(isPast?';opacity:.85':'')+'">'
       +'<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap;">'
         +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
@@ -2501,7 +2573,7 @@ function renderHWBook(classId){
         +'<div style="display:flex;align-items:center;gap:8px;">'+cd2+'<span style="padding:3px 10px;border-radius:6px;font-size:11px;font-weight:700;background:'+rb+';color:'+rc+'">'+dn+'/'+tot+' done</span></div>'
       +'</div>'
       +'<div style="font-size:13px;color:var(--g900);line-height:1.6;margin-bottom:10px;white-space:pre-wrap;word-break:break-word">'+ct+'</div>'
-      +'<div style="font-size:11px;color:var(--g400)">Deadline: <strong style="color:'+(isPast?'#9aa0a6':'var(--g900)')+'">'+dl(hw.deadline||'')+'</strong></div>'
+      +dlEdit
       +'<div style="margin-top:10px;background:var(--g100);border-radius:4px;height:5px;overflow:hidden"><div style="height:100%;background:'+bd+';width:'+pc+'%;border-radius:4px;transition:width .5s"></div></div>'
     +'</div>';
   }
