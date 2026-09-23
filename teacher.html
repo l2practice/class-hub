@@ -854,7 +854,18 @@ var allSchedules = {};   // classId → schedule[]
 var tuitionCache = {};   // classId → {students, totalMonths}
 var hwTrackerCache={};
 var hwBookCache={};
-function invalidateHWBook(c){if(hwBookCache[c])delete hwBookCache[c];}   // classId → {homework, students}
+function invalidateHWBook(c){if(hwBookCache[c])delete hwBookCache[c];}
+
+// Invalidate HW tracker cache for classId and immediately reload if that tab is active
+function invalidateAndReloadTracker(classId){
+  delete hwTrackerCache[classId];
+  invalidateHWBook(classId);
+  // If HW Tracker section is currently visible and this class is active → reload
+  var sec = document.getElementById('sec-homework');
+  if(sec && sec.classList.contains('active') && activeClassId===classId){
+    loadHWTracker(classId);
+  }
+}
 var weekOffset   = 0;
 var hwEntryCount = 0;
 var currentFinishClass = null;
@@ -963,7 +974,7 @@ async function doDeleteHWFromSettings(){
       res.style.background='#dcfce7'; res.style.color='#166534';
       res.style.padding='8px 12px'; res.style.borderRadius='7px';
       res.textContent='✓ Đã xóa '+r.deleted+' homework. ('+label+')';
-      delete hwTrackerCache[classId];
+      invalidateAndReloadTracker(classId);
     } else {
       res.style.background='#fee2e2'; res.style.color='#991b1b';
       res.style.padding='8px 12px'; res.style.borderRadius='7px';
@@ -1907,7 +1918,7 @@ async function doFinish(){
       toast('Session saved! ✓','ok');
       closeMo('moFinish');
       // Clear ALL caches so fresh data is fetched
-      if(hwTrackerCache[classId]) delete hwTrackerCache[classId]; invalidateHWBook(classId);
+      invalidateAndReloadTracker(classId);
       delete tuitionCache[classId];
       delete tuitionCache[classId+'_totalMonths'];
       classData=[]; allSchedules={};
@@ -1950,8 +1961,7 @@ async function doAssignHW(){
     var r=await api('addHomework',{classId:classId,sessionDate:date,dayLabel:dayLabel,type:type,content:content,deadline:deadline});
     if(r.success){
       toast('Homework assigned ✓','ok'); closeMo('moHW');
-      if(hwTrackerCache[classId])delete hwTrackerCache[classId];
-      if(document.getElementById('sec-homework').classList.contains('active')) buildHWTrackerTabs();
+      invalidateAndReloadTracker(classId);
     } else toast('Error: '+r.message,'err');
   }catch(e){toast('Connection error','err');}
 }
@@ -2006,8 +2016,7 @@ async function doAssignExtraHW(){
     if(r.success){
       toast('Extra HW assigned ✓','ok');
       closeMo('moExtraHW');
-      if(hwTrackerCache[classId]) delete hwTrackerCache[classId]; invalidateHWBook(classId);
-      if(document.getElementById('sec-homework').classList.contains('active')) buildHWTrackerTabs();
+      invalidateAndReloadTracker(classId);
     } else toast('Error: '+r.message,'err');
   }catch(e){toast('Connection error','err');}
 }
@@ -2516,8 +2525,7 @@ async function updateHWDeadlineFromBook(classId, sessionDate, type, newDeadline,
       if(statusEl)statusEl.textContent='✓ Saved';
       setTimeout(function(){if(statusEl)statusEl.textContent='';},2000);
       // Invalidate caches so tracker and book both reflect new deadline
-      if(hwTrackerCache[classId]) delete hwTrackerCache[classId];
-      if(hwBookCache[classId]) delete hwBookCache[classId];
+      invalidateAndReloadTracker(classId);
       // Also update the in-memory diligence cache (hwDue may have changed)
       delete _diligenceMonthDataCache[classId+'_'+1];
       toast('Deadline updated + email rescheduled ✓','ok');
@@ -2540,8 +2548,7 @@ async function deleteHWCol(classId, sessionDate, type){
     var r=await api('deleteHomework',{classId:classId,sessionDate:sessionDate,type:type});
     if(r.success){
       toast('Đã xóa homework '+tname+' ('+dl+') ✓','ok');
-      delete hwTrackerCache[classId]; invalidateHWBook(classId);
-      loadHWTracker(classId);
+      invalidateAndReloadTracker(classId);
     } else toast('Error: '+r.message,'err');
   }catch(e){toast('Connection error','err');}
 }
