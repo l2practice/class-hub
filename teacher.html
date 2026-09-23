@@ -2089,7 +2089,6 @@ async function loadHWTracker(classId){
     el.innerHTML='<p style="color:var(--red);padding:20px">Connection error — <button class="btn btn-g btn-sm" onclick="delete hwTrackerCache[\''+classId+'\'];loadHWTracker(\''+classId+'\')">Retry</button></p>';
   }
 }
-}
 
 var _hwTrackerEndedMonths={}; // classId → {monthNo: endedDate}
 var _hwTrackerCollapsed={}; // classId → Set of collapsed month numbers
@@ -2213,6 +2212,12 @@ function buildHWMonths(regularHW, scheduleSessionDates){
     return {month:mo, hw:monthMap[mo]};
   });
   if(!months.length) months=[{month:1,hw:[]}];
+
+  // DEBUG: log so teacher can verify in browser console
+  console.log('[EduPortal] buildHWMonths — scheduleSessionDates:', sessionOrder);
+  console.log('[EduPortal] buildHWMonths — month grouping:',
+    months.map(function(m){return 'M'+m.month+'('+m.hw.length+'hw, sessions:'+[...new Set(m.hw.map(function(h){return h.sessionDate;}))].join(',')+')';}).join(' | '));
+
   return months;
 }
 
