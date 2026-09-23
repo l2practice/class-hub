@@ -979,8 +979,8 @@ async function init() {
     buildHWTrackerTabs();
     buildWeeklyClassSel();
     updateStats();
-    // Background preload: silently fetch data for all classes after UI is ready
-    setTimeout(function(){ preloadAllClasses(); }, 800);
+    // Background preload: fetch all classes in parallel immediately after UI renders
+    setTimeout(function(){ preloadAllClasses(); }, 200);
   } catch(e) { toast('Connection error','err'); }
 }
 
@@ -996,23 +996,26 @@ function updateStats() {
   document.getElementById('statHW').textContent = '—';
 }
 
-// Silently preload using getAttendanceMatrix (single call per class)
+// Preload all classes in PARALLEL — Promise.all instead of sequential await
+// Each class is one getAttendanceMatrix call; with 3 classes this takes 1 round-trip not 3
 async function preloadAllClasses(){
-  for(var i=0;i<classData.length;i++){
-    var cid=classData[i].classId;
-    try{
-      if(tuitionCache[cid]&&allSchedules[cid]) continue; // already loaded
-      var r=await api('getAttendanceMatrix',{classId:cid});
-      if(r&&r.success){
-        // Save to allSchedules so Weekly Schedule renders instantly from cache
-        if(r.sessions&&r.sessions.length) allSchedules[cid]=r.sessions;
+  var toLoad = classData.filter(function(c){
+    return !(tuitionCache[c.classId] && allSchedules[c.classId]);
+  });
+  if(!toLoad.length) return;
+
+  await Promise.all(toLoad.map(function(cls){
+    return api('getAttendanceMatrix', {classId:cls.classId})
+      .then(function(r){
+        if(!r||!r.success) return;
+        if(r.sessions&&r.sessions.length) allSchedules[cls.classId]=r.sessions;
         var students=r.students||[];
         students.forEach(function(s){ s.sessDetail=s.attendance||{}; });
-        tuitionCache[cid]=students;
-        tuitionCache[cid+'_totalMonths']=r.totalScheduledMonths||1;
-      }
-    }catch(e){/* silent */}
-  }
+        tuitionCache[cls.classId]=students;
+        tuitionCache[cls.classId+'_totalMonths']=r.totalScheduledMonths||1;
+      })
+      .catch(function(){/* silent — individual class failures don't block others */});
+  }));
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1271,6 +1274,8 @@ function filterTuition(classId,btn){
   loadTuition(classId);
 }
 
+var _tuitionInFlight = {}; // classId → Promise, prevents duplicate concurrent fetches
+
 async function loadTuition(classId, forceRefresh){
   var el=document.getElementById('tuitionContent');
   document.getElementById('tuitionTitle').textContent=
@@ -1301,22 +1306,30 @@ async function loadTuition(classId, forceRefresh){
     return;
   }
 
+  // If there's already an in-flight request for this class, wait for it instead of firing another
+  if(!forceRefresh && _tuitionInFlight[classId]){
+    el.innerHTML='<p style="padding:30px;text-align:center;color:var(--g400)">Loading…</p>';
+    try { await _tuitionInFlight[classId]; } catch(e){}
+    if(tuitionCache[classId]) { renderTuitionGrid(classId); return; }
+  }
+
   el.innerHTML='<p style="padding:30px;text-align:center;color:var(--g400)">Loading…</p>';
+  var fetchPromise = api('getAttendanceMatrix', {classId:classId});
+  if(!forceRefresh) _tuitionInFlight[classId] = fetchPromise;
   try {
-    // Single API call — returns students+attendance+tuition+schedule together
-    var r = await api('getAttendanceMatrix', {classId:classId});
+    var r = await fetchPromise;
+    delete _tuitionInFlight[classId];
     if(!r.success){el.innerHTML='<p style="color:var(--red);padding:20px">Error: '+r.message+'</p>';return;}
-
     allSchedules[classId] = r.sessions||[];
-
-    // Each student already has attendance:{date:{status,score}} from GAS
     var students = r.students||[];
     students.forEach(function(s){ s.sessDetail = s.attendance||{}; });
-
     tuitionCache[classId] = students;
     tuitionCache[classId+'_totalMonths'] = r.totalScheduledMonths||1;
     renderTuitionGrid(classId);
-  } catch(e){el.innerHTML='<p style="color:var(--red);padding:20px">Connection error</p>';}
+  } catch(e){
+    delete _tuitionInFlight[classId];
+    el.innerHTML='<p style="color:var(--red);padding:20px">Connection error</p>';
+  }
 }
 
 function renderTuitionGrid(classId){
