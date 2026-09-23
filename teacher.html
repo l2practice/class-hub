@@ -2108,7 +2108,7 @@ function openEndMonthModal(){
     var key=hw.sessionDate+'_'+(hw.type||'');
     if(!seen[key]){seen[key]=true;regularHW.push(hw);}
   });
-  var months=buildHWMonths(regularHW);
+  var months=buildHWMonths(regularHW, data.scheduleSessionDates);
   if(!months.length||!months[0].hw.length){toast('No homework months found','err');return;}
 
   var rows=months.map(function(mo){
@@ -2178,23 +2178,38 @@ async function doReopenMonth(classId, monthNo, btn){
   }catch(e){toast('Connection error','err');btn.disabled=false;btn.textContent='🔓 Reopen';}
 }
 
-function buildHWMonths(regularHW){
-  // Month grouping rule: HW is in the month of the SESSION it was assigned in.
-  // Sessions are numbered by date order. Sessions 1-8 = Month 1, 9-16 = Month 2, etc.
-  // Each unique sessionDate is one session. We get session index from sorted unique dates.
-  // HW assigned in session N → month = Math.ceil(N/8)
-  var uniqueDates=[...new Set(regularHW.map(function(h){return h.sessionDate;}))].sort();
-  var dateToSessionIdx={};
-  uniqueDates.forEach(function(d,i){dateToSessionIdx[d]=i+1; // 1-based
-  });
-  var monthMap={};
+function buildHWMonths(regularHW, scheduleSessionDates){
+  // Month grouping rule: the month of a HW is determined by the session INDEX
+  // of its sessionDate in the CLASS SCHEDULE (not in the HW list itself).
+  // Sessions 1–8 = Month 1, 9–16 = Month 2, etc.
+  //
+  // scheduleSessionDates: ordered array of session dates from GAS (excl. Day 0)
+  // If not provided, fall back to sorting unique HW session dates (less accurate)
+  var sessionOrder;
+  if(scheduleSessionDates && scheduleSessionDates.length){
+    sessionOrder = scheduleSessionDates; // authoritative from schedule sheet
+  } else {
+    // Fallback: derive order from HW dates only (may be inaccurate if sessions have no HW)
+    sessionOrder = [...new Set(regularHW.map(function(h){return h.sessionDate;}))].sort();
+  }
+  var dateToSessionIdx = {};
+  sessionOrder.forEach(function(d,i){ dateToSessionIdx[d] = i+1; }); // 1-based
+
+  var monthMap = {};
   regularHW.forEach(function(hw){
-    var sessIdx=dateToSessionIdx[hw.sessionDate]||1;
-    var mo=Math.ceil(sessIdx/8);
-    if(!monthMap[mo])monthMap[mo]=[];
+    var sessIdx = dateToSessionIdx[hw.sessionDate];
+    if(!sessIdx){
+      // HW date not in schedule (edge case: manually added for non-scheduled date)
+      // Find nearest session by date sort
+      var sorted = sessionOrder.filter(function(d){return d <= hw.sessionDate;});
+      sessIdx = sorted.length ? sessionOrder.indexOf(sorted[sorted.length-1])+1 : 1;
+    }
+    var mo = Math.ceil(sessIdx/8);
+    if(!monthMap[mo]) monthMap[mo] = [];
     monthMap[mo].push(hw);
   });
-  var months=Object.keys(monthMap).map(Number).sort(function(a,b){return a-b;}).map(function(mo){
+
+  var months = Object.keys(monthMap).map(Number).sort(function(a,b){return a-b;}).map(function(mo){
     return {month:mo, hw:monthMap[mo]};
   });
   if(!months.length) months=[{month:1,hw:[]}];
@@ -2244,7 +2259,7 @@ function renderHWTracker(classId){
   });
   extraHW.sort(function(a,b){ return (a.deadline||'')>(b.deadline||'')?1:-1; });
 
-  var months=buildHWMonths(regularHW);
+  var months=buildHWMonths(regularHW, data.scheduleSessionDates);
   var ended=_hwTrackerEndedMonths[classId]||{};
   var collapsed=_hwTrackerCollapsed[classId]||new Set();
 
