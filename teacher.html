@@ -840,7 +840,7 @@ textarea.fc{resize:vertical;min-height:60px;}
 // ═══════════════════════════════════════════════════════
 // CONFIG
 // ═══════════════════════════════════════════════════════
-var GAS_URL = 'https://script.google.com/macros/s/AKfycbw8nmCHNITHKB8sdt6ysWLBs3C2uRZQL-eM1O61r9oU1UoB4lax5hMmqxv3GBdFdeOK/exec';
+var GAS_URL = 'https://script.google.com/macros/s/AKfycbw-iZ-ERtiNlKLMK7vmDZxIW4uSPt_TmiXPvGcLbWfFP6HxyfGZSbDj51FLRnp7oIZ5/exec';
 
 // ─── Session
 var sess = JSON.parse(localStorage.getItem('userSession')||'{}');
@@ -910,8 +910,26 @@ function showSec(id) {
   if (id==='weekly') { buildWeeklyClassSel(); if(_weeklyClassId) loadWeekly(); }
   if (id==='archive') loadArchive();
   if (id==='participation' && classData.length) buildPartTabs();
-  if (id==='homework' && classData.length) buildHWTrackerTabs();
-  if (id==='hwbook' && classData.length) buildHWBookTabs();
+  if (id==='homework' && classData.length) {
+    // Only build tabs once; on subsequent visits restore the active class
+    var hwTabsEl = document.getElementById('hwTrackerTabs');
+    var hasRealTabs = hwTabsEl && hwTabsEl.querySelectorAll('.ctab[data-cid]').length > 0;
+    if (!hasRealTabs) {
+      buildHWTrackerTabs();
+    } else if (activeClassId && hwTrackerCache[activeClassId]) {
+      // Restore active tab highlight + re-render from cache (instant)
+      hwTabsEl.querySelectorAll('.ctab').forEach(function(b){
+        b.classList.toggle('active', b.getAttribute('data-cid')===activeClassId);
+      });
+      renderHWTracker(activeClassId);
+    }
+  }
+  if (id==='hwbook' && classData.length) {
+    var hwBookTabsEl = document.getElementById('hwBookTabs');
+    var hasHWBookTabs = hwBookTabsEl && hwBookTabsEl.querySelectorAll('.ctab[data-cid]').length > 0;
+    if (!hasHWBookTabs) buildHWBookTabs();
+    // else: keep existing tabs and content intact
+  }
   if (id==='settings') {
     // Populate class selector in Homework Management
     var sel=document.getElementById('hwDelClass');
@@ -2004,6 +2022,7 @@ function buildHWTrackerTabs(){
   classData.forEach(function(cls,i){
     var b=document.createElement('button');
     b.className='ctab'; b.textContent=cls.classId;
+    b.setAttribute('data-cid', cls.classId);
     b.onclick=(function(cid,btn){return function(){filterHWTracker(cid,btn);};})(cls.classId,b);
     el.appendChild(b);
   });
@@ -2031,24 +2050,36 @@ async function loadHWTracker(classId){
     renderHWTracker(classId);
     return;
   }
-  el.innerHTML='<p style="padding:30px;text-align:center;color:var(--g400)">Loading…</p>';
+  el.innerHTML='<p style="padding:30px;text-align:center;color:var(--g400)">⏳ Loading homework tracker…</p>';
   try{
-    // Load tracker data + ended month status in parallel
-    var [r, rStatus] = await Promise.all([
-      api('getHomeworkTracker',{classId:classId}),
-      api('getHWMonthStatus',{classId:classId})
-    ]);
-    if(!r.success){el.innerHTML='<p style="color:var(--red);padding:20px">Error: '+r.message+'</p>';return;}
-    hwTrackerCache[classId]=r;
-    if(rStatus&&rStatus.success){
-      _hwTrackerEndedMonths[classId]=rStatus.ended||{};
-      // Auto-collapse all ended months except the 2 most recent
-      var endedNos=Object.keys(rStatus.ended||{}).map(Number).sort(function(a,b){return a-b;});
-      if(!_hwTrackerCollapsed[classId]) _hwTrackerCollapsed[classId]=new Set();
-      endedNos.slice(0,-2).forEach(function(mo){_hwTrackerCollapsed[classId].add(mo);});
+    // Sequential calls — GAS web app has low concurrent connection limit;
+    // Promise.all can cause one call to fail when hit simultaneously
+    var r = await api('getHomeworkTracker',{classId:classId});
+    if(!r||!r.success){
+      el.innerHTML='<p style="color:var(--red);padding:20px">Error: '+(r&&r.message?r.message:'Unknown error')+'</p>';
+      return;
     }
+    hwTrackerCache[classId]=r;
+
+    // Load month status separately after tracker data is confirmed
+    try{
+      var rStatus = await api('getHWMonthStatus',{classId:classId});
+      if(rStatus&&rStatus.success){
+        _hwTrackerEndedMonths[classId]=rStatus.ended||{};
+        var endedNos=Object.keys(rStatus.ended||{}).map(Number).sort(function(a,b){return a-b;});
+        if(!_hwTrackerCollapsed[classId]) _hwTrackerCollapsed[classId]=new Set();
+        endedNos.slice(0,-2).forEach(function(mo){_hwTrackerCollapsed[classId].add(mo);});
+      }
+    }catch(e2){
+      // Month status is non-critical — proceed without it
+      _hwTrackerEndedMonths[classId]={};
+    }
+
     renderHWTracker(classId);
-  }catch(e){el.innerHTML='<p style="color:var(--red);padding:20px">Connection error</p>';}
+  }catch(e){
+    el.innerHTML='<p style="color:var(--red);padding:20px">Connection error — <button class="btn btn-g btn-sm" onclick="delete hwTrackerCache[\''+classId+'\'];loadHWTracker(\''+classId+'\')">Retry</button></p>';
+  }
+}
 }
 
 var _hwTrackerEndedMonths={}; // classId → {monthNo: endedDate}
@@ -2561,6 +2592,7 @@ function buildHWBookTabs(){
   classData.forEach(function(cls,i){
     var b=document.createElement('button');
     b.className='ctab'; b.textContent=cls.classId;
+    b.setAttribute('data-cid', cls.classId);
     // No auto-load on first render — wait for explicit class selection
     b.onclick=(function(cid,btn){return function(){loadHWBook(cid,btn);};})(cls.classId,b);
     el.appendChild(b);
