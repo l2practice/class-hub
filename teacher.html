@@ -1041,13 +1041,17 @@ async function preloadAllClasses(){
         if(r.sessions&&r.sessions.length){
           allSchedules[cls.classId]=r.sessions;
           // Pre-populate schedule dates for HW month grouping
-          _hwScheduleDates[cls.classId] = r.sessions
-            .filter(function(s){
-              var dl=(s.dayLabel||'').trim().toLowerCase().replace(/ /g,'');
-              return dl!=='day0'&&dl!=='0';
-            })
-            .map(function(s){return s.date;})
-            .filter(Boolean);
+          // Only sessions that have already happened (≤ today)
+          var todayStr=localToday();
+          var sessDatesSorted=[...new Set(
+            r.sessions
+              .filter(function(s){
+                var dl=(s.dayLabel||'').trim().toLowerCase().replace(/ /g,'');
+                return dl!=='day0'&&dl!=='0'&&s.date&&s.date<=todayStr;
+              })
+              .map(function(s){return s.date;})
+          )].sort();
+          _hwScheduleDates[cls.classId]=sessDatesSorted;
         }
         var students=r.students||[];
         students.forEach(function(s){ s.sessDetail=s.attendance||{}; });
@@ -1942,8 +1946,15 @@ async function doFinish(){
         if(b.textContent===classId) b.classList.add('active');
       });
       await loadTuition(classId, true);
-    } else toast('Error: '+r.message,'err');
-  }catch(e){toast('Connection error','err');}
+    } else {
+      var errMsg = r.message || r.error || JSON.stringify(r);
+      toast('Error: '+errMsg,'err',6000);
+      console.error('[EduPortal] finishSession failed:', r);
+    }
+  }catch(e){
+    toast('Connection error: '+e.message,'err',6000);
+    console.error('[EduPortal] finishSession exception:', e);
+  }
   finally{window._finishIP=false;if(_fb){_fb.disabled=false;_fb.textContent='Finish Session';}}
 }
 
@@ -2079,27 +2090,34 @@ async function loadHWTracker(classId){
     }
     hwTrackerCache[classId]=r;
 
-    // Get schedule session dates (for month grouping)
-    // Priority: allSchedules from preload → _hwScheduleDates cache → fetch separately
+    // Get schedule session dates FOR MONTH GROUPING
+    // Use ONLY sessions that have already happened (from attendance data)
+    // NOT from schedule sheet (which includes future planned sessions)
     if(!_hwScheduleDates[classId]){
+      var today=localToday();
       if(allSchedules[classId] && allSchedules[classId].length){
-        // Already have schedule from Tuition preload — extract non-Day0 dates
+        // allSchedules comes from getAttendanceMatrix — already only attended sessions
+        // Sort by date and filter non-Day0
         _hwScheduleDates[classId] = allSchedules[classId]
           .filter(function(s){
             var dl=(s.dayLabel||'').trim().toLowerCase().replace(/ /g,'');
-            return dl!=='day0'&&dl!=='0';
+            return dl!=='day0'&&dl!=='0'&&s.date&&s.date<=today;
           })
           .map(function(s){return s.date;})
-          .filter(Boolean);
-        console.log('[EduPortal] schedDates from allSchedules cache:', _hwScheduleDates[classId]);
+          .sort();
+        // Deduplicate dates (multiple HW on same day = same session)
+        _hwScheduleDates[classId] = [...new Set(_hwScheduleDates[classId])];
       } else {
-        // Fallback: fetch lightweight getScheduleDates (separate small call)
-        try{
-          var rs = await api('getScheduleDates',{classId:classId});
-          if(rs&&rs.success) _hwScheduleDates[classId]=rs.dates||[];
-          console.log('[EduPortal] schedDates from GAS:', _hwScheduleDates[classId]);
-        }catch(e2){ _hwScheduleDates[classId]=[]; }
+        // No preloaded schedule — derive from HW session dates themselves (attended sessions only)
+        // This is safe because HW is only created on days that were actually taught
+        _hwScheduleDates[classId] = [...new Set(
+          (r.homework||[])
+            .filter(function(h){return h.sessionDate&&h.sessionDate<=today&&h.dayLabel!=='EXTRA';})
+            .map(function(h){return h.sessionDate;})
+        )].sort();
       }
+      console.log('[EduPortal] _hwScheduleDates['+classId+'] ('+_hwScheduleDates[classId].length+' sessions):',
+        _hwScheduleDates[classId].map(function(d,i){return 'S'+(i+1)+':'+d;}).join(', '));
     }
 
     // Load month status (non-critical)
