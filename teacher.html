@@ -873,6 +873,7 @@ var currentFinishClass = null;
 var spinCandidates = [];
 var archiveMode = 'students';
 var activeClassId = null; // tracks the last class tab selected in any tracker
+var lastUsedClassId = null; // persists across init() reloads for End Session restore
 
 // ═══════════════════════════════════════════════════════
 // API
@@ -1314,7 +1315,7 @@ function buildTuitionTabs() {
 function filterTuition(classId,btn){
   document.querySelectorAll('#tuitionTabs .ctab').forEach(function(b){b.classList.remove('active');});
   if(btn)btn.classList.add('active');
-  if(classId&&classId!=='all') activeClassId=classId;
+  if(classId&&classId!=='all'){ activeClassId=classId; lastUsedClassId=classId; }
   loadTuition(classId);
 }
 
@@ -1742,9 +1743,9 @@ function autoDeadline(classId, sessionDate, skill){
 }
 
 function openFinishFor(classId) {
-  // Use passed classId → activeClassId → first class (priority order)
-  currentFinishClass = classId || activeClassId || (classData.length ? classData[0].classId : null);
-  if (!currentFinishClass) { toast('No class data loaded','err'); return; }
+  // Priority: passed classId → activeClassId → lastUsedClassId → first class
+  currentFinishClass = classId || activeClassId || lastUsedClassId || (classData.length ? classData[0].classId : null);
+  if (!currentFinishClass) { toast('No class data loaded yet — please wait','err'); return; }
 
   // Update class selector dropdown in modal
   var selEl = document.getElementById('moFinishClassSel');
@@ -1932,20 +1933,23 @@ async function doFinish(){
       if(scoreList.length) await api('batchUpdateScores',{classId:classId,scores:scoreList});
       toast('Session saved! ✓','ok');
       closeMo('moFinish');
-      // Clear ALL caches so fresh data is fetched
+      // Targeted invalidation only — do NOT reset classData/allSchedules
+      // (full reload causes slow re-fetch + breaks End Session class dropdown)
       invalidateAndReloadTracker(classId);
       delete tuitionCache[classId];
       delete tuitionCache[classId+'_totalMonths'];
-      classData=[]; allSchedules={};
-      await init();
-      // Navigate to Tuition tab and show the saved class immediately
-      showSec('tuition');
-      // Activate the correct class tab
-      document.querySelectorAll('#tuitionTabs .ctab').forEach(function(b){
-        b.classList.remove('active');
-        if(b.textContent===classId) b.classList.add('active');
-      });
-      await loadTuition(classId, true);
+      // Reload tuition for this class + refresh overview stats quietly
+      if(document.getElementById('sec-tuition').classList.contains('active')){
+        await loadTuition(classId, true);
+      }
+      // Refresh overview stats in background (non-blocking)
+      api('getClassList').then(function(r2){
+        if(r2&&r2.success){
+          classData=r2.data||[];
+          renderOverview(); updateStats();
+          buildTuitionTabs(); buildDiligenceTabs();
+        }
+      }).catch(function(){});
     } else {
       var errMsg = r.message || r.error || JSON.stringify(r);
       toast('Error: '+errMsg,'err',6000);
@@ -2063,7 +2067,7 @@ function buildHWTrackerTabs(){
 async function filterHWTracker(classId,btn){
   document.querySelectorAll('#hwTrackerTabs .ctab').forEach(function(b){b.classList.remove('active');});
   if(btn)btn.classList.add('active');
-  if(classId&&classId!=='all') activeClassId=classId;
+  if(classId&&classId!=='all'){ activeClassId=classId; lastUsedClassId=classId; }
   if(!classId)return;
   await loadHWTracker(classId);
 }
@@ -2789,7 +2793,7 @@ function buildPartTabs(){
 function filterPart(classId,btn){
   document.querySelectorAll('#partTabs .ctab').forEach(function(b){b.classList.remove('active');});
   if(btn)btn.classList.add('active');
-  if(classId&&classId!=='all') activeClassId=classId;
+  if(classId&&classId!=='all'){ activeClassId=classId; lastUsedClassId=classId; }
   loadPart(classId);
 }
 
@@ -2942,7 +2946,7 @@ function buildDiligenceTabs(){
 function filterDiligence(classId,btn){
   document.querySelectorAll('#diligenceTabs .ctab').forEach(function(b){b.classList.remove('active');});
   if(btn)btn.classList.add('active');
-  if(classId&&classId!=='all') activeClassId=classId;
+  if(classId&&classId!=='all'){ activeClassId=classId; lastUsedClassId=classId; }
   loadDiligence(classId);
 }
 
