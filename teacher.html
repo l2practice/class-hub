@@ -854,6 +854,7 @@ var allSchedules = {};   // classId → schedule[]
 var tuitionCache = {};   // classId → {students, totalMonths}
 var hwTrackerCache={};
 var hwBookCache={};
+var _hwScheduleDates={}; // classId → ordered non-Day0 session dates from schedule
 function invalidateHWBook(c){if(hwBookCache[c])delete hwBookCache[c];}
 
 // Invalidate HW tracker cache for classId and immediately reload if that tab is active
@@ -1037,7 +1038,17 @@ async function preloadAllClasses(){
     return api('getAttendanceMatrix', {classId:cls.classId})
       .then(function(r){
         if(!r||!r.success) return;
-        if(r.sessions&&r.sessions.length) allSchedules[cls.classId]=r.sessions;
+        if(r.sessions&&r.sessions.length){
+          allSchedules[cls.classId]=r.sessions;
+          // Pre-populate schedule dates for HW month grouping
+          _hwScheduleDates[cls.classId] = r.sessions
+            .filter(function(s){
+              var dl=(s.dayLabel||'').trim().toLowerCase().replace(/ /g,'');
+              return dl!=='day0'&&dl!=='0';
+            })
+            .map(function(s){return s.date;})
+            .filter(Boolean);
+        }
         var students=r.students||[];
         students.forEach(function(s){ s.sessDetail=s.attendance||{}; });
         tuitionCache[cls.classId]=students;
@@ -2054,15 +2065,13 @@ function expandHWMonth(classId, month){
 
 async function loadHWTracker(classId){
   var el=document.getElementById('hwTrackerContent');
-  // Use cache if available
-  if(hwTrackerCache[classId]){
+  if(hwTrackerCache[classId] && _hwScheduleDates[classId]){
     renderHWTracker(classId);
     return;
   }
   el.innerHTML='<p style="padding:30px;text-align:center;color:var(--g400)">⏳ Loading homework tracker…</p>';
   try{
-    // Sequential calls — GAS web app has low concurrent connection limit;
-    // Promise.all can cause one call to fail when hit simultaneously
+    // Fetch tracker data (students + submissions)
     var r = await api('getHomeworkTracker',{classId:classId});
     if(!r||!r.success){
       el.innerHTML='<p style="color:var(--red);padding:20px">Error: '+(r&&r.message?r.message:'Unknown error')+'</p>';
@@ -2070,7 +2079,30 @@ async function loadHWTracker(classId){
     }
     hwTrackerCache[classId]=r;
 
-    // Load month status separately after tracker data is confirmed
+    // Get schedule session dates (for month grouping)
+    // Priority: allSchedules from preload → _hwScheduleDates cache → fetch separately
+    if(!_hwScheduleDates[classId]){
+      if(allSchedules[classId] && allSchedules[classId].length){
+        // Already have schedule from Tuition preload — extract non-Day0 dates
+        _hwScheduleDates[classId] = allSchedules[classId]
+          .filter(function(s){
+            var dl=(s.dayLabel||'').trim().toLowerCase().replace(/ /g,'');
+            return dl!=='day0'&&dl!=='0';
+          })
+          .map(function(s){return s.date;})
+          .filter(Boolean);
+        console.log('[EduPortal] schedDates from allSchedules cache:', _hwScheduleDates[classId]);
+      } else {
+        // Fallback: fetch lightweight getScheduleDates (separate small call)
+        try{
+          var rs = await api('getScheduleDates',{classId:classId});
+          if(rs&&rs.success) _hwScheduleDates[classId]=rs.dates||[];
+          console.log('[EduPortal] schedDates from GAS:', _hwScheduleDates[classId]);
+        }catch(e2){ _hwScheduleDates[classId]=[]; }
+      }
+    }
+
+    // Load month status (non-critical)
     try{
       var rStatus = await api('getHWMonthStatus',{classId:classId});
       if(rStatus&&rStatus.success){
@@ -2079,10 +2111,7 @@ async function loadHWTracker(classId){
         if(!_hwTrackerCollapsed[classId]) _hwTrackerCollapsed[classId]=new Set();
         endedNos.slice(0,-2).forEach(function(mo){_hwTrackerCollapsed[classId].add(mo);});
       }
-    }catch(e2){
-      // Month status is non-critical — proceed without it
-      _hwTrackerEndedMonths[classId]={};
-    }
+    }catch(e2){ _hwTrackerEndedMonths[classId]={}; }
 
     renderHWTracker(classId);
   }catch(e){
@@ -2107,7 +2136,7 @@ function openEndMonthModal(){
     var key=hw.sessionDate+'_'+(hw.type||'');
     if(!seen[key]){seen[key]=true;regularHW.push(hw);}
   });
-  var months=buildHWMonths(regularHW, data.scheduleSessionDates);
+  var months=buildHWMonths(regularHW, _hwScheduleDates[classId]);
   if(!months.length||!months[0].hw.length){toast('No homework months found','err');return;}
 
   var rows=months.map(function(mo){
@@ -2264,7 +2293,7 @@ function renderHWTracker(classId){
   });
   extraHW.sort(function(a,b){ return (a.deadline||'')>(b.deadline||'')?1:-1; });
 
-  var months=buildHWMonths(regularHW, data.scheduleSessionDates);
+  var months=buildHWMonths(regularHW, _hwScheduleDates[classId]);
   var ended=_hwTrackerEndedMonths[classId]||{};
   var collapsed=_hwTrackerCollapsed[classId]||new Set();
 
