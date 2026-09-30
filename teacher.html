@@ -879,30 +879,59 @@ var lastUsedClassId = null; // persists across init() reloads for End Session re
 // API
 // ═══════════════════════════════════════════════════════
 var API_TIMEOUT_MS = 45000;
-async function api(action, data, _retry) {
-  var payload = Object.assign({action:action}, data||{});
+// Apps Script answers every POST with a 302 to a one-time URL on script.googleusercontent.com.
+// That second leg intermittently returns 404 even though doPost already ran to completion
+// (Executions shows "Completed"). So a failed call may already have been applied:
+//  - reads and idempotent writes are retried silently;
+//  - other writes are NOT retried (a rerun would append duplicate rows / resend emails),
+//    the teacher is told to Refresh and check instead.
+var API_RETRY_SAFE = {
+  getClassList:1, getClassDetail:1, getAttendanceMatrix:1, getHomeworkTracker:1,
+  getHWMonthStatus:1, getRewards:1, getRewardsMonth:1, getRewardsMonths:1,
+  getArchivedStudents:1, getStudentData:1, resetAttendance:1,
+  saveHomeworkSubmission:1, markTuitionPaid:1, batchUpdateScores:1, endHWMonth:1,
+  updateHomeworkDeadline:1, deleteHomework:1, deleteAttRecord:1
+};
+var API_RETRY_DELAYS = [700, 1500];
+
+async function apiOnce(body) {
   var ctrl = new AbortController();
   var timer = setTimeout(function(){ ctrl.abort(); }, API_TIMEOUT_MS);
   try {
     var r = await fetch(GAS_URL, {
       method:'POST', redirect:'follow',
       headers:{'Content-Type':'text/plain'},
-      body: JSON.stringify(payload),
+      body: body,
       signal: ctrl.signal
     });
     if (!r.ok) throw new Error('HTTP ' + r.status);
-    var json = await r.json();
-    return json;
-  } catch(e) {
-    // Retry once on network error (handles GAS cold start). Not after a timeout:
-    // the first execution is still running server-side, a retry only adds load.
-    if (!_retry && e.name !== 'AbortError') {
-      await new Promise(function(res){setTimeout(res, 2000);});
-      return api(action, data, true);
-    }
-    throw e;
+    return await r.json();
   } finally {
     clearTimeout(timer);
+  }
+}
+
+async function api(action, data) {
+  var body = JSON.stringify(Object.assign({action:action}, data||{}));
+  var retrySafe = !!API_RETRY_SAFE[action];
+  var delays = retrySafe ? API_RETRY_DELAYS : [];
+  for (var attempt = 0; ; attempt++) {
+    try {
+      return await apiOnce(body);
+    } catch(e) {
+      // No retry after a timeout: the execution is still running server-side
+      if (e.name === 'AbortError' || attempt >= delays.length) {
+        console.warn('[EduPortal] api '+action+' failed after '+(attempt+1)+' attempt(s): '+(e.name==='AbortError'?'timeout':e.message));
+        if (!retrySafe) {
+          // Deferred so it replaces the caller's generic "Connection error" toast
+          setTimeout(function(){
+            toast('Không nhận được phản hồi — thao tác có thể ĐÃ được lưu. Bấm Refresh để kiểm tra trước khi làm lại.','err');
+          }, 50);
+        }
+        throw e;
+      }
+      await new Promise(function(res){ setTimeout(res, delays[attempt]); });
+    }
   }
 }
 
