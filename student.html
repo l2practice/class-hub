@@ -790,40 +790,34 @@ async function changePassword() {
 }
 
 async function loadRanking() {
+  // Own line only: position in the class for the latest month, never classmates' names or data
   try {
-    const r = await api('getRewards',{classId:sess.Class});
-    if(!r.success || !r.months||!r.months.length) {
+    const r = await api('getMyRanking');
+    const k = r.success && r.ranking;
+    if (!k) {
       document.getElementById('rankingCard').innerHTML='<p style="padding:30px;text-align:center;color:var(--g400);font-size:13px">No ranking data yet.</p>';
       return;
     }
-    // Show latest month ranking
-    const latestMonth = r.months[r.months.length-1];
-    const sorted = [...latestMonth.students].sort((a,b)=>b.avgScore-a.avgScore);
     const medals = ['🥇','🥈','🥉'];
-    const rows = sorted.map((s,i)=>{
-      const isMe = s.name === sess.FullName || s.email === sess.Email;
-      return `<tr style="${isMe?'background:rgba(224,26,34,.05);font-weight:700':''}">
-        <td style="padding:10px 14px;border-bottom:1px solid var(--g100)">${medals[i]||i+1}</td>
-        <td style="padding:10px 14px;border-bottom:1px solid var(--g100)">${s.name}${isMe?' <span style="color:var(--red);font-size:11px">(you)</span>':''}</td>
-        <td style="padding:10px 14px;border-bottom:1px solid var(--g100);text-align:center">
-          ${s.avgScore>0?`<span style="background:${s.avgScore>=8?'#dcfce7':s.avgScore>=5?'#fef9c3':'#fee2e2'};color:${s.avgScore>=8?'#166534':s.avgScore>=5?'#854d0e':'#991b1b'};padding:3px 9px;border-radius:6px;font-size:12px;font-weight:700">${s.avgScore}</span>`:'<span style="color:var(--g400)">—</span>'}
-        </td>
-        <td style="padding:10px 14px;border-bottom:1px solid var(--g100);font-size:12px;color:var(--g400)">${s.present}P ${s.absent>0?`· ${s.absent}A`:''}</td>
-      </tr>`;
-    }).join('');
+    const s = k.avgScore;
     document.getElementById('rankingCard').innerHTML=`
       <div style="padding:16px 18px;border-bottom:1px solid var(--g100);display:flex;justify-content:space-between;align-items:center">
-        <div style="font-size:14px;font-weight:600">Month ${latestMonth.month}</div>
-        <div style="font-size:11px;color:var(--g400)">${latestMonth.dates.length} sessions</div>
+        <div style="font-size:14px;font-weight:600">Month ${k.month}</div>
+        <div style="font-size:11px;color:var(--g400)">${k.sessions} sessions</div>
       </div>
       <table style="width:100%;border-collapse:collapse;font-size:13px">
         <thead><tr style="background:var(--g100)">
-          <th style="padding:8px 14px;text-align:left">#</th>
-          <th style="padding:8px 14px;text-align:left">Student</th>
+          <th style="padding:8px 14px;text-align:left">Your rank</th>
           <th style="padding:8px 14px;text-align:center">Avg Score</th>
           <th style="padding:8px 14px;text-align:left">Attendance</th>
         </tr></thead>
-        <tbody>${rows}</tbody>
+        <tbody><tr style="font-weight:700">
+          <td style="padding:10px 14px">${medals[k.position-1]||''} ${k.position} / ${k.total}</td>
+          <td style="padding:10px 14px;text-align:center">
+            ${s>0?`<span style="background:${s>=8?'#dcfce7':s>=5?'#fef9c3':'#fee2e2'};color:${s>=8?'#166534':s>=5?'#854d0e':'#991b1b'};padding:3px 9px;border-radius:6px;font-size:12px;font-weight:700">${s}</span>`:'<span style="color:var(--g400)">—</span>'}
+          </td>
+          <td style="padding:10px 14px;font-size:12px;color:var(--g400)">${k.present}P ${k.absent>0?`· ${k.absent}A`:''}${k.late>0?` · ${k.late}L`:''}</td>
+        </tr></tbody>
       </table>`;
   } catch(e){ console.error(e); }
 }

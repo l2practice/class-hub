@@ -20,6 +20,8 @@ var FIREBASE_CONFIG = null;
 //   att         { classId: { 'yyyy-MM-dd': { dl, st, sc, d0 } } }   ← Attendance_Master
 //   hw          { hwId: { st, gd, nt } }                              ← <hwKey>_Status/_GradedDate/_Note
 //   pay         { classId: { monthNo: { d, n } } }                    ← Tuition_Payments
+//   cls         id of the class doc of u.Class — the only class doc this student may read
+//   rk          own ranking for the latest month, written by the worker (never classmates' data)
 // classes/{class name}
 //   status      'active' (has a tab) | 'archived' (ARCHIVED_ tab) | 'hidden' (homework rows only)
 //   ord         sheet order
@@ -158,7 +160,18 @@ function tablesToDocs(sheets, order) {
     var c = cls(r.ClassID, 'hidden', hidden++);
     if (c) c.hwm[String(r.MonthNo)] = mCell(r.EndedDate);
   });
+  Object.keys(students).forEach(function(id){ students[id].cls = mClassDocOf(students[id].u.Class, classes); });
   return { students: students, classes: classes };
+}
+// Same matching as findClassTab(): exact name, then space/underscore variants, then case-insensitive
+function mClassDocOf(cls, classes) {
+  cls = String(cls == null ? '' : cls).trim();
+  if (!cls) return '';
+  var names = Object.keys(classes).filter(function(n){ return classes[n].status !== 'hidden'; });
+  var norm = function(x){ return x.toLowerCase().replace(/ /g, '_'); };
+  var tries = [cls, cls.replace(/ /g, '_'), cls.replace(/_/g, ' ')];
+  for (var i = 0; i < tries.length; i++) if (names.indexOf(tries[i]) >= 0) return tries[i];
+  return names.filter(function(n){ return norm(n) === norm(cls); })[0] || '';
 }
 
 // students/classes: { id: doc } → { sheets: { name: values2D }, order: [...] }
@@ -1167,9 +1180,12 @@ function ready() {
           return Promise.all([subscribe('students'), subscribe('classes'), subscribe('public', 'meta')])
             .then(function(){ resolve({ signedIn: true, role: 'Teacher', email: S.email }); });
         }
+        // A student can read exactly two docs: their own, and their class (rules enforce this)
         S.role = 'Student'; S.myId = S.email;
-        return Promise.all([subscribe('students', S.myId), subscribe('classes')])
-          .then(function(){ resolve({ signedIn: true, role: 'Student', email: S.email }); });
+        return subscribe('students', S.myId).then(function(){
+          var me = S.students[S.myId], cls = me && me.cls;
+          return cls ? subscribe('classes', cls) : null;
+        }).then(function(){ resolve({ signedIn: true, role: 'Student', email: S.email }); });
       }).catch(reject);
     });
   });
@@ -1193,7 +1209,7 @@ function newStudentOp(email, status, profile) {
   var id = String(email).trim().toLowerCase();
   if (S.students[id]) id = 'x:' + String(email).replace(/\//g, '_');
   return { id: id, op: { op: 'set', col: 'students', id: id, data: { email: String(email), status: status,
-    ord: Date.now(), u: profile || {}, archivedDate: '', hwKey: mEmailKey(email), att: {}, hw: {}, pay: {} } } };
+    ord: Date.now(), u: profile || {}, cls: '', archivedDate: '', hwKey: mEmailKey(email), att: {}, hw: {}, pay: {} } } };
 }
 function studentFor(email, ops) {
   var id = findStudent(email);
@@ -1453,12 +1469,11 @@ var READS = {
   getArchivedStudents: getArchivedStudents, getArchivedStudentDetail: getArchivedStudentDetail,
   resetAttendance: resetAttendance, getStudentId: getStudentId,
   getClassNames: function(){ return S.role === 'Teacher' ? getClassNames() : { success: true, classes: (S.meta.classNames || []) }; },
-  getRewards: function(b){
-    if (S.role === 'Teacher') return getRewards(b);
-    // Students can't read classmates' docs: the worker publishes this per class
-    var c = S.classes[String(b.classId).trim()];
-    try { return c && c.rewardsJson ? JSON.parse(c.rewardsJson) : { success: true, months: [] }; }
-    catch(e) { return { success: true, months: [] }; }
+  getRewards: function(b){ return S.role === 'Teacher' ? getRewards(b) : { success: false, message: 'Not allowed' }; },
+  // Student page: own ranking only (position among classmates, no names), written by the worker
+  getMyRanking: function(){
+    var me = S.students[S.myId];
+    return me && me.rk ? { success: true, ranking: me.rk } : { success: true, ranking: null };
   },
 };
 
@@ -1504,7 +1519,7 @@ function register(d) {
     return A.commit([
       { op: 'set', col: 'students', id: email, data: { email: email, status: 'active', ord: Date.now(),
         u: { FullName: d.fullName, DOB: d.dob || '', Phone: d.phone || '', Class: d.classId, Role: 'Student', StudentID: '' },
-        archivedDate: '', hwKey: mEmailKey(email), att: {}, hw: {}, pay: {} } },
+        cls: d.classId, archivedDate: '', hwKey: mEmailKey(email), att: {}, hw: {}, pay: {} } },
       { op: 'set', col: 'outbox', id: null, data: { kind: 'register', email: email, classId: d.classId, fullName: d.fullName, by: email, at: new Date().toISOString() } },
     ]).then(function(){ return A.signOut(); }).then(function(){ return { success: true }; });
   }, function(e){
