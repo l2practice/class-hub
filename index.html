@@ -190,17 +190,21 @@ body{font-family:'DM Sans',sans-serif;background:var(--off-white);color:var(--gr
 <!-- Teacher Modal -->
 <div class="modal-overlay" id="teacherModal">
   <div class="modal">
-    <h3>Teacher Access</h3>
-    <p>Enter the teacher access code to continue.</p>
+    <h3>Teacher Sign In</h3>
+    <p>Sign in with your teacher account.</p>
     <div class="form-group">
-      <label class="form-label">Access Code</label>
-      <input type="password" class="form-control" id="teacherCode" placeholder="Enter access code"
+      <label class="form-label">Email</label>
+      <input type="email" class="form-control" id="teacherEmail" placeholder="teacher@email.com"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input type="password" class="form-control" id="teacherCode" placeholder="Password"
              onkeydown="if(event.key==='Enter')verifyTeacher()"/>
     </div>
     <div id="teacherAlert" class="alert alert-error" style="margin-bottom:16px"></div>
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeTeacherModal()">Cancel</button>
-      <button class="btn-primary" onclick="verifyTeacher()" style="flex:1">Continue</button>
+      <button class="btn-primary" id="teacherBtn" onclick="verifyTeacher()" style="flex:1">Continue</button>
     </div>
   </div>
 </div>
@@ -210,7 +214,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--off-white);color:var(--gr
   <div class="modal" style="max-width:440px;">
     <h3>Reset Password</h3>
     <div id="forgotStep1">
-      <p>Enter your email to receive a 6-digit OTP code.</p>
+      <p>Enter your email to receive a link for setting a new password.</p>
       <div class="form-group">
         <label class="form-label">Email Address</label>
         <input type="email" class="form-control" id="forgotEmail" placeholder="your@email.com"/>
@@ -218,35 +222,23 @@ body{font-family:'DM Sans',sans-serif;background:var(--off-white);color:var(--gr
       <div id="forgotAlert" class="alert alert-error" style="margin-bottom:16px"></div>
       <div class="modal-actions">
         <button class="btn-cancel" onclick="closeForgot()">Cancel</button>
-        <button class="btn-primary" id="sendOtpBtn" onclick="sendOTP()" style="flex:1">Send OTP</button>
+        <button class="btn-primary" id="sendOtpBtn" onclick="sendOTP()" style="flex:1">Send link</button>
       </div>
     </div>
     <div id="forgotStep2" style="display:none;">
-      <p>Enter the 6-digit code sent to your email, then set a new password.</p>
-      <div class="otp-inputs">
-        <input class="otp-input" maxlength="1" oninput="otpNext(this,0)"/>
-        <input class="otp-input" maxlength="1" oninput="otpNext(this,1)"/>
-        <input class="otp-input" maxlength="1" oninput="otpNext(this,2)"/>
-        <input class="otp-input" maxlength="1" oninput="otpNext(this,3)"/>
-        <input class="otp-input" maxlength="1" oninput="otpNext(this,4)"/>
-        <input class="otp-input" maxlength="1" oninput="otpNext(this,5)"/>
-      </div>
-      <div class="form-group">
-        <label class="form-label">New Password</label>
-        <input type="password" class="form-control" id="newPassword" placeholder="New password"/>
-      </div>
-      <div id="otpAlert" class="alert alert-error" style="margin-bottom:16px"></div>
+      <p>✉️ A password reset link has been sent to <strong id="forgotSentTo"></strong>. Open it, choose a new password, then sign in here. Check your Spam folder if you don't see it.</p>
       <div class="modal-actions">
-        <button class="btn-cancel" onclick="closeForgot()">Cancel</button>
-        <button class="btn-primary" onclick="verifyOTP()" style="flex:1">Reset Password</button>
+        <button class="btn-primary" onclick="closeForgot()" style="flex:1">OK</button>
       </div>
     </div>
   </div>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="db.js"></script>
 <script>
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbw-iZ-ERtiNlKLMK7vmDZxIW4uSPt_TmiXPvGcLbWfFP6HxyfGZSbDj51FLRnp7oIZ5/exec';
-
 function switchTab(tab) {
   if(tab==='register') loadClassDropdown();
   document.querySelectorAll('.tab-btn').forEach((b,i) =>
@@ -263,23 +255,6 @@ function showAlert(msg, type='error'){
 }
 function hideAlert(){ document.getElementById('alertBox').className='alert alert-error'; }
 
-async function callGAS(action, data={}, _retry=false) {
-  try {
-    const res = await fetch(GAS_URL, {
-      method: 'POST', redirect: 'follow',
-      body: JSON.stringify({action, ...data})
-    });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    return await res.json();
-  } catch(e) {
-    if (!_retry) {
-      await new Promise(r => setTimeout(r, 2000));
-      return callGAS(action, data, true);
-    }
-    throw e;
-  }
-}
-
 // ── LOGIN ──
 async function handleLogin() {
   const email = document.getElementById('loginEmail').value.trim();
@@ -288,7 +263,7 @@ async function handleLogin() {
   const btn = document.getElementById('loginBtn');
   btn.innerHTML='<span class="spinner"></span>Signing in…';btn.disabled=true;
   try {
-    const res = await callGAS('login',{email,password});
+    const res = await DB.login(email, password);
     if(res.success){
       localStorage.setItem('userSession', JSON.stringify(res.user));
       window.location.href = res.user.Role==='Teacher' ? 'teacher.html' : 'student.html';
@@ -305,7 +280,7 @@ async function loadClassDropdown() {
   var sel = document.getElementById('regClass');
   sel.innerHTML = '<option value="">⏳ Loading…</option>';
   try {
-    var r = await callGAS('getClassNames');
+    var r = await DB.publicClassNames();
     sel.innerHTML = '<option value="">Select your class</option>';
     (r.classes||[]).forEach(function(name){
       var o = document.createElement('option');
@@ -340,37 +315,42 @@ async function handleRegister() {
   const btn=document.getElementById('regBtn');
   btn.innerHTML='<span class="spinner"></span>Creating Account…';btn.disabled=true;
   try {
-    const res = await callGAS('register',data);
-    if(res.success){ showAlert('Account created! Your Student ID has been sent to your email. Please sign in.','success'); switchTab('login'); }
+    const res = await DB.register(data);
+    if(res.success){ showAlert('Account created! Your Student ID will be emailed to you within a few minutes. Please sign in.','success'); switchTab('login'); }
     else showAlert(res.message||'Registration failed.');
   } catch(e){ showAlert('Connection error. Please try again.'); }
   finally{ btn.textContent='Create Account';btn.disabled=false; }
 }
 
-// ── TEACHER ──
-const TEACHER_PASS = 'TEA@tudragon220406';
-function openTeacherModal(){ document.getElementById('teacherModal').classList.add('show'); setTimeout(()=>document.getElementById('teacherCode').focus(),100); }
+// ── TEACHER ── (teacher accounts are listed in the Firestore rules, not in this public file)
+function openTeacherModal(){ document.getElementById('teacherModal').classList.add('show'); setTimeout(()=>document.getElementById('teacherEmail').focus(),100); }
 function closeTeacherModal(){ document.getElementById('teacherModal').classList.remove('show'); document.getElementById('teacherCode').value=''; }
-function verifyTeacher(){
-  const code = document.getElementById('teacherCode').value;
+async function verifyTeacher(){
+  const email = document.getElementById('teacherEmail').value.trim();
+  const password = document.getElementById('teacherCode').value;
   const alertEl = document.getElementById('teacherAlert');
-  if(code===TEACHER_PASS){
-    localStorage.setItem('userSession',JSON.stringify({Role:'Teacher',FullName:'Teacher',Email:'teacher@ielts.edu'}));
-    window.location.href='teacher.html';
-  } else {
-    alertEl.textContent='Incorrect access code.';alertEl.classList.add('show');
-  }
+  const btn = document.getElementById('teacherBtn');
+  btn.disabled = true;
+  try {
+    const res = await DB.login(email, password);
+    if (res.success && res.user.Role === 'Teacher') {
+      localStorage.setItem('userSession', JSON.stringify(res.user));
+      window.location.href = 'teacher.html';
+      return;
+    }
+    if (res.success) await DB.signOut();
+    alertEl.textContent = res.success ? 'This is not a teacher account.' : res.message;
+    alertEl.classList.add('show');
+  } finally { btn.disabled = false; }
 }
 
 // ── FORGOT PASSWORD ──
-let otpEmail='';
 function openForgot(){ document.getElementById('forgotModal').classList.add('show'); }
 function closeForgot(){
   document.getElementById('forgotModal').classList.remove('show');
   document.getElementById('forgotStep1').style.display='';
   document.getElementById('forgotStep2').style.display='none';
   document.getElementById('forgotEmail').value='';
-  document.querySelectorAll('.otp-input').forEach(i=>i.value='');
 }
 async function sendOTP(){
   const email=document.getElementById('forgotEmail').value.trim();
@@ -379,30 +359,14 @@ async function sendOTP(){
   const btn=document.getElementById('sendOtpBtn');
   btn.innerHTML='<span class="spinner"></span>Sending…';btn.disabled=true;
   try{
-    const res=await callGAS('sendOTP',{email});
+    const res=await DB.resetPassword(email);
     if(res.success){
-      otpEmail=email;
+      document.getElementById('forgotSentTo').textContent=email;
       document.getElementById('forgotStep1').style.display='none';
       document.getElementById('forgotStep2').style.display='block';
     } else {alertEl.textContent=res.message||'Email not found.';alertEl.classList.add('show');}
   } catch(e){alertEl.textContent='Connection error.';alertEl.classList.add('show');}
-  finally{btn.textContent='Send OTP';btn.disabled=false;}
-}
-function otpNext(el,idx){
-  const inputs=document.querySelectorAll('.otp-input');
-  if(el.value&&idx<5) inputs[idx+1].focus();
-}
-async function verifyOTP(){
-  const otp=Array.from(document.querySelectorAll('.otp-input')).map(i=>i.value).join('');
-  const newPassword=document.getElementById('newPassword').value;
-  const alertEl=document.getElementById('otpAlert');
-  if(otp.length<6){alertEl.textContent='Enter all 6 digits.';alertEl.classList.add('show');return;}
-  if(!newPassword||newPassword.length<6){alertEl.textContent='Password must be at least 6 characters.';alertEl.classList.add('show');return;}
-  try{
-    const res=await callGAS('resetPassword',{email:otpEmail,otp,newPassword});
-    if(res.success){ closeForgot(); showAlert('Password reset! Please sign in.','success'); }
-    else {alertEl.textContent=res.message||'Invalid or expired OTP.';alertEl.classList.add('show');}
-  } catch(e){alertEl.textContent='Connection error.';alertEl.classList.add('show');}
+  finally{btn.textContent='Send link';btn.disabled=false;}
 }
 
 // Already logged in banner
@@ -425,7 +389,7 @@ if (_sess) {
           style="padding:8px 16px;border:none;border-radius:8px;background:#E01A22;color:white;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;">
           Continue →
         </button>
-        <button onclick="localStorage.removeItem('userSession');this.closest('div[style]').remove()"
+        <button onclick="localStorage.removeItem('userSession');DB.signOut();this.closest('div[style]').remove()"
           style="padding:8px 16px;border:2px solid rgba(255,255,255,.2);border-radius:8px;background:transparent;color:rgba(255,255,255,.7);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;">
           Sign Out
         </button>

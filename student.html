@@ -349,8 +349,11 @@ body{background:var(--bg)!important;}
 </main>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="db.js"></script>
 <script data-cfasync="false">
-const GAS = 'https://script.google.com/macros/s/AKfycbw-iZ-ERtiNlKLMK7vmDZxIW4uSPt_TmiXPvGcLbWfFP6HxyfGZSbDj51FLRnp7oIZ5/exec';
 const sess = JSON.parse(localStorage.getItem('userSession')||'null');
 if (!sess || sess.Role === 'Teacher') { location.href = 'index.html'; }
 
@@ -370,19 +373,8 @@ if (sess.StudentID) {
   if (idEl) { idEl.textContent = sess.StudentID; idEl.style.display='inline'; }
 }
 
-async function api(action, data={}, _retry=false) {
-  try {
-    const res = await fetch(GAS, { method:'POST', redirect:'follow', body: JSON.stringify({action,...data}) });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    return await res.json();
-  } catch(e) {
-    if (!_retry) {
-      await new Promise(r => setTimeout(r, 2000));
-      return api(action, data, true);
-    }
-    throw e;
-  }
-}
+// Firestore through db.js — same actions and response shapes as the old Apps Script API
+function api(action, data={}) { return DB.api(action, data); }
 
 async function init() {
   document.getElementById('loading').classList.add('show');
@@ -836,8 +828,11 @@ async function loadRanking() {
   } catch(e){ console.error(e); }
 }
 
-function doLogout() { localStorage.removeItem('userSession'); location.href='index.html'; }
-init();
+function doLogout() { localStorage.removeItem('userSession'); DB.signOut().then(() => { location.href='index.html'; }); }
+DB.ready().then(st => {
+  if (!st.signedIn || st.role !== 'Student') { localStorage.removeItem('userSession'); location.href='index.html'; return; }
+  init();
+}, e => { console.error(e); alert('Không kết nối được dữ liệu. Hãy tải lại trang.'); });
 
 } // end if(sess)
 </script>
