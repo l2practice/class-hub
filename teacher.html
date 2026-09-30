@@ -878,24 +878,31 @@ var lastUsedClassId = null; // persists across init() reloads for End Session re
 // ═══════════════════════════════════════════════════════
 // API
 // ═══════════════════════════════════════════════════════
+var API_TIMEOUT_MS = 45000;
 async function api(action, data, _retry) {
   var payload = Object.assign({action:action}, data||{});
+  var ctrl = new AbortController();
+  var timer = setTimeout(function(){ ctrl.abort(); }, API_TIMEOUT_MS);
   try {
     var r = await fetch(GAS_URL, {
       method:'POST', redirect:'follow',
       headers:{'Content-Type':'text/plain'},
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
+      signal: ctrl.signal
     });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     var json = await r.json();
     return json;
   } catch(e) {
-    // Retry once on network error (handles GAS cold start timeout)
-    if (!_retry) {
+    // Retry once on network error (handles GAS cold start). Not after a timeout:
+    // the first execution is still running server-side, a retry only adds load.
+    if (!_retry && e.name !== 'AbortError') {
       await new Promise(function(res){setTimeout(res, 2000);});
       return api(action, data, true);
     }
     throw e;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -1027,15 +1034,18 @@ function updateStats() {
   document.getElementById('statHW').textContent = '—';
 }
 
-// Preload all classes in PARALLEL — Promise.all instead of sequential await
-// Each class is one getAttendanceMatrix call; with 3 classes this takes 1 round-trip not 3
+// Preload classes ONE AT A TIME. Firing every getAttendanceMatrix in parallel made each
+// GAS execution compete for the same spreadsheet, so a request the teacher triggers by
+// clicking (e.g. Homework Book) queued behind all of them and often timed out.
 async function preloadAllClasses(){
   var toLoad = classData.filter(function(c){
     return !(tuitionCache[c.classId] && allSchedules[c.classId]);
   });
-  if(!toLoad.length) return;
-
-  await Promise.all(toLoad.map(function(cls){
+  for(var i=0;i<toLoad.length;i++){
+    await preloadClass(toLoad[i]);
+  }
+}
+function preloadClass(cls){
     return api('getAttendanceMatrix', {classId:cls.classId})
       .then(function(r){
         if(!r||!r.success) return;
@@ -1060,7 +1070,6 @@ async function preloadAllClasses(){
         tuitionCache[cls.classId+'_totalMonths']=r.totalScheduledMonths||1;
       })
       .catch(function(){/* silent — individual class failures don't block others */});
-  }));
 }
 
 // ═══════════════════════════════════════════════════════
@@ -2688,7 +2697,10 @@ async function loadHWBook(classId,btn){
     var r=await api('getHomeworkTracker',{classId:classId});
     if(!r.success){el.innerHTML='<p style="color:var(--red);padding:20px">Error: '+r.message+'</p>';return;}
     hwBookCache[classId]=r;renderHWBook(classId);
-  }catch(e){el.innerHTML='<p style="color:var(--red);padding:20px">Connection error</p>';}
+  }catch(e){
+    el.innerHTML='<p style="color:var(--red);padding:20px">Connection error — <button class="btn btn-g btn-sm">Retry</button></p>';
+    el.querySelector('button').onclick=function(){loadHWBook(classId,btn);};
+  }
 }
 function setHWBookRange(days){
   _hwBookRange=days;
