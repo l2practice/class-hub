@@ -398,6 +398,7 @@ textarea.fc{resize:vertical;min-height:60px;}
       <div style="font-size:11px;color:var(--g400);margin-top:1px" id="todayLabel"></div>
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
+      <button class="btn btn-g" onclick="fbSignIn()" id="fbBtn" style="display:none" title="Đăng nhập Google để đọc dữ liệu từ Firebase (nhanh hơn)">⚡ Fast mode</button>
       <button class="btn btn-g" onclick="doRefresh()" id="refreshBtn">🔄 Refresh</button>
       <button class="btn btn-r" onclick="openFinishFor(null)">✅ End Session</button>
     </div>
@@ -836,6 +837,9 @@ textarea.fc{resize:vertical;min-height:60px;}
 </div>
 
 <!-- ══════════════════════════════════════════════════════ SCRIPT -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════
 // CONFIG
@@ -876,6 +880,94 @@ var activeClassId = null; // tracks the last class tab selected in any tracker
 var lastUsedClassId = null; // persists across init() reloads for End Session restore
 
 // ═══════════════════════════════════════════════════════
+// FIREBASE READ MIRROR (optional)
+// Sheets + GAS stay the source of truth. GAS pushes the payloads below to Firestore
+// (collection "snap", one doc per payload: {json, updatedAt}) after every write and every
+// 10 minutes. When the teacher is signed in with Google, api() reads these docs instead of
+// calling GAS, and a live listener refreshes open views when a doc changes.
+// FIREBASE_CONFIG = null → everything goes through GAS exactly as before.
+// ═══════════════════════════════════════════════════════
+var FIREBASE_CONFIG = null; // paste the firebaseConfig object from the Firebase console here
+var FB = { ready:false, db:null, auth:null, unsub:null };
+var FB_ACTIONS = { getClassList:1, getAttendanceMatrix:1, getHomeworkTracker:1, getHWMonthStatus:1 };
+
+function fbDocId(action, data){ return data && data.classId ? action+'__'+data.classId : action; }
+
+// Resolves once the persisted sign-in state is known, so init() knows where to read from
+function fbInit(){
+  if (!FIREBASE_CONFIG || typeof firebase==='undefined') return Promise.resolve();
+  try {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    FB.auth = firebase.auth();
+    FB.db = firebase.firestore();
+  } catch(e){ console.warn('[EduPortal] Firebase init failed', e); return Promise.resolve(); }
+  document.getElementById('fbBtn').style.display='';
+  return new Promise(function(resolve){
+    var done=false;
+    FB.auth.onAuthStateChanged(function(user){
+      FB.ready = !!user;
+      var btn=document.getElementById('fbBtn');
+      btn.textContent = user ? '⚡ Fast' : '⚡ Fast mode';
+      btn.title = user ? 'Đang đọc từ Firebase ('+user.email+'). Bấm để tắt.' : btn.title;
+      if(!done){done=true;resolve();}
+    });
+    setTimeout(function(){ if(!done){done=true;resolve();} }, 3000);
+  });
+}
+
+async function fbSignIn(){
+  if (!FB.auth) return;
+  if (FB.ready) {
+    if (!confirm('Tắt Fast mode (đọc trực tiếp từ Google Sheets)?')) return;
+    fbStopLive(); await FB.auth.signOut(); doRefresh(); return;
+  }
+  try {
+    await FB.auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+    doRefresh();
+  } catch(e){ toast('Đăng nhập Firebase thất bại: '+(e.code||e.message),'err'); }
+}
+
+async function fbRead(action, data){
+  var snap = await FB.db.collection('snap').doc(fbDocId(action,data)).get();
+  return snap.exists ? JSON.parse(snap.data().json) : null;
+}
+
+// Live refresh: when GAS pushes a new payload, drop the matching page cache and reload
+// whatever view is showing it (reads come from Firestore, so this is instant)
+function fbStartLive(){
+  if (!FB.ready || FB.unsub) return;
+  var first = true;
+  FB.unsub = FB.db.collection('snap').onSnapshot(function(qs){
+    if (first) { first=false; return; } // initial load already handled by init()
+    qs.docChanges().forEach(function(ch){
+      if (ch.type==='removed') return;
+      var id=ch.doc.id, sep=id.indexOf('__');
+      var action = sep<0 ? id : id.slice(0,sep), classId = sep<0 ? '' : id.slice(sep+2);
+      var data; try { data=JSON.parse(ch.doc.data().json); } catch(e){ return; }
+      fbApplyLive(action, classId, data);
+    });
+  }, function(err){ console.warn('[EduPortal] Firebase live listener stopped', err); FB.unsub=null; });
+}
+function fbStopLive(){ if (FB.unsub) { FB.unsub(); FB.unsub=null; } }
+
+function fbApplyLive(action, classId, data){
+  if (action==='getClassList' && data.success) {
+    classData = data.data || [];
+    renderOverview(_ovFilterClass); updateStats();
+  } else if (action==='getHomeworkTracker' || action==='getHWMonthStatus') {
+    invalidateAndReloadTracker(classId);
+    var bookTab=document.querySelector('#hwBookTabs .ctab.active');
+    if (bookTab && bookTab.getAttribute('data-cid')===classId &&
+        document.getElementById('sec-hwbook').classList.contains('active')) loadHWBook(classId, bookTab);
+  } else if (action==='getAttendanceMatrix') {
+    delete tuitionCache[classId]; delete tuitionCache[classId+'_totalMonths'];
+    var tTab=document.querySelector('#tuitionTabs .ctab.active');
+    if (tTab && tTab.textContent===classId &&
+        document.getElementById('sec-tuition').classList.contains('active')) loadTuition(classId, true);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
 // API
 // ═══════════════════════════════════════════════════════
 var API_TIMEOUT_MS = 45000;
@@ -914,6 +1006,12 @@ async function apiOnce(body) {
 }
 
 async function api(action, data) {
+  if (FB.ready && FB_ACTIONS[action]) {
+    try {
+      var snap = await fbRead(action, data);
+      if (snap) return snap;
+    } catch(e){ console.warn('[EduPortal] Firebase read failed for '+action+', falling back to GAS', e); }
+  }
   var body = JSON.stringify(Object.assign({action:action}, data||{}));
   var retrySafe = !!API_RETRY_SAFE[action];
   var delays = retrySafe ? API_RETRY_DELAYS : [];
@@ -973,13 +1071,22 @@ function showSec(id) {
         b.classList.toggle('active', b.getAttribute('data-cid')===activeClassId);
       });
       renderHWTracker(activeClassId);
+    } else {
+      // Cache was invalidated (e.g. by End Session) → reload instead of leaving the old table
+      var hwActive = hwTabsEl.querySelector('.ctab.active[data-cid]');
+      if (hwActive) loadHWTracker(hwActive.getAttribute('data-cid'));
     }
   }
   if (id==='hwbook' && classData.length) {
     var hwBookTabsEl = document.getElementById('hwBookTabs');
     var hasHWBookTabs = hwBookTabsEl && hwBookTabsEl.querySelectorAll('.ctab[data-cid]').length > 0;
     if (!hasHWBookTabs) buildHWBookTabs();
-    // else: keep existing tabs and content intact
+    else {
+      // Keep content if still cached; reload if it was invalidated since it was rendered
+      var bookActive = hwBookTabsEl.querySelector('.ctab.active[data-cid]');
+      if (bookActive && !hwBookCache[bookActive.getAttribute('data-cid')])
+        loadHWBook(bookActive.getAttribute('data-cid'), bookActive);
+    }
   }
   if (id==='settings') {
     // Populate class selector in Homework Management
@@ -1050,6 +1157,7 @@ async function init() {
     updateStats();
     // Background preload: fetch all classes in parallel immediately after UI renders
     setTimeout(function(){ preloadAllClasses(); }, 200);
+    fbStartLive();
   } catch(e) { toast('Connection error','err'); }
 }
 
@@ -3520,7 +3628,7 @@ function toast(msg,type){
 async function doRefresh(){
   var btn=document.getElementById('refreshBtn');
   btn.textContent='⏳';btn.disabled=true;
-  classData=[];allSchedules={};tuitionCache={};hwTrackerCache={};
+  classData=[];allSchedules={};tuitionCache={};hwTrackerCache={};hwBookCache={};_hwScheduleDates={};
   await init();
   btn.textContent='🔄 Refresh';btn.disabled=false;
   toast('Refreshed ✓','ok');
@@ -3531,7 +3639,7 @@ document.querySelectorAll('.mo').forEach(function(mo){
   mo.addEventListener('click',function(e){if(e.target===mo)mo.classList.remove('show');});
 });
 
-init();
+fbInit().then(init);
 </script>
 <script>
 // Remove any stale service workers (sw.js does not exist on GitHub Pages)
