@@ -857,7 +857,7 @@ if (!sess || sess.Role !== 'Teacher') {
 }
 
 // ─── State
-var classData    = [];   // [{classId, students:[...]}]
+var classData    = [];   // [{classId, count, students:null|[...]}] — students are loaded lazily per class (ensureStudents)
 var allSchedules = {};   // classId → schedule[]
 var tuitionCache = {};   // classId → {students, totalMonths}
 var hwTrackerCache={};
@@ -898,7 +898,7 @@ var API_TIMEOUT_MS = 45000;
 //  - other writes are NOT retried (a rerun would append duplicate rows / resend emails),
 //    the teacher is told to Refresh and check instead.
 var API_RETRY_SAFE = {
-  getClassList:1, getClassDetail:1, getAttendanceMatrix:1, getHomeworkTracker:1,
+  getClassList:1, getClassSummary:1, getClassDetail:1, getAttendanceMatrix:1, getHomeworkTracker:1,
   getHWMonthStatus:1, getRewards:1, getRewardsMonth:1, getRewardsMonths:1,
   getArchivedStudents:1, getStudentData:1, resetAttendance:1,
   saveHomeworkSubmission:1, markTuitionPaid:1, batchUpdateScores:1, endHWMonth:1,
@@ -977,7 +977,7 @@ function renderClassPicker(){
   var g=document.getElementById('clsGrid'); if(!g) return;
   g.innerHTML=classData.map(function(c){
     return '<button class="cls-card'+(c.classId===selectedClass?' sel':'')+'" onclick="selectClass(\''+c.classId+'\')">'+
-      '<div class="cn">'+c.classId+'</div><div class="cc">👥 '+c.students.length+' sinh viên</div></button>';
+      '<div class="cn">'+c.classId+'</div><div class="cc">👥 '+c.count+' sinh viên</div></button>';
   }).join('') || '<p style="color:var(--g400)">No classes</p>';
 }
 
@@ -996,6 +996,15 @@ function loadSecForClass(id, force){
     var card=document.getElementById('ovCard');
     if(!c){ card.style.display='none'; return; }
     card.style.display='';
+    var cc=classData.find(function(x){return x.classId===c;});
+    if(!cc.students){
+      document.getElementById('ovBody').innerHTML='<tr><td colspan="11" style="text-align:center;padding:40px;color:var(--g400)">Loading…</td></tr>';
+      ensureStudents(c).then(function(){
+        updateStats();
+        if(selectedClass===c && currentSec==='overview') loadSecForClass('overview');
+      }).catch(function(){ toast('Connection error','err'); });
+      return;
+    }
     renderOverview(c);
     if(!(tuitionCache[c]&&allSchedules[c])) preloadClass({classId:c}).then(function(){
       if(selectedClass===c && currentSec==='overview') renderOverview(c);
@@ -1090,9 +1099,9 @@ async function init() {
     today.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 
   try {
-    var r = await api('getClassList');
+    var r = await api('getClassSummary');
     if (!r.success) { toast('Failed to load class data','err'); return; }
-    classData = r.data || [];
+    classData = (r.data || []).map(function(c){ return {classId:c.classId, count:c.count||0, students:null}; });
     _secClass = {};
     if(selectedClass && !classData.some(function(c){return c.classId===selectedClass;})) selectedClass=null;
     buildClassSwitch();
@@ -1108,15 +1117,47 @@ async function init() {
   } catch(e) { toast('Connection error','err'); }
 }
 
+// Students of ONE class, fetched on demand (backend caches per class).
+var _stuInFlight = {};
+async function ensureStudents(cid, force){
+  var cls = classData.find(function(c){return c.classId===cid;});
+  if(!cls) return [];
+  if(cls.students && !force) return cls.students;
+  if(!_stuInFlight[cid]){
+    _stuInFlight[cid] = api('getClassList',{classId:cid}).then(function(r){
+      delete _stuInFlight[cid];
+      if(r&&r.success){
+        var d=(r.data||[]).find(function(x){return x.classId===cid;})||r.data[0];
+        cls.students = d?d.students:[];
+        cls.count = cls.students.length;
+      }
+    }, function(e){ delete _stuInFlight[cid]; throw e; });
+  }
+  await _stuInFlight[cid];
+  return cls.students||[];
+}
+
+// Re-read class names/counts (and the selected class's students) after a write
+async function refreshClassData(){
+  var r = await api('getClassSummary');
+  if(!r||!r.success) return;
+  var old = {}; classData.forEach(function(c){ old[c.classId]=c; });
+  classData = (r.data||[]).map(function(c){ return {classId:c.classId, count:c.count||0, students:null}; });
+  if(selectedClass && !classData.some(function(c){return c.classId===selectedClass;})) selectedClass=null;
+  buildClassSwitch(); renderClassPicker();
+  if(selectedClass) await ensureStudents(selectedClass,true).catch(function(){});
+  updateStats();
+  if(currentSec==='overview') loadSecForClass('overview');
+}
+
 function updateStats() {
-  var total=0, classes=classData.length, present=0;
-  classData.forEach(function(cls){
-    total += cls.students.length;
-    cls.students.forEach(function(s){ present += s.present||0; });
-  });
+  var total=0, present=0;
+  classData.forEach(function(cls){ total += cls.count||0; });
+  var sel = classData.find(function(c){return c.classId===selectedClass;});
+  if(sel && sel.students) sel.students.forEach(function(s){ present += s.present||0; });
   document.getElementById('statTotal').textContent = total;
-  document.getElementById('statClasses').textContent = classes;
-  document.getElementById('statPresent').textContent = present;
+  document.getElementById('statClasses').textContent = classData.length;
+  document.getElementById('statPresent').textContent = (sel && sel.students) ? present : '—';
   document.getElementById('statHW').textContent = '—';
 }
 
@@ -1176,7 +1217,7 @@ function renderOverview(filterClass) {
   _ovFilterClass=filterClass||selectedClass||'all';
   var all = [];
   classData.forEach(function(cls){
-    cls.students.forEach(function(s){
+    (cls.students||[]).forEach(function(s){
       all.push(Object.assign({},s,{classId:cls.classId}));
     });
   });
@@ -1237,7 +1278,7 @@ function renderOverview(filterClass) {
 
 async function openStudentDetail(classId, email) {
   var cls = classData.find(function(c){return c.classId===classId;});
-  var s = cls ? cls.students.find(function(x){return x.email===email;}) : null;
+  var s = cls && cls.students ? cls.students.find(function(x){return x.email===email;}) : null;
   if (!s) return;
   document.getElementById('moStudentName').textContent = s.name;
   document.getElementById('moStudentId').textContent = (s.studentId||'No ID')+' · '+classId;
@@ -1345,7 +1386,7 @@ async function loadWeekly() {
   thead+='</tr>';
   var tbody='<tr><td style="padding:9px 13px;font-weight:700;vertical-align:top;background:var(--g100)">'+
     '<div style="font-size:13px;font-weight:700">'+_weeklyClassId+'</div>'+
-    (cls?'<div style="font-size:10px;color:var(--g400)">'+cls.students.length+' students</div>':'')+'</td>';
+    (cls?'<div style="font-size:10px;color:var(--g400)">'+(cls.count||0)+' students</div>':'')+'</td>';
   dateStrs.forEach(function(ds){
     var isT=ds===today;
     var sessions=sch.filter(function(s){return s.date===ds&&s.dayLabel.toLowerCase()!=='day 0';});
@@ -1399,7 +1440,7 @@ async function loadTuition(classId, forceRefresh){
     classId==='all'?'All Classes — Tuition':'Tuition & Attendance — '+classId;
 
   if(classId==='all'){
-    var all=classData.reduce(function(a,c){return a.concat(c.students.map(function(s){return Object.assign({},s,{classId:c.classId});}));}, []);
+    var all=classData.reduce(function(a,c){return a.concat((c.students||[]).map(function(s){return Object.assign({},s,{classId:c.classId});}));}, []);
     el.innerHTML='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">'+
       '<thead><tr style="background:var(--g100)"><th style="padding:9px 13px">#</th><th>Student</th><th>Class</th><th style="text-align:center">Sessions</th><th style="text-align:center">Month</th><th>Progress</th></tr></thead><tbody>'+
       all.map(function(s,i){
@@ -1609,8 +1650,7 @@ function quickMarkAtt(sel){
 }
 
 async function removeAllAtt(classId, sessionDate){
-  var cls=classData.find(function(c){return c.classId===classId;});
-  var students=cls?cls.students:[];
+  var students=await ensureStudents(classId);
   if(!students.length){ toast('No students found','err'); return; }
 
   // Tìm date thực tế từ sessDetail (đã fetch khi load tuition)
@@ -1839,9 +1879,17 @@ function openFinishFor(classId) {
   document.getElementById('moFinish').classList.add('show');
 }
 
-function refreshModalStudents(){
-  var cls=classData.find(function(c){return c.classId===currentFinishClass;});
-  var students=cls?cls.students:[];
+async function refreshModalStudents(){
+  var cid=currentFinishClass;
+  var cls=classData.find(function(c){return c.classId===cid;});
+  if(cls && !cls.students){
+    var ld='<p style="padding:14px;color:var(--g400);font-size:13px">Loading students…</p>';
+    document.getElementById('moAttList').innerHTML=ld;
+    document.getElementById('moPartList').innerHTML=ld;
+    try{ await ensureStudents(cid); }catch(e){ toast('Connection error','err'); return; }
+    if(cid!==currentFinishClass) return; // teacher switched class while loading
+  }
+  var students=cls&&cls.students?cls.students:[];
   var date=document.getElementById('moDate').value;
 
   // Pre-fill attendance from sessDetail cache (existing records for this date)
@@ -1970,7 +2018,7 @@ async function doFinish(){
   }
 
   var cls=classData.find(function(c){return c.classId===classId;});
-  var students=cls?cls.students:[];
+  var students=cls&&cls.students?cls.students:[];
   var attOverrides={};
   students.forEach(function(s){
     var sel=document.getElementById('att-'+s.email.replace(/[@.]/g,'_'));
@@ -2015,15 +2063,7 @@ async function doFinish(){
         await loadTuition(classId, true);
       }
       // Refresh overview stats in background (non-blocking)
-      api('getClassList').then(function(r2){
-        if(r2&&r2.success){
-          classData=r2.data||[];
-          buildClassSwitch(); renderClassPicker();
-          if(currentSec==='overview') loadSecForClass('overview');
-          updateStats();
-          buildTuitionTabs(); buildDiligenceTabs();
-        }
-      }).catch(function(){});
+      refreshClassData().catch(function(){});
     } else {
       var errMsg = r.message || r.error || JSON.stringify(r);
       toast('Error: '+errMsg,'err',6000);
@@ -3034,7 +3074,7 @@ var _diligenceExpandedMonths={}; // classId → Set of expanded month numbers
 async function loadDiligence(classId){
   var el=document.getElementById('diligenceContent');
   if(classId==='all'){
-    var all=classData.reduce(function(acc,c){return acc.concat(c.students.map(function(s){return Object.assign({},s,{classId:c.classId});}));},[]);
+    var all=classData.reduce(function(acc,c){return acc.concat((c.students||[]).map(function(s){return Object.assign({},s,{classId:c.classId});}));},[]);
     el.innerHTML='<div class="card"><div class="ch"><div class="ct">Overall Attendance</div></div><div class="tw"><table>'+
       '<thead><tr><th>#</th><th>Student</th><th>Class</th><th>Present</th><th>Late</th><th>Absent</th></tr></thead><tbody>'+
       all.map(function(s,i){return '<tr>'+
@@ -3431,8 +3471,10 @@ async function checkAttRecords(){
   var list=document.getElementById('resetList');
   if(!input){res.textContent='Enter student email or ID.';res.style.cssText='display:block;padding:9px 12px;border-radius:7px;background:#fee2e2;color:#991b1b;font-size:13px;';return;}
   var email=input, cls=null;
-  classData.forEach(function(cd){cd.students.forEach(function(s){
-    if(s.email===input||s.studentId===input){email=s.email;cls=s.classId;}
+  try{ await Promise.all(classData.map(function(cd){return ensureStudents(cd.classId);})); }
+  catch(e){ res.textContent='Connection error';res.style.cssText='display:block;padding:9px 12px;border-radius:7px;background:#fee2e2;color:#991b1b;font-size:13px;';return; }
+  classData.forEach(function(cd){(cd.students||[]).forEach(function(s){
+    if(s.email===input||s.studentId===input){email=s.email;cls=cd.classId;}
   });});
   if(!cls){res.textContent='Student not found.';res.style.cssText='display:block;padding:9px 12px;border-radius:7px;background:#fee2e2;color:#991b1b;font-size:13px;';return;}
   document.getElementById('resetEmail').value=email;
