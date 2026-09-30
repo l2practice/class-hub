@@ -890,7 +890,9 @@ var API_RETRY_SAFE = {
   getHWMonthStatus:1, getRewards:1, getRewardsMonth:1, getRewardsMonths:1,
   getArchivedStudents:1, getStudentData:1, resetAttendance:1,
   saveHomeworkSubmission:1, markTuitionPaid:1, batchUpdateScores:1, endHWMonth:1,
-  updateHomeworkDeadline:1, deleteHomework:1, deleteAttRecord:1
+  updateHomeworkDeadline:1, deleteHomework:1, deleteAttRecord:1,
+  // Upserts server-side; same-day reminder emails are de-duplicated in scheduleReminder()
+  finishSession:1, addHomework:1
 };
 var API_RETRY_DELAYS = [700, 1500];
 
