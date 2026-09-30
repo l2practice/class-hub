@@ -120,6 +120,15 @@ tr:hover td{background:var(--g50);}
 .lvl-kd{background:#fff7ed;color:#7c2d12;font-weight:700;}
 /* ═══════════════════════════════════════ TABS */
 .ctabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px;}
+/* Class is chosen globally (Overview cards / header dropdown) — per-section tab bars stay in the DOM as state holders but are hidden */
+#tuitionTabs,#hwTrackerTabs,#hwBookTabs,#partTabs,#diligenceTabs,#weeklyClassSel{display:none !important;}
+.cls-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px;margin-bottom:18px;}
+.cls-card{background:white;border:2px solid var(--g200,#e5e7eb);border-radius:12px;padding:16px;text-align:left;cursor:pointer;font-family:inherit;transition:.15s;}
+.cls-card:hover{border-color:var(--red);transform:translateY(-1px);}
+.cls-card.sel{border-color:var(--red);background:#fff5f5;}
+.cls-card .cn{font-weight:800;font-size:15px;margin-bottom:4px;}
+.cls-card .cc{font-size:12px;color:var(--g400);}
+.cls-sw{font-family:inherit;font-size:13px;font-weight:700;padding:7px 10px;border:1.5px solid var(--g200,#e5e7eb);border-radius:8px;background:white;max-width:200px;cursor:pointer;}
 .ctab{
   padding:5px 14px;border-radius:20px;border:1.5px solid var(--g200);
   background:white;cursor:pointer;font-family:var(--font);
@@ -398,6 +407,7 @@ textarea.fc{resize:vertical;min-height:60px;}
       <div style="font-size:11px;color:var(--g400);margin-top:1px" id="todayLabel"></div>
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
+      <select id="classSwitch" class="cls-sw" onchange="selectClass(this.value)" title="Đổi lớp"><option value="">— Chọn lớp —</option></select>
       <button class="btn btn-g" onclick="doRefresh()" id="refreshBtn">🔄 Refresh</button>
       <button class="btn btn-r" onclick="openFinishFor(null)">✅ End Session</button>
     </div>
@@ -413,10 +423,8 @@ textarea.fc{resize:vertical;min-height:60px;}
         <div class="stat-box"><div class="stat-val" id="statPresent">—</div><div class="stat-lbl">Present this cycle</div></div>
         <div class="stat-box"><div class="stat-val" id="statHW">—</div><div class="stat-lbl">HW submitted</div></div>
       </div>
-      <div class="ctabs" id="overviewTabs">
-        <button class="ctab active" onclick="filterOverview('all',this)">All Classes</button>
-      </div>
-      <div class="card">
+      <div class="cls-grid" id="clsGrid"></div>
+      <div class="card" id="ovCard" style="display:none">
         <div class="ch">
           <div class="ct" id="ovTitle">All Students</div>
           <span style="font-size:12px;color:var(--g400)" id="ovCount"></span>
@@ -873,6 +881,10 @@ var currentFinishClass = null;
 var spinCandidates = [];
 var archiveMode = 'students';
 var activeClassId = null; // tracks the last class tab selected in any tracker
+var selectedClass = null; // the one class every tab works on
+var _secClass = {};       // sectionId → classId it was last rendered for (skip redundant reloads)
+var currentSec = 'overview';
+try{ selectedClass = localStorage.getItem('selectedClass')||null; }catch(e){}
 var lastUsedClassId = null; // persists across init() reloads for End Session restore
 
 // ═══════════════════════════════════════════════════════
@@ -948,6 +960,68 @@ var TITLES = {
   archive:'Archive', settings:'Settings'
 };
 
+var CLASS_SECS = ['overview','weekly','tuition','homework','hwbook','participation','diligence'];
+
+// ─── Class selection (single source of truth)
+function selectClass(cid){
+  if(cid && !classData.some(function(c){return c.classId===cid;})) cid=null;
+  selectedClass = cid||null;
+  try{ if(selectedClass) localStorage.setItem('selectedClass',selectedClass); else localStorage.removeItem('selectedClass'); }catch(e){}
+  if(selectedClass){ activeClassId=selectedClass; lastUsedClassId=selectedClass; }
+  var sw=document.getElementById('classSwitch'); if(sw) sw.value=selectedClass||'';
+  renderClassPicker();
+  if(CLASS_SECS.indexOf(currentSec)>=0) loadSecForClass(currentSec);
+}
+
+function renderClassPicker(){
+  var g=document.getElementById('clsGrid'); if(!g) return;
+  g.innerHTML=classData.map(function(c){
+    return '<button class="cls-card'+(c.classId===selectedClass?' sel':'')+'" onclick="selectClass(\''+c.classId+'\')">'+
+      '<div class="cn">'+c.classId+'</div><div class="cc">👥 '+c.students.length+' sinh viên</div></button>';
+  }).join('') || '<p style="color:var(--g400)">No classes</p>';
+}
+
+function buildClassSwitch(){
+  var sw=document.getElementById('classSwitch'); if(!sw) return;
+  sw.innerHTML='<option value="">— Chọn lớp —</option>'+classData.map(function(c){
+    return '<option value="'+c.classId+'">'+c.classId+'</option>';
+  }).join('');
+  sw.value=selectedClass||'';
+}
+
+// Load the given section for selectedClass. Only that one class is ever fetched.
+function loadSecForClass(id, force){
+  var c=selectedClass;
+  if(id==='overview'){
+    var card=document.getElementById('ovCard');
+    if(!c){ card.style.display='none'; return; }
+    card.style.display='';
+    renderOverview(c);
+    if(!(tuitionCache[c]&&allSchedules[c])) preloadClass({classId:c}).then(function(){
+      if(selectedClass===c && currentSec==='overview') renderOverview(c);
+    });
+    return;
+  }
+  if(!c){
+    toast('Hãy chọn lớp ở Overview hoặc dropdown trên header','err');
+    showSec('overview');
+    return;
+  }
+  if(!force && _secClass[id]===c) return;
+  _secClass[id]=c;
+  function tab(boxId){ return document.querySelector('#'+boxId+' .ctab[data-cid="'+c+'"]'); }
+  if(id==='weekly'){
+    var sel=document.getElementById('weeklyClassSel');
+    buildWeeklyClassSel(); if(sel) sel.value=c;
+    _weeklyClassId=c; loadWeekly();
+  }
+  else if(id==='tuition') filterTuition(c,null);
+  else if(id==='homework') filterHWTracker(c,tab('hwTrackerTabs'));
+  else if(id==='hwbook') loadHWBook(c,tab('hwBookTabs'));
+  else if(id==='participation') filterPart(c,null);
+  else if(id==='diligence') filterDiligence(c,null);
+}
+
 function showSec(id) {
   document.querySelectorAll('.sec').forEach(function(s){s.classList.remove('active');});
   document.querySelectorAll('.ni').forEach(function(b){b.classList.remove('active');});
@@ -957,30 +1031,9 @@ function showSec(id) {
     if (b.getAttribute('onclick') && b.getAttribute('onclick').includes("'"+id+"'")) b.classList.add('active');
   });
   document.getElementById('pageTitle').textContent = TITLES[id]||id;
-  // Lazy load
-  if (id==='weekly') { buildWeeklyClassSel(); if(_weeklyClassId) loadWeekly(); }
+  currentSec = id;
   if (id==='archive') loadArchive();
-  if (id==='participation' && classData.length) buildPartTabs();
-  if (id==='homework' && classData.length) {
-    // Only build tabs once; on subsequent visits restore the active class
-    var hwTabsEl = document.getElementById('hwTrackerTabs');
-    var hasRealTabs = hwTabsEl && hwTabsEl.querySelectorAll('.ctab[data-cid]').length > 0;
-    if (!hasRealTabs) {
-      buildHWTrackerTabs();
-    } else if (activeClassId && hwTrackerCache[activeClassId]) {
-      // Restore active tab highlight + re-render from cache (instant)
-      hwTabsEl.querySelectorAll('.ctab').forEach(function(b){
-        b.classList.toggle('active', b.getAttribute('data-cid')===activeClassId);
-      });
-      renderHWTracker(activeClassId);
-    }
-  }
-  if (id==='hwbook' && classData.length) {
-    var hwBookTabsEl = document.getElementById('hwBookTabs');
-    var hasHWBookTabs = hwBookTabsEl && hwBookTabsEl.querySelectorAll('.ctab[data-cid]').length > 0;
-    if (!hasHWBookTabs) buildHWBookTabs();
-    // else: keep existing tabs and content intact
-  }
+  else if (CLASS_SECS.indexOf(id)>=0) loadSecForClass(id);
   if (id==='settings') {
     // Populate class selector in Homework Management
     var sel=document.getElementById('hwDelClass');
@@ -1040,16 +1093,18 @@ async function init() {
     var r = await api('getClassList');
     if (!r.success) { toast('Failed to load class data','err'); return; }
     classData = r.data || [];
-    renderOverview();
-    buildOverviewTabs();
+    _secClass = {};
+    if(selectedClass && !classData.some(function(c){return c.classId===selectedClass;})) selectedClass=null;
+    buildClassSwitch();
+    renderClassPicker();
     buildTuitionTabs();
     buildDiligenceTabs();
     buildPartTabs();
     buildHWTrackerTabs();
+    buildHWBookTabs();
     buildWeeklyClassSel();
     updateStats();
-    // Background preload: fetch all classes in parallel immediately after UI renders
-    setTimeout(function(){ preloadAllClasses(); }, 200);
+    selectClass(selectedClass);
   } catch(e) { toast('Connection error','err'); }
 }
 
@@ -1065,20 +1120,14 @@ function updateStats() {
   document.getElementById('statHW').textContent = '—';
 }
 
-// Preload classes ONE AT A TIME. Firing every getAttendanceMatrix in parallel made each
-// GAS execution compete for the same spreadsheet, so a request the teacher triggers by
-// clicking (e.g. Homework Book) queued behind all of them and often timed out.
-async function preloadAllClasses(){
-  var toLoad = classData.filter(function(c){
-    return !(tuitionCache[c.classId] && allSchedules[c.classId]);
-  });
-  for(var i=0;i<toLoad.length;i++){
-    await preloadClass(toLoad[i]);
-  }
-}
+// Fetch the attendance matrix for one class (shared in-flight promise so a tab click doesn't duplicate it).
 function preloadClass(cls){
-    return api('getAttendanceMatrix', {classId:cls.classId})
+    if(_tuitionInFlight[cls.classId]) return _tuitionInFlight[cls.classId].then(function(){},function(){});
+    var p = api('getAttendanceMatrix', {classId:cls.classId});
+    _tuitionInFlight[cls.classId] = p;
+    return p
       .then(function(r){
+        delete _tuitionInFlight[cls.classId];
         if(!r||!r.success) return;
         if(r.sessions&&r.sessions.length){
           allSchedules[cls.classId]=r.sessions;
@@ -1100,29 +1149,12 @@ function preloadClass(cls){
         tuitionCache[cls.classId]=students;
         tuitionCache[cls.classId+'_totalMonths']=r.totalScheduledMonths||1;
       })
-      .catch(function(){/* silent — individual class failures don't block others */});
+      .catch(function(){ delete _tuitionInFlight[cls.classId]; });
 }
 
 // ═══════════════════════════════════════════════════════
 // ① OVERVIEW
 // ═══════════════════════════════════════════════════════
-function buildOverviewTabs() {
-  var el = document.getElementById('overviewTabs');
-  el.innerHTML = '<button class="ctab active" onclick="filterOverview(\'all\',this)">All Classes</button>';
-  classData.forEach(function(cls){
-    var b = document.createElement('button');
-    b.className='ctab'; b.textContent=cls.classId;
-    b.onclick = (function(cid,btn){ return function(){ filterOverview(cid,btn); }; })(cls.classId, b);
-    el.appendChild(b);
-  });
-}
-
-function filterOverview(classId, btn) {
-  document.querySelectorAll('#overviewTabs .ctab').forEach(function(b){b.classList.remove('active');});
-  if (btn) btn.classList.add('active');
-  renderOverview(classId);
-}
-
 function getLevelClass(classId) {
   var id = classId.toLowerCase();
   if (id.includes('ielts')) return 'lvl-ie';
@@ -1141,7 +1173,7 @@ function sortOverview(key){
 }
 
 function renderOverview(filterClass) {
-  _ovFilterClass=filterClass||'all';
+  _ovFilterClass=filterClass||selectedClass||'all';
   var all = [];
   classData.forEach(function(cls){
     cls.students.forEach(function(s){
@@ -1986,7 +2018,9 @@ async function doFinish(){
       api('getClassList').then(function(r2){
         if(r2&&r2.success){
           classData=r2.data||[];
-          renderOverview(); updateStats();
+          buildClassSwitch(); renderClassPicker();
+          if(currentSec==='overview') loadSecForClass('overview');
+          updateStats();
           buildTuitionTabs(); buildDiligenceTabs();
         }
       }).catch(function(){});
