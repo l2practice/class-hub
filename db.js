@@ -3,7 +3,14 @@
 "use strict";
 // ── CONFIG: paste the firebaseConfig object from Firebase console → Project settings → Your apps.
 // It is meant to be public; access is controlled by the Firestore rules.
-var FIREBASE_CONFIG = null;
+var FIREBASE_CONFIG = {
+  apiKey: "AIzaSyB6rgwkLoaHGxfrJCZ8atH4XuMp3SaFlOI",
+  authDomain: "class-portal-d6640.firebaseapp.com",
+  projectId: "class-portal-d6640",
+  storageBucket: "class-portal-d6640.firebasestorage.app",
+  messagingSenderId: "355593062123",
+  appId: "1:355593062123:web:c26ee4f0804a3c5a8de0ae"
+};
 
 // ================================================================
 // DATA MODEL — Sheets tables  ⇄  Firestore documents
