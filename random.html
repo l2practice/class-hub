@@ -91,16 +91,20 @@ button{padding:7px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:
   <div class="empty">Select a class and month,<br>then click ▶ Load.</div>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="db.js"></script>
 <script>
-const GAS='https://script.google.com/macros/s/AKfycbw-iZ-ERtiNlKLMK7vmDZxIW4uSPt_TmiXPvGcLbWfFP6HxyfGZSbDj51FLRnp7oIZ5/exec';
 const COLORS=['#e11d48','#7c3aed','#1d4ed8','#0891b2','#059669','#d97706','#dc2626','#9333ea','#2563eb','#16a34a','#ca8a04','#0284c7','#be185d','#0369a1','#15803d'];
 
 var candidates=[], winners=[], spinning=false;
 
+// Firestore through db.js (teacher account); same actions as the old Apps Script API
 async function gasCall(action,data){
-  const r=await fetch(GAS,{method:'POST',headers:{'Content-Type':'text/plain'},
-    body:JSON.stringify(Object.assign({action},data))});
-  return r.json();
+  const st=await DB.ready();
+  if(!st.signedIn||st.role!=='Teacher'){ location.href='index.html'; return {success:false}; }
+  return DB.api(action,data);
 }
 
 // ── Init: read URL params then load classes
@@ -187,7 +191,7 @@ async function loadCandidates(){
     renderWall();
     document.getElementById('statusBar').textContent=candidates.length+' eligible';
   }catch(e){
-    wall.innerHTML='<div class="empty">Failed to load. Check GAS deployment.</div>';
+    wall.innerHTML='<div class="empty">Failed to load. Please sign in again.</div>';
   }
 }
 
