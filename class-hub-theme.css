@@ -52,15 +52,25 @@ th{background:#f3f0e9!important;color:#777267!important}td{border-color:#efede7!
 .mob-nav-inner,.mobile-nav-inner{max-width:720px;margin:auto}.mnb,.mnav-btn{color:rgba(250,247,240,.62)!important}.mnb.active,.mnav-btn.active{color:#efb57e!important}
 .mnav-more-menu{background:#292925!important}
 .mo,.modal-overlay{background:rgba(37,36,31,.58)!important}.md,.modal{background:#fffdfa!important;border:1px solid rgba(96,83,63,.1);border-radius:22px!important;box-shadow:var(--shadow-lg)}
-/* Sign in: one focused form over a continuous gradient background. */
+/* Sign in: keep the introduction and form on one continuous gradient canvas. */
 .bg-pattern{background:linear-gradient(128deg,#e9d8c7 0%,#d8d5ca 34%,#c8cbb7 67%,#e5d8c8 100%)!important;overflow:hidden}
 .bg-pattern::before{inset:0;background:linear-gradient(148deg,rgba(255,250,241,.24),transparent 48%,rgba(119,128,97,.12))!important;opacity:1;filter:none}
 .bg-orb{display:none}
-.auth-container{max-width:100%;min-height:100vh;margin:auto;padding:32px 20px;grid-template-columns:minmax(0,1fr);justify-items:center;align-items:center}
-.left-panel{display:none!important}
+.auth-container{max-width:1240px;min-height:100vh;margin:auto;padding:36px 30px;grid-template-columns:1.03fr .97fr;gap:clamp(20px,4vw,56px);align-items:center}
+.left-panel{display:flex!important;flex-direction:column;justify-content:center;min-height:100vh;padding:clamp(28px,5vw,64px)!important;color:#39382f!important;background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;overflow:visible}
+.left-panel .brand-logo{margin:0 0 clamp(42px,8vh,78px)!important}
+.left-panel .brand-name{color:#34332d!important;font-family:var(--serif)!important}
+.left-panel .brand-name span{color:#a96336!important}
+.left-panel .hero-text{max-width:530px;margin:0}
+.left-panel .hero-text h1{font-family:var(--serif)!important;font-size:clamp(39px,4.2vw,62px)!important;line-height:1.02!important;letter-spacing:-1.5px!important;color:#302f29}
+.left-panel .hero-text h1 em{color:#a96336!important}
+.left-panel .hero-text p{max-width:410px;color:rgba(39,39,35,.72)!important;font-size:16px!important;line-height:1.7}
+.left-panel .stats-row{display:flex;gap:clamp(18px,3vw,42px)!important;margin-top:38px!important}
+.left-panel .stat-num{color:#a96336!important;font-size:30px!important}
+.left-panel .stat-label{color:rgba(39,39,35,.58)!important;font-size:11px!important}
 .right-panel{width:100%;display:flex;align-items:center;justify-content:center;padding:20px!important}
 .auth-card{width:100%;max-width:500px!important;background:rgba(255,253,250,.96)!important;border-radius:25px!important;padding:clamp(26px,4vw,46px)!important;box-shadow:0 24px 70px rgba(51,47,39,.16)!important;border:1px solid rgba(255,255,255,.72)}
 .auth-card-header h2,.modal h3{font-family:var(--serif)!important;letter-spacing:-.4px}.auth-card-header p,.modal p{color:#858176!important}.tabs{background:#efede7!important;border-radius:12px!important}.tab-btn.active{color:#292925!important;box-shadow:0 3px 10px rgba(52,47,38,.09)!important}.form-label{color:#625f56!important}.form-control{padding:14px 15px!important}.btn-link{color:#ad6133!important}.btn-teacher{border-color:#dfd8cc!important;border-radius:12px!important}.btn-teacher:hover{border-color:#c8814c!important;color:#a85c2d!important;background:#faf2e9!important}
-@media(max-width:900px){.auth-container{max-width:100%;grid-template-columns:minmax(0,1fr);padding:20px}.right-panel{padding:0!important}.auth-card{max-width:500px!important;padding:28px!important}}
+@media(max-width:900px){.auth-container{max-width:100%;grid-template-columns:minmax(0,1fr);padding:20px}.left-panel{display:none!important}.right-panel{padding:0!important}.auth-card{max-width:500px!important;padding:28px!important}}
 @media(max-width:600px){.auth-container{grid-template-columns:minmax(0,1fr);padding:12px;gap:12px}.right-panel{padding:0!important}.auth-card{max-width:500px!important;border-radius:20px!important;padding:24px 20px!important}.auth-card-header{margin-bottom:22px}.form-row{gap:10px}.form-control{font-size:14px!important}.modal{padding:26px!important}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
