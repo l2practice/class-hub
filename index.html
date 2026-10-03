@@ -91,6 +91,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--off-white);color:var(--gr
 @media(max-width:900px){.auth-container{grid-template-columns:1fr;}.left-panel{display:none;}}
 @media(max-width:480px){.auth-card{padding:32px 24px;}}
 </style>
+<link rel="stylesheet" href="class-hub-theme.css"/>
+<link rel="icon" type="image/svg+xml" href="class-hub-icon.svg"/>
 </head>
 <body>
 <div class="bg-pattern">
@@ -101,7 +103,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--off-white);color:var(--gr
 <div class="auth-container">
   <div class="left-panel">
     <div class="brand-logo">
-      <div class="brand-icon">I</div>
+      <div class="brand-icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 22h18M5 22V8l7-5 7 5v14M9 22v-6a3 3 0 0 1 6 0v6M8.5 10h.01M15.5 10h.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
       <div class="brand-name">IELTS <span>Hub</span></div>
     </div>
     <div class="hero-text">
@@ -399,5 +401,6 @@ if (_sess) {
   } catch(e) { localStorage.removeItem('userSession'); }
 }
 </script>
+<script src="class-hub-icons.js"></script>
 </body>
 </html>
