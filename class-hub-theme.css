@@ -52,7 +52,7 @@ th{background:#f3f0e9!important;color:#777267!important}td{border-color:#efede7!
 .mob-nav-inner,.mobile-nav-inner{max-width:720px;margin:auto}.mnb,.mnav-btn{color:rgba(250,247,240,.62)!important}.mnb.active,.mnav-btn.active{color:#efb57e!important}
 .mnav-more-menu{background:#292925!important}
 .mo,.modal-overlay{background:rgba(37,36,31,.58)!important}.md,.modal{background:#fffdfa!important;border:1px solid rgba(96,83,63,.1);border-radius:22px!important;box-shadow:var(--shadow-lg)}
-/* Sign in: editorial bento composition with a quiet, tactile pebble illustration. */
+/* Sign in: editorial bento composition with a soft layered gradient. */
 .bg-pattern{background:linear-gradient(128deg,#e9d8c7 0%,#d8d5ca 34%,#c8cbb7 67%,#e5d8c8 100%)!important;overflow:hidden}
 .bg-pattern::before{inset:0;background:linear-gradient(148deg,rgba(255,250,241,.24),transparent 48%,rgba(119,128,97,.12))!important;opacity:1;filter:none}
 .bg-orb{display:none}
