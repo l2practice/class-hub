@@ -172,6 +172,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--off-white);color:var(--gr
           </div>
         </div>
         <div class="form-group">
+          <label class="form-label">Student ID</label>
+          <input type="text" class="form-control" id="regStudentId" placeholder="e.g. 1234567" autocomplete="username"/>
+        </div>
+        <div class="form-group">
           <label class="form-label">Email Address</label>
           <input type="email" class="form-control" id="regEmail" placeholder="your@email.com"/>
         </div>
@@ -303,6 +307,7 @@ async function loadClassDropdown() {
 async function handleRegister() {
   const data = {
     fullName: document.getElementById('regName').value.trim(),
+    studentId: document.getElementById('regStudentId').value.trim(),
     dob: document.getElementById('regDOB').value,
     email: document.getElementById('regEmail').value.trim(),
     phone: document.getElementById('regPhone').value.trim(),
@@ -310,7 +315,7 @@ async function handleRegister() {
     password: document.getElementById('regPassword').value,
   };
   const pw2 = (document.getElementById('regPassword2')||{}).value || '';
-  if(!data.fullName||!data.email||!data.password||!data.classId)
+  if(!data.fullName||!data.studentId||!data.email||!data.password||!data.classId)
     return showAlert('Please fill in all required fields.');
   if(data.password.length<6) return showAlert('Password must be at least 6 characters.');
   if(pw2 && data.password !== pw2) return showAlert('Passwords do not match.');
@@ -318,7 +323,7 @@ async function handleRegister() {
   btn.innerHTML='<span class="spinner"></span>Creating Account…';btn.disabled=true;
   try {
     const res = await DB.register(data);
-    if(res.success){ showAlert('Account created! Your Student ID will be emailed to you within a few minutes. Please sign in.','success'); switchTab('login'); }
+    if(res.success){ showAlert('Account created! Please sign in.','success'); switchTab('login'); }
     else showAlert(res.message||'Registration failed.');
   } catch(e){ showAlert('Connection error. Please try again.'); }
   finally{ btn.textContent='Create Account';btn.disabled=false; }
