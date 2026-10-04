@@ -1525,7 +1525,7 @@ function register(d) {
   return A.createUser(email, d.password).then(function(){
     return A.commit([
       { op: 'set', col: 'students', id: email, data: { email: email, status: 'active', ord: Date.now(),
-        u: { FullName: d.fullName, DOB: d.dob || '', Phone: d.phone || '', Class: d.classId, Role: 'Student', StudentID: '' },
+        u: { FullName: d.fullName, DOB: d.dob || '', Phone: d.phone || '', Class: d.classId, Role: 'Student', StudentID: String(d.studentId || '').trim() },
         cls: d.classId, archivedDate: '', hwKey: mEmailKey(email), att: {}, hw: {}, pay: {} } },
       { op: 'set', col: 'outbox', id: null, data: { kind: 'register', email: email, classId: d.classId, fullName: d.fullName, by: email, at: new Date().toISOString() } },
     ]).then(function(){ return A.signOut(); }).then(function(){ return { success: true }; });
