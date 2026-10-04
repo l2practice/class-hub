@@ -1522,15 +1522,27 @@ function login(email, password) {
 function register(d) {
   if (!A) A = makeFirebaseAdapter(FIREBASE_CONFIG);
   var email = String(d.email || '').trim().toLowerCase();
-  return A.createUser(email, d.password).then(function(){
+  var TAKEN = { code: 'auth/email-already-in-use' };
+  function saveProfile() {
     return A.commit([
       { op: 'set', col: 'students', id: email, data: { email: email, status: 'active', ord: Date.now(),
         u: { FullName: d.fullName, DOB: d.dob || '', Phone: d.phone || '', Class: d.classId, Role: 'Student', StudentID: String(d.studentId || '').trim() },
         cls: d.classId, archivedDate: '', hwKey: mEmailKey(email), att: {}, hw: {}, pay: {} } },
       { op: 'set', col: 'outbox', id: null, data: { kind: 'register', email: email, classId: d.classId, fullName: d.fullName, by: email, at: new Date().toISOString() } },
-    ]).then(function(){ return A.signOut(); }).then(function(){ return { success: true }; });
-  }, function(e){
-    return { success: false, message: /email-already-in-use/.test(e.code || '') ? 'Email already registered.' : (e.message || e.code) };
+    ]);
+  }
+  function quietSignOut() { return Promise.resolve(A.signOut()).catch(function(){}); }
+  return A.createUser(email, d.password).catch(function(e){
+    if (!/email-already-in-use/.test(e.code || '')) throw e;
+    // The login exists. If an earlier attempt stopped before the profile was saved (e.g. a rules error),
+    // finish it now; if the profile exists, or the password differs, it really is taken.
+    return A.signIn(email, d.password).then(function(){ return A.get('students', email); }).then(
+      function(profile){ if (profile) throw TAKEN; },
+      function(){ throw TAKEN; });
+  }).then(saveProfile).then(quietSignOut).then(function(){ return { success: true }; }, function(e){
+    return quietSignOut().then(function(){
+      return { success: false, message: /email-already-in-use/.test(e.code || '') ? 'Email already registered.' : (e.message || e.code) };
+    });
   });
 }
 function publicClassNames() {
