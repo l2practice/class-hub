@@ -433,11 +433,11 @@ textarea.fc{resize:vertical;min-height:60px;}
       <div class="sec-hd" style="align-items:center;margin-bottom:14px">
         <div><div class="sec-title">Glance</div><div class="sec-sub">Your classes, tuition follow-ups, deadlines, and weekly schedule.</div></div>
         <label style="display:flex;gap:8px;align-items:center;font-size:13px;color:var(--g600)">Choose date
-          <input id="overviewDate" type="date" class="fc" style="width:auto;padding:7px 10px" onchange="renderDayOverview(this.value)">
+          <input id="overviewDate" type="date" class="fc" style="width:auto;padding:7px 10px" onchange="onOverviewDateChange(this.value)">
         </label>
       </div>
       <div id="dayOverview"><p style="padding:40px;text-align:center;color:var(--g400)">Loading your schedule…</p></div>
-      <section class="card" style="padding:18px 20px;margin-top:18px">
+      <section id="glanceScheduleCard" class="card" hidden style="padding:18px 20px;margin-top:18px">
         <div class="sec-hd" style="align-items:center;margin-bottom:14px">
           <div><div class="sec-title">Schedule</div><div class="sec-sub" id="glanceWeekRange"></div></div>
           <div class="schedule-controls">
@@ -1037,7 +1037,7 @@ async function init() {
     buildPartTabs();
     buildHWTrackerTabs();
     buildWeeklyClassSel();
-    document.getElementById('overviewDate').value = localToday();
+    document.getElementById('overviewDate').value = '';
     renderDayOverview(localToday());
     // Background preload: fetch all classes in parallel immediately after UI renders
     setTimeout(function(){ preloadAllClasses(); }, 200);
@@ -1106,12 +1106,20 @@ function toggleOverviewTuition(button,classId,monthNo){
 }
 var glanceWeekOffset=0;
 var glanceScheduleView='list';
+var glanceSelectedDate='';
+function onOverviewDateChange(dateStr){
+  glanceSelectedDate=dateStr||'';
+  glanceWeekOffset=0;
+  renderDayOverview(dateStr);
+}
 function buildGlanceClassSel(){
   var sel=document.getElementById('glanceClassSel');if(!sel)return;
+  var eligible=dayCardsFor(glanceSelectedDate).map(function(c){return c.classId;});
+  eligible=[...new Set(eligible)];
   var current=sel.value;
   sel.innerHTML='<option value="">Select class</option>';
-  classData.forEach(function(c){var o=document.createElement('option');o.value=c.classId;o.textContent=c.classId;if(c.classId===current)o.selected=true;sel.appendChild(o);});
-  if(!sel.value&&classData.length)sel.value=classData[0].classId;
+  classData.filter(function(c){return eligible.indexOf(c.classId)>=0;}).forEach(function(c){var o=document.createElement('option');o.value=c.classId;o.textContent=c.classId;if(c.classId===current)o.selected=true;sel.appendChild(o);});
+  if(!sel.value&&eligible.length)sel.value=eligible[0];
   renderGlanceSchedule();
 }
 function changeGlanceWeek(dir){glanceWeekOffset=dir===0?0:glanceWeekOffset+dir;renderGlanceSchedule();}
@@ -1125,7 +1133,10 @@ function renderGlanceSchedule(){
   var sel=document.getElementById('glanceClassSel'),el=document.getElementById('glanceSchedule'),range=document.getElementById('glanceWeekRange');if(!sel||!el)return;
   var classId=sel.value;
   if(!classId){el.innerHTML='<p style="padding:24px;text-align:center;color:var(--g400)">Select a class to view its weekly schedule.</p>';if(range)range.textContent='';return;}
-  var dates=getWeekDates(glanceWeekOffset),days=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  var anchor=new Date((glanceSelectedDate||localToday())+'T12:00:00'),anchorDay=anchor.getDay();
+  anchor.setDate(anchor.getDate()-(anchorDay===0?6:anchorDay-1)+glanceWeekOffset*7);
+  var dates=[];for(var di=0;di<7;di++){var weekDay=new Date(anchor);weekDay.setDate(anchor.getDate()+di);dates.push(weekDay);}
+  var days=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
   var start=fmtD(dates[0]),end=fmtD(dates[6]);
   if(range)range.textContent=fmtBrit(start,true)+' – '+fmtBrit(end,true);
   var schedule=(_dayOverviewData[classId]||{}).sessions||[];
@@ -1149,11 +1160,13 @@ async function renderDayOverview(dateStr){
   dateStr=dateStr||localToday(); el.innerHTML='<p style="padding:35px;text-align:center;color:var(--g400)">Loading classes and deadlines…</p>';
   await ensureDayOverviewData();
   var cards=dayCardsFor(dateStr);
-  buildGlanceClassSel();
-  if(!cards.length){el.innerHTML='<div class="card" style="padding:28px;text-align:center"><div style="font-size:18px;font-weight:700;margin-bottom:7px">No classes on '+dayEsc(dayLong(dateStr))+'.</div><div style="color:var(--g600)">Choose another date to see your classes.</div></div>';renderGlanceSchedule();return;}
+  var scheduleCard=document.getElementById('glanceScheduleCard');
+  if(!cards.length){if(scheduleCard)scheduleCard.hidden=true;el.innerHTML='<div class="card" style="padding:28px;text-align:center"><div style="font-size:18px;font-weight:700;margin-bottom:7px">No classes on '+dayEsc(dayLong(dateStr))+'.</div><div style="color:var(--g600)">Choose another date to see your classes.</div></div>';return;}
+  var dateWasSelected=glanceSelectedDate===dateStr;
+  if(scheduleCard)scheduleCard.hidden=!dateWasSelected;
+  if(dateWasSelected)buildGlanceClassSel();
   var classCount=new Set(cards.map(function(c){return c.classId;})).size;
   el.innerHTML=renderDayCards(dateStr,(dateStr===localToday()?'Today':'Selected date')+' · '+classCount+' '+(classCount===1?'class':'classes'))+renderDayCards(dayPlus(dateStr,1),'Next day');
-  renderGlanceSchedule();
 }
 function openHomeworkForClass(classId){activeClassId=classId;lastUsedClassId=classId;showSec('homework');var btn=document.querySelector('#hwTrackerTabs [data-cid="'+CSS.escape(classId)+'"]');if(btn){document.querySelectorAll('#hwTrackerTabs .ctab').forEach(function(b){b.classList.remove('active');});btn.classList.add('active');}loadHWTracker(classId);}
 
