@@ -57,7 +57,9 @@ html,body{height:100%;font-family:var(--font);background:var(--bg);color:var(--o
 .glance-schedule-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;padding:4px}
 .glance-schedule-day{border:1px solid var(--g100);border-radius:8px;padding:14px;background:var(--surface)}
 .glance-schedule-day-title{font-weight:700;margin-bottom:10px;color:var(--g800)}
-.hw-assignment-head{cursor:help}
+.hw-assignment-head{cursor:default}
+.hw-hover-tooltip{position:fixed;z-index:10000;display:none;max-width:320px;padding:9px 12px;border-radius:8px;background:#202124;color:#fff;box-shadow:0 4px 16px rgba(0,0,0,.24);font-size:12px;line-height:1.5;white-space:pre-line;pointer-events:none}
+.hw-hover-tooltip.show{display:block}
 .diligent-qualified td{background:#ecfdf5!important}
 .diligent-qualified:hover td{background:#d1fae5!important}
 @media(max-width:768px){.schedule-controls{width:100%;justify-content:space-between;overflow-x:auto}.week-control-group .btn{min-width:74px;padding:8px 9px}.schedule-view-toggle .btn{min-width:54px;padding:8px 9px}}
@@ -2345,6 +2347,29 @@ function homeworkHoverTitle(hw,skillName){
   ].join('\n'));
 }
 
+function showHWAssignmentTooltip(el,event){
+  var tip=document.getElementById('hwAssignmentTooltip');
+  if(!tip){tip=document.createElement('div');tip.id='hwAssignmentTooltip';tip.className='hw-hover-tooltip';document.body.appendChild(tip);}
+  tip.textContent=el.getAttribute('data-hw-tooltip')||'';tip.classList.add('show');moveHWAssignmentTooltip(event);
+}
+function moveHWAssignmentTooltip(event){
+  var tip=document.getElementById('hwAssignmentTooltip');if(!tip||!tip.classList.contains('show'))return;
+  var left=Math.min(event.clientX+14,window.innerWidth-tip.offsetWidth-10);
+  var top=Math.min(event.clientY+14,window.innerHeight-tip.offsetHeight-10);
+  tip.style.left=Math.max(8,left)+'px';tip.style.top=Math.max(8,top)+'px';
+}
+function hideHWAssignmentTooltip(){var tip=document.getElementById('hwAssignmentTooltip');if(tip)tip.classList.remove('show');}
+async function setAllHWDone(classId,button){
+  var data=hwTrackerCache[classId];if(!data)return;
+  var students=data.students||[],homework=data.homework||[];if(!students.length||!homework.length)return;
+  button.disabled=true;button.textContent='Saving…';
+  try{
+    var result=await api('saveAllHomeworkDone',{classId:classId,studentEmails:students.map(function(s){return s.email;}),assignments:homework.map(function(hw){return {sessionDate:hw.sessionDate||'',deadline:hw.deadline||'',type:hw.type||''};})});
+    if(!result||!result.success)throw new Error(result&&result.message||'Unable to update homework');
+    students.forEach(function(student){student.submissions=student.submissions||{};homework.forEach(function(hw){var prior=student.submissions[hw.hwId]||{};student.submissions[hw.hwId]={status:'Done',gradedDate:localToday(),note:prior.note||''};});});
+    renderHWTracker(classId);toast('All homework marked Done','ok');
+  }catch(error){button.disabled=false;button.textContent='✅ All Done';toast(error.message||'Could not update homework','err');}
+}
 function renderHWTracker(classId){
   var data=hwTrackerCache[classId]; if(!data)return;
   var el=document.getElementById('hwTrackerContent');
@@ -2458,7 +2483,7 @@ function renderHWTracker(classId){
       var dTaught=hw.sessionDate?fmtBrit(hw.sessionDate):'';
       var dDue=hw.deadline?fmtBrit(hw.deadline):'—';
       var hwTooltip=homeworkHoverTitle(hw,tname);
-      hwHeaders+='<th class="hw-assignment-head" title="'+hwTooltip+'" aria-label="'+hwTooltip+'" style="padding:5px 4px;text-align:center;min-width:80px;background:'+bg2+';border-bottom:2px solid '+col+';vertical-align:bottom;position:relative">'+
+      hwHeaders+='<th class="hw-assignment-head" data-hw-tooltip="'+hwTooltip+'" onmouseenter="showHWAssignmentTooltip(this,event)" onmousemove="moveHWAssignmentTooltip(event)" onmouseleave="hideHWAssignmentTooltip()" aria-label="'+hwTooltip+'" style="padding:5px 4px;text-align:center;min-width:80px;background:'+bg2+';border-bottom:2px solid '+col+';vertical-align:bottom;position:relative">'+
         '<div style="font-size:11px;font-weight:800;color:'+col+'">'+tname+'</div>'+
         '<div style="font-size:9px;color:var(--g600);margin-top:2px">📅 '+dTaught+'</div>'+
         '<div style="font-size:9px;color:#dc2626;margin-top:1px">⏰ '+dDue+'</div>'+
@@ -2475,7 +2500,7 @@ function renderHWTracker(classId){
     var tname=typeNames[hw.type]||hw.type;
     var dDue=hw.deadline?fmtBrit(hw.deadline):'—';
     var hwTooltip=homeworkHoverTitle(hw,tname);
-    hwHeaders+='<th class="hw-assignment-head" title="'+hwTooltip+'" aria-label="'+hwTooltip+'" style="padding:5px 4px;text-align:center;min-width:80px;background:#fef9c3;border-bottom:2px solid '+col+';vertical-align:bottom;position:relative">'+
+    hwHeaders+='<th class="hw-assignment-head" data-hw-tooltip="'+hwTooltip+'" onmouseenter="showHWAssignmentTooltip(this,event)" onmousemove="moveHWAssignmentTooltip(event)" onmouseleave="hideHWAssignmentTooltip()" aria-label="'+hwTooltip+'" style="padding:5px 4px;text-align:center;min-width:80px;background:#fef9c3;border-bottom:2px solid '+col+';vertical-align:bottom;position:relative">'+
       '<div style="font-size:9px;font-weight:800;color:#854d0e;margin-bottom:2px">⭐ Extra</div>'+
       '<div style="font-size:11px;font-weight:800;color:'+col+'">'+tname+'</div>'+
       '<div style="font-size:9px;color:#dc2626;margin-top:1px">⏰ '+dDue+'</div>'+
@@ -2520,7 +2545,7 @@ function renderHWTracker(classId){
       var moDone=0;
       mo.hw.forEach(function(hw){
         var sub=s.submissions[hw.hwId];
-        var status=sub?sub.status:'Done';
+        var status=sub?sub.status:'Undone';
         if(status==='Done') moDone++;
         var cellId='hwc-'+classId.replace(/ /g,'_')+'-'+s.email.replace(/[@.]/g,'_')+'-'+hw.hwId.replace(/[^a-zA-Z0-9]/g,'_');
         cells+='<td style="padding:3px 4px;text-align:center;border-bottom:1px solid var(--g100)" id="'+cellId+'"></td>';
@@ -2534,7 +2559,7 @@ function renderHWTracker(classId){
     var extraDone=0;
     extraHW.forEach(function(hw){
       var sub=s.submissions[hw.hwId];
-      var status=sub?sub.status:'Done';
+      var status=sub?sub.status:'Undone';
       if(status==='Done') extraDone++;
       var cellId='hwc-'+classId.replace(/ /g,'_')+'-'+s.email.replace(/[@.]/g,'_')+'-'+hw.hwId.replace(/[^a-zA-Z0-9]/g,'_');
       cells+='<td style="padding:3px 4px;text-align:center;border-bottom:1px solid var(--g100);background:#fffef0" id="'+cellId+'"></td>';
@@ -2556,6 +2581,7 @@ function renderHWTracker(classId){
     '<div class="ct">'+classId+' — Homework Tracker</div>'+
     '<div style="display:flex;align-items:center;gap:8px">'+
       '<span style="font-size:12px;color:var(--g400)">'+regularHW.length+' sessions · '+months.length+' months'+(extraHW.length?' · '+extraHW.length+' extra':'')+'</span>'+
+      '<button class="btn btn-g btn-sm" onclick="setAllHWDone(activeClassId,this)" style="white-space:nowrap" title="Mark all homework for this class as Done">✅ All Done</button>'+
       '<button class="btn btn-g btn-sm" onclick="printHWReport(\''+classId+'\')" style="white-space:nowrap">📊 PDF Report</button>'+
     '</div>'+
     '</div>'+
@@ -2572,7 +2598,7 @@ function renderHWTracker(classId){
   students.forEach(function(s){
     allHW.forEach(function(hw){
       var sub=s.submissions[hw.hwId];
-      var status=sub?sub.status:'Done';
+      var status=sub?sub.status:'Undone';
       var cellId='hwc-'+classId.replace(/ /g,'_')+'-'+s.email.replace(/[@.]/g,'_')+'-'+hw.hwId.replace(/[^a-zA-Z0-9]/g,'_');
       var cell=document.getElementById(cellId);
       if(cell)buildHWCell(cell,classId,s.email,hw,status,sub?sub.note:'');
@@ -2594,7 +2620,7 @@ function printHWReport(classId){
     sk.total+=students.length;
     students.forEach(function(s){
       var sub=s.submissions[hw.hwId];
-      var st=sub?sub.status:'Done';
+      var st=sub?sub.status:'Undone';
       if(st==='Done')sk.done++;
       else if(st==='Late')sk.late++;
       else if(st==='Partial')sk.partial++;
