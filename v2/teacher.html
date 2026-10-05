@@ -2459,7 +2459,7 @@ function renderHWTracker(classId){
       var moDone=0;
       mo.hw.forEach(function(hw){
         var sub=s.submissions[hw.hwId];
-        var status=sub?sub.status:'Undone';
+        var status=sub?sub.status:'Done';
         if(status==='Done') moDone++;
         var cellId='hwc-'+classId.replace(/ /g,'_')+'-'+s.email.replace(/[@.]/g,'_')+'-'+hw.hwId.replace(/[^a-zA-Z0-9]/g,'_');
         cells+='<td style="padding:3px 4px;text-align:center;border-bottom:1px solid var(--g100)" id="'+cellId+'"></td>';
@@ -2473,7 +2473,7 @@ function renderHWTracker(classId){
     var extraDone=0;
     extraHW.forEach(function(hw){
       var sub=s.submissions[hw.hwId];
-      var status=sub?sub.status:'Undone';
+      var status=sub?sub.status:'Done';
       if(status==='Done') extraDone++;
       var cellId='hwc-'+classId.replace(/ /g,'_')+'-'+s.email.replace(/[@.]/g,'_')+'-'+hw.hwId.replace(/[^a-zA-Z0-9]/g,'_');
       cells+='<td style="padding:3px 4px;text-align:center;border-bottom:1px solid var(--g100);background:#fffef0" id="'+cellId+'"></td>';
@@ -2511,7 +2511,7 @@ function renderHWTracker(classId){
   students.forEach(function(s){
     allHW.forEach(function(hw){
       var sub=s.submissions[hw.hwId];
-      var status=sub?sub.status:'Undone';
+      var status=sub?sub.status:'Done';
       var cellId='hwc-'+classId.replace(/ /g,'_')+'-'+s.email.replace(/[@.]/g,'_')+'-'+hw.hwId.replace(/[^a-zA-Z0-9]/g,'_');
       var cell=document.getElementById(cellId);
       if(cell)buildHWCell(cell,classId,s.email,hw,status,sub?sub.note:'');
@@ -2533,7 +2533,7 @@ function printHWReport(classId){
     sk.total+=students.length;
     students.forEach(function(s){
       var sub=s.submissions[hw.hwId];
-      var st=sub?sub.status:'Undone';
+      var st=sub?sub.status:'Done';
       if(st==='Done')sk.done++;
       else if(st==='Late')sk.late++;
       else if(st==='Partial')sk.partial++;
