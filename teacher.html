@@ -44,6 +44,20 @@ html,body{height:100%;font-family:var(--font);background:var(--bg);color:var(--o
 .glance-schedule-table{width:100%;border-collapse:collapse;min-width:640px}
 .glance-schedule-table th,.glance-schedule-table td{padding:10px;text-align:left;border-bottom:1px solid var(--g100);vertical-align:top}
 .glance-schedule-table th{font-size:11px;color:var(--g600);background:var(--g50);white-space:nowrap}
+.schedule-controls{display:flex;align-items:center;gap:10px;max-width:100%;flex-wrap:nowrap}
+.week-control-group{display:flex;align-items:stretch;flex-wrap:nowrap;white-space:nowrap}
+.week-control-group .btn{flex:1;min-width:82px;border-radius:0;border-right-width:0;white-space:nowrap}
+.week-control-group .btn:first-child{border-radius:7px 0 0 7px}
+.week-control-group .btn:last-child{border-radius:0 7px 7px 0;border-right-width:1.5px}
+.schedule-view-toggle{display:flex;align-items:center;gap:0;white-space:nowrap}
+.schedule-view-toggle .btn{border-radius:0;min-width:62px}
+.schedule-view-toggle .btn:first-child{border-radius:7px 0 0 7px}
+.schedule-view-toggle .btn:last-child{border-radius:0 7px 7px 0}
+.schedule-view-toggle .btn.is-active{background:var(--g900);border-color:var(--g900);color:white}
+.glance-schedule-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;padding:4px}
+.glance-schedule-day{border:1px solid var(--g100);border-radius:8px;padding:14px;background:var(--surface)}
+.glance-schedule-day-title{font-weight:700;margin-bottom:10px;color:var(--g800)}
+@media(max-width:768px){.schedule-controls{width:100%;justify-content:space-between;overflow-x:auto}.week-control-group .btn{min-width:74px;padding:8px 9px}.schedule-view-toggle .btn{min-width:54px;padding:8px 9px}}
 /* ═══════════════════════════════════════ LAYOUT */
 .layout{display:flex;min-height:100vh;}
 /* ── Sidebar */
@@ -426,11 +440,17 @@ textarea.fc{resize:vertical;min-height:60px;}
       <section class="card" style="padding:18px 20px;margin-top:18px">
         <div class="sec-hd" style="align-items:center;margin-bottom:14px">
           <div><div class="sec-title">Schedule</div><div class="sec-sub" id="glanceWeekRange"></div></div>
-          <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
-            <select id="glanceClassSel" class="fc" style="max-width:190px;padding:6px 10px;font-size:13px" onchange="renderGlanceSchedule()"><option value="">Select class</option></select>
-            <button class="btn btn-g" onclick="changeGlanceWeek(-1)">‹ Previous</button>
-            <button class="btn btn-g" onclick="changeGlanceWeek(0)">This week</button>
-            <button class="btn btn-g" onclick="changeGlanceWeek(1)">Next ›</button>
+          <div class="schedule-controls">
+            <select id="glanceClassSel" class="fc" style="max-width:190px;min-width:120px;padding:6px 10px;font-size:13px" onchange="renderGlanceSchedule()"><option value="">Select class</option></select>
+            <div class="week-control-group" aria-label="Choose week">
+              <button class="btn btn-g" onclick="changeGlanceWeek(-1)">‹ Previous</button>
+              <button class="btn btn-g" onclick="changeGlanceWeek(0)">This week</button>
+              <button class="btn btn-g" onclick="changeGlanceWeek(1)">Next ›</button>
+            </div>
+            <div class="schedule-view-toggle" role="group" aria-label="Schedule view">
+              <button id="glanceListBtn" class="btn btn-g btn-sm is-active" onclick="setGlanceScheduleView('list')">List</button>
+              <button id="glanceGridBtn" class="btn btn-g btn-sm" onclick="setGlanceScheduleView('grid')">Grid</button>
+            </div>
           </div>
         </div>
         <div class="tw" id="glanceSchedule"><p style="padding:24px;text-align:center;color:var(--g400)">Select a class to view its weekly schedule.</p></div>
@@ -444,13 +464,15 @@ textarea.fc{resize:vertical;min-height:60px;}
           <div class="sec-title">Weekly Schedule</div>
           <div class="sec-sub" id="weekRange"></div>
         </div>
-        <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
+        <div class="schedule-controls">
           <select id="weeklyClassSel" class="fc" style="max-width:180px;padding:6px 10px;font-size:13px" onchange="onWeeklyClassChange()">
             <option value="">— Select class —</option>
           </select>
-          <button class="btn btn-g" onclick="changeWeek(-1)">‹ Prev</button>
-          <button class="btn btn-g" onclick="changeWeek(0)">Today</button>
-          <button class="btn btn-g" onclick="changeWeek(1)">Next ›</button>
+          <div class="week-control-group" aria-label="Choose week">
+            <button class="btn btn-g" onclick="changeWeek(-1)">‹ Prev</button>
+            <button class="btn btn-g" onclick="changeWeek(0)">Today</button>
+            <button class="btn btn-g" onclick="changeWeek(1)">Next ›</button>
+          </div>
         </div>
       </div>
       <div class="card"><div class="tw" id="weeklyWrap"><p style="padding:40px;text-align:center;color:var(--g400)">Select a class above to view its schedule.</p></div></div>
@@ -1083,6 +1105,7 @@ function toggleOverviewTuition(button,classId,monthNo){
   detail.hidden=false;
 }
 var glanceWeekOffset=0;
+var glanceScheduleView='list';
 function buildGlanceClassSel(){
   var sel=document.getElementById('glanceClassSel');if(!sel)return;
   var current=sel.value;
@@ -1092,6 +1115,12 @@ function buildGlanceClassSel(){
   renderGlanceSchedule();
 }
 function changeGlanceWeek(dir){glanceWeekOffset=dir===0?0:glanceWeekOffset+dir;renderGlanceSchedule();}
+function setGlanceScheduleView(view){
+  glanceScheduleView=view==='grid'?'grid':'list';
+  document.getElementById('glanceListBtn').classList.toggle('is-active',glanceScheduleView==='list');
+  document.getElementById('glanceGridBtn').classList.toggle('is-active',glanceScheduleView==='grid');
+  renderGlanceSchedule();
+}
 function renderGlanceSchedule(){
   var sel=document.getElementById('glanceClassSel'),el=document.getElementById('glanceSchedule'),range=document.getElementById('glanceWeekRange');if(!sel||!el)return;
   var classId=sel.value;
@@ -1100,11 +1129,19 @@ function renderGlanceSchedule(){
   var start=fmtD(dates[0]),end=fmtD(dates[6]);
   if(range)range.textContent=fmtBrit(start,true)+' – '+fmtBrit(end,true);
   var schedule=(_dayOverviewData[classId]||{}).sessions||[];
+  var lessons=[];
+  dates.forEach(function(d,i){var ds=fmtD(d);schedule.filter(function(s){return s.date===ds&&(String(s.content||'').trim()||String(s.skill||'').trim());}).forEach(function(s){lessons.push({day:days[i],date:ds,session:s});});});
+  if(!lessons.length){el.innerHTML='<p style="padding:24px;text-align:center;color:var(--g400)">No lessons scheduled this week.</p>';return;}
+  if(glanceScheduleView==='grid'){
+    var byDay={};lessons.forEach(function(item){if(!byDay[item.date])byDay[item.date]=item;});
+    var grid='<div class="glance-schedule-grid">';
+    Object.keys(byDay).forEach(function(ds){var first=byDay[ds],items=lessons.filter(function(item){return item.date===ds;});
+      grid+='<article class="glance-schedule-day"><div class="glance-schedule-day-title">'+first.day+' · '+fmtBrit(ds,true)+'</div>'+items.map(function(item){var s=item.session;return '<div style="padding:9px 0;border-top:1px solid var(--g100)"><div style="font-size:11px;font-weight:700;color:var(--g600)">'+dayEsc(s.dayLabel||'Session')+'</div><div style="margin-top:4px"><strong>'+dayEsc(s.skill||'')+'</strong>'+(s.skill&&s.content?' · ':'')+dayEsc(s.content||'')+'</div></div>';}).join('')+'</article>';
+    });
+    el.innerHTML=grid+'</div>';return;
+  }
   var html='<div style="overflow-x:auto"><table class="glance-schedule-table"><thead><tr><th>Day</th><th>Date</th><th>Session</th><th>Lesson</th></tr></thead><tbody>';
-  dates.forEach(function(d,i){var ds=fmtD(d),items=schedule.filter(function(s){return s.date===ds;});
-    if(!items.length)html+='<tr><td>'+days[i]+'</td><td>'+fmtBrit(ds,true)+'</td><td colspan="2" style="color:var(--g400)">No class scheduled</td></tr>';
-    else items.forEach(function(s){html+='<tr><td>'+days[i]+'</td><td>'+fmtBrit(ds,true)+'</td><td>'+dayEsc(s.dayLabel||'—')+'</td><td><strong>'+dayEsc(s.skill||'')+'</strong>'+(s.skill&&s.content?' · ':'')+dayEsc(s.content||'—')+'</td></tr>';});
-  });
+  lessons.forEach(function(item){var s=item.session;html+='<tr><td>'+item.day+'</td><td>'+fmtBrit(item.date,true)+'</td><td>'+dayEsc(s.dayLabel||'—')+'</td><td><strong>'+dayEsc(s.skill||'')+'</strong>'+(s.skill&&s.content?' · ':'')+dayEsc(s.content||'')+'</td></tr>';});
   el.innerHTML=html+'</tbody></table></div>';
 }
 async function renderDayOverview(dateStr){
