@@ -37,6 +37,9 @@
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;font-family:var(--font);background:var(--bg);color:var(--on-bg);font-size:14px;}
+.day-unpaid{position:relative;color:#b91c1c;font-weight:650;cursor:help;border-bottom:1px dotted currentColor}
+.day-tooltip{display:none;position:absolute;z-index:20;left:0;top:calc(100% + 7px);min-width:180px;padding:9px 12px;border-radius:8px;background:#202124;color:white;font-size:12px;font-weight:400;box-shadow:var(--shm);white-space:nowrap}
+.day-unpaid:hover .day-tooltip,.day-unpaid:focus .day-tooltip{display:block}
 /* ═══════════════════════════════════════ LAYOUT */
 .layout{display:flex;min-height:100vh;}
 /* ── Sidebar */
@@ -374,7 +377,7 @@ textarea.fc{resize:vertical;min-height:60px;}
   </div>
   <nav class="nav">
     <div class="nlbl">Overview</div>
-    <button class="ni active" onclick="showSec('overview')"><span class="ni-ico">📊</span>Students Overview</button>
+    <button class="ni active" onclick="showSec('overview')"><span class="ni-ico">📊</span>Lịch dạy hôm nay</button>
     <div class="nlbl">Schedule</div>
     <button class="ni" onclick="showSec('weekly')"><span class="ni-ico">🗓</span>Weekly Schedule</button>
     <div class="nlbl">Tracking</div>
@@ -396,7 +399,7 @@ textarea.fc{resize:vertical;min-height:60px;}
 <main class="main">
   <div class="topbar">
     <div>
-      <div class="ptitle" id="pageTitle">Students Overview</div>
+      <div class="ptitle" id="pageTitle">Lịch dạy</div>
       <div style="font-size:11px;color:var(--g400);margin-top:1px" id="todayLabel"></div>
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
@@ -409,38 +412,13 @@ textarea.fc{resize:vertical;min-height:60px;}
 
     <!-- ① OVERVIEW -->
     <div id="sec-overview" class="sec active">
-      <div class="stat-row" id="statRow">
-        <div class="stat-box"><div class="stat-val" id="statTotal">—</div><div class="stat-lbl">Total Students</div></div>
-        <div class="stat-box"><div class="stat-val" id="statClasses">—</div><div class="stat-lbl">Active Classes</div></div>
-        <div class="stat-box"><div class="stat-val" id="statPresent">—</div><div class="stat-lbl">Present this cycle</div></div>
-        <div class="stat-box"><div class="stat-val" id="statHW">—</div><div class="stat-lbl">HW submitted</div></div>
+      <div class="sec-hd" style="align-items:center;margin-bottom:14px">
+        <div><div class="sec-title">Lịch dạy của bạn</div><div class="sec-sub">Lớp trong ngày được lấy từ lịch học đã lưu.</div></div>
+        <label style="display:flex;gap:8px;align-items:center;font-size:13px;color:var(--g600)">Xem ngày
+          <input id="overviewDate" type="date" class="fc" style="width:auto;padding:7px 10px" onchange="renderDayOverview(this.value)">
+        </label>
       </div>
-      <div class="ctabs" id="overviewTabs">
-        <button class="ctab active" onclick="filterOverview('all',this)">All Classes</button>
-      </div>
-      <div class="card">
-        <div class="ch">
-          <div class="ct" id="ovTitle">All Students</div>
-          <span style="font-size:12px;color:var(--g400)" id="ovCount"></span>
-        </div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;padding:0 18px 12px;align-items:center">
-          <span style="font-size:11px;color:var(--g400);font-weight:600">Sort:</span>
-          <button class="btn btn-g btn-sm" onclick="sortOverview('id')">🔢 ID</button>
-          <button class="btn btn-g btn-sm" onclick="sortOverview('name')">🔤 Name</button>
-          <button class="btn btn-g btn-sm" onclick="sortOverview('class')">🏫 Class</button>
-          <button class="btn btn-g btn-sm" onclick="sortOverview('present')">✅ Present</button>
-          <button class="btn btn-g btn-sm" onclick="sortOverview('absent')">❌ Absent</button>
-          <button class="btn btn-g btn-sm" onclick="sortOverview('month')">📅 Month</button>
-        </div>
-        <div class="tw"><table>
-          <thead><tr>
-            <th>#</th><th>Student ID</th><th>Full Name</th><th>Class</th>
-            <th>Sessions</th><th>Current Month</th><th>Tuition Paid</th>
-            <th>✅ Present</th><th>⏱ Late</th><th>❌ Absent</th><th></th>
-          </tr></thead>
-          <tbody id="ovBody"><tr><td colspan="10" style="text-align:center;padding:40px;color:var(--g400)">Loading…</td></tr></tbody>
-        </table></div>
-      </div>
+      <div id="dayOverview"><p style="padding:40px;text-align:center;color:var(--g400)">Đang tải lịch…</p></div>
     </div>
 
     <!-- ② WEEKLY SCHEDULE -->
@@ -894,9 +872,9 @@ DB.onRemoteChange(function(){
   _remoteT = setTimeout(refreshVisible, 400);
 });
 async function refreshVisible(){
-  hwTrackerCache={}; hwBookCache={}; tuitionCache={}; allSchedules={}; _hwScheduleDates={};
+  hwTrackerCache={}; hwBookCache={}; tuitionCache={}; allSchedules={}; _hwScheduleDates={}; _dayOverviewData={};
   var r = await api('getClassList');
-  if (r.success) { classData = r.data || []; renderOverview(_ovFilterClass); updateStats(); }
+  if (r.success) { classData = r.data || []; renderDayOverview(document.getElementById('overviewDate').value || localToday()); }
   var active = document.querySelector('.sec.active'); if (!active) return;
   var id = active.id.replace('sec-','');
   if (id==='homework') { var b=document.querySelector('#hwTrackerTabs .ctab.active[data-cid]'); if (b) loadHWTracker(b.getAttribute('data-cid')); }
@@ -908,7 +886,7 @@ async function refreshVisible(){
 // NAV
 // ═══════════════════════════════════════════════════════
 var TITLES = {
-  overview:'Students Overview', weekly:'Weekly Schedule',
+  overview:'Lịch dạy', weekly:'Weekly Schedule',
   tuition:'Tuition & Attendance', homework:'Homework Tracker',
   hwbook:'Homework Book',
   participation:'Participation Report', diligence:'Diligent Report',
@@ -1016,30 +994,73 @@ async function init() {
     var r = await api('getClassList');
     if (!r.success) { toast('Failed to load class data','err'); return; }
     classData = r.data || [];
-    renderOverview();
-    buildOverviewTabs();
     buildTuitionTabs();
     buildDiligenceTabs();
     buildPartTabs();
     buildHWTrackerTabs();
     buildWeeklyClassSel();
-    updateStats();
+    document.getElementById('overviewDate').value = localToday();
+    renderDayOverview(localToday());
     // Background preload: fetch all classes in parallel immediately after UI renders
     setTimeout(function(){ preloadAllClasses(); }, 200);
   } catch(e) { toast('Connection error','err'); }
 }
 
-function updateStats() {
-  var total=0, classes=classData.length, present=0;
-  classData.forEach(function(cls){
-    total += cls.students.length;
-    cls.students.forEach(function(s){ present += s.present||0; });
-  });
-  document.getElementById('statTotal').textContent = total;
-  document.getElementById('statClasses').textContent = classes;
-  document.getElementById('statPresent').textContent = present;
-  document.getElementById('statHW').textContent = '—';
+var _dayOverviewData = {};
+function dayEsc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function dayPlus(dateStr, days){var d=new Date(dateStr+'T12:00:00');d.setDate(d.getDate()+days);return fmtD(d);}
+function dayLong(dateStr){return new Date(dateStr+'T12:00:00').toLocaleDateString('vi-VN',{weekday:'long',day:'numeric',month:'long',year:'numeric'});}
+async function ensureDayOverviewData(){
+  var missing=classData.filter(function(c){return !_dayOverviewData[c.classId];});
+  for(var i=0;i<missing.length;i++){
+    var cls=missing[i];
+    try{
+      var res=await api('getAttendanceMatrix',{classId:cls.classId});
+      var hw=await api('getHomeworkTracker',{classId:cls.classId});
+      if(res&&res.success) _dayOverviewData[cls.classId]={sessions:res.sessions||[],students:res.students||[],homework:hw&&hw.success?(hw.homework||[]):[]};
+    }catch(e){console.warn('Could not load daily overview for '+cls.classId,e);}
+  }
 }
+function dayCardsFor(dateStr){
+  var cards=[];
+  classData.forEach(function(cls){
+    var data=_dayOverviewData[cls.classId]; if(!data)return;
+    var sessions=data.sessions.filter(function(s){return s.date===dateStr;});
+    var realSessions=[...new Set(data.sessions.filter(function(s){var d=(s.dayLabel||'').toLowerCase().replace(/\s/g,'');return d!=='day0'&&d!=='0'&&s.date;}).map(function(s){return s.date;}))];
+    sessions.forEach(function(session){
+      var pos=realSessions.indexOf(session.date);
+      var month=Math.floor(Math.max(pos,0)/8)+1, inMonth=Math.max(pos,0)%8+1;
+      var unpaid=data.students.filter(function(s){return !(s.monthPayments||{})[String(month)];}).map(function(s){return s.name||s.email;});
+      var deadlines=data.homework.filter(function(h){return h.deadline===dateStr;});
+      cards.push({classId:cls.classId,session:session,month:month,inMonth:inMonth,unpaid:unpaid,deadlines:deadlines});
+    });
+  });
+  return cards;
+}
+function renderDayCards(dateStr,label){
+  var cards=dayCardsFor(dateStr);
+  if(!cards.length) return '<div class="card" style="padding:30px;text-align:center;color:var(--g600)">Ngày '+dayEsc(dayLong(dateStr))+' không có lớp.</div>';
+  return '<div style="font-size:16px;font-weight:700;margin:16px 0 10px">'+label+' · '+dayEsc(dayLong(dateStr))+'</div>'+
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px">'+cards.map(function(c){
+      var hw=c.deadlines.length?'<ul style="margin:6px 0 0 18px">'+c.deadlines.map(function(h){return '<li>'+dayEsc(h.type||'Bài tập')+': '+dayEsc(h.content||'')+'</li>';}).join('')+'</ul>':'<span style="color:var(--g400)">Không có bài tập đến hạn.</span>';
+      var unpaid=c.unpaid.length?'<span class="day-unpaid" tabindex="0" title="'+dayEsc(c.unpaid.join(', '))+'">'+c.unpaid.length+' bạn chưa đóng học phí<span class="day-tooltip">'+c.unpaid.map(dayEsc).join('<br>')+'</span></span>':'<span style="color:#15803d">Tất cả đã đóng học phí</span>';
+      return '<article class="card" style="padding:18px 20px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div class="ct">'+dayEsc(c.classId)+'</div><span class="badge">Buổi '+c.inMonth+'/8</span></div>'+
+        '<div style="font-size:13px;color:var(--g600);margin:12px 0 8px">Tháng '+c.month+'/14 · '+dayEsc(c.session.dayLabel||('Buổi '+c.inMonth))+'</div>'+
+        '<div style="font-weight:650;margin:8px 0 14px">'+dayEsc(c.session.skill||'')+(c.session.skill&&c.session.content?' · ':'')+dayEsc(c.session.content||'Chưa có nội dung trong lịch')+'</div>'+
+        '<div style="font-size:13px;margin-bottom:12px">'+unpaid+'</div><div style="font-size:13px"><strong>Deadline hôm nay</strong>'+hw+'</div>'+
+        '<button class="btn btn-r btn-sm" style="margin-top:16px" onclick="openHomeworkForClass(\''+dayEsc(c.classId).replace(/'/g,"\\'")+'\')">Mở Homework Tracker →</button></article>';
+    }).join('')+'</div>';
+}
+async function renderDayOverview(dateStr){
+  var el=document.getElementById('dayOverview'); if(!el)return;
+  dateStr=dateStr||localToday(); el.innerHTML='<p style="padding:35px;text-align:center;color:var(--g400)">Đang tải lịch và deadline…</p>';
+  await ensureDayOverviewData();
+  var cards=dayCardsFor(dateStr);
+  if(!cards.length){el.innerHTML='<div class="card" style="padding:28px;text-align:center"><div style="font-size:18px;font-weight:700;margin-bottom:7px">Ngày '+dayEsc(dayLong(dateStr))+' không có lớp.</div><div style="color:var(--g600)">Chọn ngày khác để xem lịch dạy.</div></div>';return;}
+  var classCount=new Set(cards.map(function(c){return c.classId;})).size;
+  el.innerHTML=renderDayCards(dateStr,'Ngày này có '+classCount+' lớp')+renderDayCards(dayPlus(dateStr,1),'Ngày hôm sau');
+}
+function openHomeworkForClass(classId){activeClassId=classId;lastUsedClassId=classId;showSec('homework');var btn=document.querySelector('#hwTrackerTabs [data-cid="'+CSS.escape(classId)+'"]');if(btn){document.querySelectorAll('#hwTrackerTabs .ctab').forEach(function(b){b.classList.remove('active');});btn.classList.add('active');}loadHWTracker(classId);}
 
 // Preload classes ONE AT A TIME. Firing every getAttendanceMatrix in parallel made each
 // GAS execution compete for the same spreadsheet, so a request the teacher triggers by
@@ -1082,23 +1103,6 @@ function preloadClass(cls){
 // ═══════════════════════════════════════════════════════
 // ① OVERVIEW
 // ═══════════════════════════════════════════════════════
-function buildOverviewTabs() {
-  var el = document.getElementById('overviewTabs');
-  el.innerHTML = '<button class="ctab active" onclick="filterOverview(\'all\',this)">All Classes</button>';
-  classData.forEach(function(cls){
-    var b = document.createElement('button');
-    b.className='ctab'; b.textContent=cls.classId;
-    b.onclick = (function(cid,btn){ return function(){ filterOverview(cid,btn); }; })(cls.classId, b);
-    el.appendChild(b);
-  });
-}
-
-function filterOverview(classId, btn) {
-  document.querySelectorAll('#overviewTabs .ctab').forEach(function(b){b.classList.remove('active');});
-  if (btn) btn.classList.add('active');
-  renderOverview(classId);
-}
-
 function getLevelClass(classId) {
   var id = classId.toLowerCase();
   if (id.includes('ielts')) return 'lvl-ie';
@@ -1107,76 +1111,6 @@ function getLevelClass(classId) {
   if (id.includes('kid')) return 'lvl-ki';
   if (id.includes('kindergarten')||id.includes('mầm')||id.includes('kd')) return 'lvl-kd';
   return 'lvl-ge';
-}
-
-var _ovSortKey='class', _ovSortDir=1, _ovFilterClass='all';
-
-function sortOverview(key){
-  if(_ovSortKey===key) _ovSortDir*=-1; else {_ovSortKey=key;_ovSortDir=1;}
-  renderOverview(_ovFilterClass);
-}
-
-function renderOverview(filterClass) {
-  _ovFilterClass=filterClass||'all';
-  var all = [];
-  classData.forEach(function(cls){
-    cls.students.forEach(function(s){
-      all.push(Object.assign({},s,{classId:cls.classId}));
-    });
-  });
-  var rows = _ovFilterClass && _ovFilterClass!=='all'
-    ? all.filter(function(s){return s.classId===_ovFilterClass;})
-    : all;
-
-  // Sort
-  rows.sort(function(a,b){
-    var av,bv;
-    if(_ovSortKey==='id'){av=a.studentId||'';bv=b.studentId||'';}
-    else if(_ovSortKey==='name'){av=a.name||'';bv=b.name||'';}
-    else if(_ovSortKey==='class'){av=a.classId||'';bv=b.classId||'';}
-    else if(_ovSortKey==='present'){av=a.present||0;bv=b.present||0;return _ovSortDir*(bv-av);}
-    else if(_ovSortKey==='absent'){av=a.absent||0;bv=b.absent||0;return _ovSortDir*(bv-av);}
-    else if(_ovSortKey==='month'){
-      av=(a.monthsUsed||0)*8+(a.sessInCycle||0);
-      bv=(b.monthsUsed||0)*8+(b.sessInCycle||0);
-      return _ovSortDir*(bv-av);
-    }
-    if(av<bv)return -1*_ovSortDir; if(av>bv)return 1*_ovSortDir; return 0;
-  });
-
-  document.getElementById('ovTitle').textContent =
-    _ovFilterClass && _ovFilterClass!=='all' ? _ovFilterClass : 'All Students';
-  document.getElementById('ovCount').textContent = rows.length+' student(s)';
-
-  var levelShortMap = {ie:'IE',ge:'GE',te:'TE',ki:'KI',kd:'KD'};
-
-  document.getElementById('ovBody').innerHTML = rows.map(function(s,i){
-    var lvl = getLevelClass(s.classId);
-    var curMonth = s.monthsUsed + (s.sessInCycle>0?1:0);
-    // Get actual paid months from tuitionCache
-    var paidCount = 0;
-    var cachedStudents = tuitionCache[s.classId]||[];
-    var cs = cachedStudents.find(function(x){return x.email===s.email;});
-    if(cs && cs.monthPayments) paidCount = Object.keys(cs.monthPayments).length;
-    var unpaid = Math.max(0, curMonth - paidCount - (s.sessInCycle>0?1:0));
-    var paidLabel = paidCount > 0
-      ? '<span style="font-weight:700;color:#16a34a">'+paidCount+'</span><span style="color:var(--g400);font-size:11px"> months</span>'
-        + (unpaid>0 ? ' <span style="font-size:11px;color:#dc2626">('+unpaid+' unpaid)</span>' : '')
-      : '<span style="color:var(--g400)">—</span>';
-    return '<tr>'+
-      '<td style="color:var(--g400)">'+(i+1)+'</td>'+
-      '<td><code style="font-size:11px;background:var(--g100);padding:2px 6px;border-radius:4px;color:var(--g800)">'+(s.studentId||'—')+'</code></td>'+
-      '<td><strong>'+s.name+'</strong></td>'+
-      '<td><span class="badge '+lvl+'" style="padding:3px 8px;border-radius:5px;font-size:11px">'+s.classId+'</span></td>'+
-      '<td>'+s.monthsUsed+'<span style="color:var(--g400);font-size:11px"> months</span></td>'+
-      '<td><span style="font-weight:700;color:var(--red)">Month '+curMonth+'</span> <span style="font-size:11px;color:var(--g400)">('+s.sessInCycle+'/8)</span></td>'+
-      '<td>'+paidLabel+'</td>'+
-      '<td><span class="badge bp">'+s.present+'</span></td>'+
-      '<td><span class="badge bl">'+s.late+'</span></td>'+
-      '<td><span class="badge ba">'+s.absent+'</span></td>'+
-      '<td><button class="btn btn-g btn-sm" onclick="openStudentDetail(\''+s.classId+'\',\''+s.email+'\')">View</button></td>'+
-    '</tr>';
-  }).join('') || '<tr><td colspan="11" style="text-align:center;padding:40px;color:var(--g400)">No students</td></tr>';
 }
 
 async function openStudentDetail(classId, email) {
@@ -1962,7 +1896,7 @@ async function doFinish(){
       api('getClassList').then(function(r2){
         if(r2&&r2.success){
           classData=r2.data||[];
-          renderOverview(); updateStats();
+          _dayOverviewData={}; renderDayOverview(document.getElementById('overviewDate').value||localToday());
           buildTuitionTabs(); buildDiligenceTabs();
         }
       }).catch(function(){});
@@ -2461,7 +2395,7 @@ function renderHWTracker(classId){
       var moDone=0;
       mo.hw.forEach(function(hw){
         var sub=s.submissions[hw.hwId];
-        var status=sub?sub.status:'Undone';
+        var status=sub?sub.status:'Done';
         if(status==='Done') moDone++;
         var cellId='hwc-'+classId.replace(/ /g,'_')+'-'+s.email.replace(/[@.]/g,'_')+'-'+hw.hwId.replace(/[^a-zA-Z0-9]/g,'_');
         cells+='<td style="padding:3px 4px;text-align:center;border-bottom:1px solid var(--g100)" id="'+cellId+'"></td>';
@@ -2475,7 +2409,7 @@ function renderHWTracker(classId){
     var extraDone=0;
     extraHW.forEach(function(hw){
       var sub=s.submissions[hw.hwId];
-      var status=sub?sub.status:'Undone';
+      var status=sub?sub.status:'Done';
       if(status==='Done') extraDone++;
       var cellId='hwc-'+classId.replace(/ /g,'_')+'-'+s.email.replace(/[@.]/g,'_')+'-'+hw.hwId.replace(/[^a-zA-Z0-9]/g,'_');
       cells+='<td style="padding:3px 4px;text-align:center;border-bottom:1px solid var(--g100);background:#fffef0" id="'+cellId+'"></td>';
@@ -2513,7 +2447,7 @@ function renderHWTracker(classId){
   students.forEach(function(s){
     allHW.forEach(function(hw){
       var sub=s.submissions[hw.hwId];
-      var status=sub?sub.status:'Undone';
+      var status=sub?sub.status:'Done';
       var cellId='hwc-'+classId.replace(/ /g,'_')+'-'+s.email.replace(/[@.]/g,'_')+'-'+hw.hwId.replace(/[^a-zA-Z0-9]/g,'_');
       var cell=document.getElementById(cellId);
       if(cell)buildHWCell(cell,classId,s.email,hw,status,sub?sub.note:'');
@@ -2535,7 +2469,7 @@ function printHWReport(classId){
     sk.total+=students.length;
     students.forEach(function(s){
       var sub=s.submissions[hw.hwId];
-      var st=sub?sub.status:'Undone';
+      var st=sub?sub.status:'Done';
       if(st==='Done')sk.done++;
       else if(st==='Late')sk.late++;
       else if(st==='Partial')sk.partial++;

@@ -558,7 +558,7 @@ function getHomeworkTracker(b) {
     const ntIdx = emailKey+'_Note' in col ? col[emailKey+'_Note'] : -1;
     const subMap = {};
     hwRows.forEach((r, j) => {
-      const status = statusIdx>=0 ? (String(r[statusIdx]||'').trim()||'Undone') : 'Undone';
+      const status = statusIdx>=0 ? (String(r[statusIdx]||'').trim()||'Done') : 'Done';
       subMap[hwList[j].hwId] = {
         status,
         gradedDate: gdIdx>=0 ? fmtDate(r[gdIdx]) : '',
@@ -914,7 +914,7 @@ function getStudentData(b) {
     const dl      = fmtDate(r[ddC]);
     const isExtra = dayLbl === 'EXTRA' || !sesDate;
     const key     = isExtra ? ('EXTRA_'+dl+'_'+type) : (sesDate+'_'+type);
-    const subStatus = hwStatusMap[key] || 'Undone';
+    const subStatus = hwStatusMap[key] || 'Done';
     const deadlineDate = dl ? new Date(dl+'T00:00:00') : null;
     const daysLeft = deadlineDate ? Math.ceil((deadlineDate - todayMid) / 86400000) : 0;
     return {
@@ -1336,7 +1336,7 @@ var WRITES = {
     });
     if (!f) return Promise.resolve({ success: false, message: 'Homework row not found' });
     var ops = [], id = studentFor(b.studentEmail, ops);
-    var pairs = [[['hw', f.id, 'st'], b.status || 'Undone'], [['hw', f.id, 'gd'], today()]];
+    var pairs = [[['hw', f.id, 'st'], b.status || 'Done'], [['hw', f.id, 'gd'], today()]];
     if (b.note !== undefined) pairs.push([['hw', f.id, 'nt'], b.note || '']);
     else if (!((S.students[id] || {}).hw || {})[f.id]) pairs.push([['hw', f.id, 'nt'], '']);
     ops.push(upd('students', id, pairs), dirty());
