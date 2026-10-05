@@ -187,11 +187,11 @@ async function loadCandidates(){
     });
     var selectionKey='classhub:diligent-draw:'+encodeURIComponent(classId)+':'+month;
     var selectedEmails=[];
-    try{selectedEmails=JSON.parse(localStorage.getItem(selectionKey)||'[]');}catch(e){selectedEmails=[];}
+    try{var saved=JSON.parse(localStorage.getItem(selectionKey)||'[]');selectedEmails=Array.isArray(saved)?saved:[];}catch(e){selectedEmails=[];}
     candidates=eligible.filter(function(s){return selectedEmails.indexOf(s.email)>=0;}).map(function(s){return s.name;});
 
     if(!candidates.length){
-      wall.innerHTML='<div class="empty">No students selected for this draw.<br><small style="opacity:.5">Select qualified students in the Diligent Report first.<br>Criteria: tuition paid · 8 present · 0 late · 0 absent · all homework done</small></div>';
+      wall.innerHTML='<div class="empty">No students selected for this draw.<br><small style="opacity:.5">Select qualified students in the Diligent Report first.<br>Criteria: tuition paid · 8 present · 0 late · 0 absent · all homework submitted</small></div>';
       document.getElementById('statusBar').textContent='0 selected';
       return;
     }

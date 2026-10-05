@@ -3145,7 +3145,7 @@ async function loadDiligenceMonth(classId, month){
 
 function diligentSelectionKey(classId,month){return 'classhub:diligent-draw:'+encodeURIComponent(classId)+':'+month;}
 function getDiligentDrawSelection(classId,month){
-  try{return JSON.parse(localStorage.getItem(diligentSelectionKey(classId,month))||'[]');}catch(e){return [];}
+  try{var value=JSON.parse(localStorage.getItem(diligentSelectionKey(classId,month))||'[]');return Array.isArray(value)?value:[];}catch(e){return [];}
 }
 function toggleDiligentCandidate(input){
   var classId=input.getAttribute('data-class-id'),month=input.getAttribute('data-month'),email=input.getAttribute('data-email');
@@ -3183,7 +3183,7 @@ function renderDiligenceMonthHTML(classId,mo){
       (eligible[1]?'<div class="rcard rcard-silver"><div class="rcard-lbl">🥈 Most Diligent #2</div><div class="rcard-name">'+dayEsc(eligible[1].name)+'</div><div class="rcard-sub">8P · 0L · 0A · HW '+eligible[1].hwDone+'/'+eligible[1].hwDue+' · Paid</div></div>':'')+
     '</div>'+
     '<div style="padding:8px 18px 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">'+
-      '<span style="font-size:11px;color:var(--g400)">'+sessCount+' sessions · '+eligible.length+' qualified · Homework ranked highest first</span>'+
+      '<span style="font-size:11px;color:var(--g400)">'+sessCount+' sessions · '+eligible.length+' qualified · Homework submissions ranked highest first</span>'+
       (eligible.length>0?'<a href="random.html?class='+encodeURIComponent(classId)+'&month='+mo.month+'" target="_blank" class="btn btn-r btn-sm" style="text-decoration:none">🎰 Random Draw (<span id="'+countId+'">'+selectedCount+' selected</span>)</a>':'')+
     '</div>'+
     '<div class="tw"><table>'+
