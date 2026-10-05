@@ -2366,7 +2366,7 @@ async function setAllHWDone(classId,button){
   try{
     var result=await api('saveAllHomeworkDone',{classId:classId,studentEmails:students.map(function(s){return s.email;}),assignments:homework.map(function(hw){return {sessionDate:hw.sessionDate||'',deadline:hw.deadline||'',type:hw.type||''};})});
     if(!result||!result.success)throw new Error(result&&result.message||'Unable to update homework');
-    students.forEach(function(student){student.submissions=student.submissions||{};homework.forEach(function(hw){student.submissions[hw.hwId]={status:'Done',gradedDate:localToday(),note:''};});});
+    students.forEach(function(student){student.submissions=student.submissions||{};homework.forEach(function(hw){var prior=student.submissions[hw.hwId]||{};student.submissions[hw.hwId]={status:'Done',gradedDate:localToday(),note:prior.note||''};});});
     renderHWTracker(classId);toast('All homework marked Done','ok');
   }catch(error){button.disabled=false;button.textContent='✅ All Done';toast(error.message||'Could not update homework','err');}
 }
