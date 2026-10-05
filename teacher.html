@@ -37,9 +37,13 @@
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;font-family:var(--font);background:var(--bg);color:var(--on-bg);font-size:14px;}
-.day-unpaid{position:relative;color:#b91c1c;font-weight:650;cursor:help;border-bottom:1px dotted currentColor}
-.day-tooltip{display:none;position:absolute;z-index:20;left:0;top:calc(100% + 7px);min-width:180px;padding:9px 12px;border-radius:8px;background:#202124;color:white;font-size:12px;font-weight:400;box-shadow:var(--shm);white-space:nowrap}
-.day-unpaid:hover .day-tooltip,.day-unpaid:focus .day-tooltip{display:block}
+.day-tuition-btn{border:0;background:none;padding:0;color:#a96336;font:inherit;font-weight:700;text-decoration:underline;text-decoration-style:dotted;cursor:pointer}
+.day-tuition-table{width:100%;border-collapse:collapse;margin-top:12px;font-size:12px}
+.day-tuition-table th,.day-tuition-table td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--g100)}
+.day-tuition-table th{color:var(--g600);font-size:11px;background:var(--g50)}
+.glance-schedule-table{width:100%;border-collapse:collapse;min-width:640px}
+.glance-schedule-table th,.glance-schedule-table td{padding:10px;text-align:left;border-bottom:1px solid var(--g100);vertical-align:top}
+.glance-schedule-table th{font-size:11px;color:var(--g600);background:var(--g50);white-space:nowrap}
 /* ═══════════════════════════════════════ LAYOUT */
 .layout{display:flex;min-height:100vh;}
 /* ── Sidebar */
@@ -371,13 +375,13 @@ textarea.fc{resize:vertical;min-height:60px;}
   <div class="sb-top">
     <div class="brand">
       <div class="bi"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 22h18M5 22V8l7-5 7 5v14M9 22v-6a3 3 0 0 1 6 0v6M8.5 10h.01M15.5 10h.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-      <div class="bn"><span style="color:#4285F4">E</span><span style="color:#EA4335">d</span><span style="color:#FBBC05">u</span><em>Portal</em></div>
+      <div class="bn">Edu<em>Portal</em></div>
     </div>
     <div class="tbadge">⚡ TEACHER</div>
   </div>
   <nav class="nav">
-    <div class="nlbl">Overview</div>
-    <button class="ni active" onclick="showSec('overview')"><span class="ni-ico">📊</span>Lịch dạy hôm nay</button>
+    <div class="nlbl">Glance</div>
+    <button class="ni active" onclick="showSec('overview')"><span class="ni-ico">📊</span>Glance</button>
     <div class="nlbl">Schedule</div>
     <button class="ni" onclick="showSec('weekly')"><span class="ni-ico">🗓</span>Weekly Schedule</button>
     <div class="nlbl">Tracking</div>
@@ -413,12 +417,24 @@ textarea.fc{resize:vertical;min-height:60px;}
     <!-- ① OVERVIEW -->
     <div id="sec-overview" class="sec active">
       <div class="sec-hd" style="align-items:center;margin-bottom:14px">
-        <div><div class="sec-title">Lịch dạy của bạn</div><div class="sec-sub">Lớp trong ngày được lấy từ lịch học đã lưu.</div></div>
-        <label style="display:flex;gap:8px;align-items:center;font-size:13px;color:var(--g600)">Xem ngày
+        <div><div class="sec-title">Glance</div><div class="sec-sub">Your classes, tuition follow-ups, deadlines, and weekly schedule.</div></div>
+        <label style="display:flex;gap:8px;align-items:center;font-size:13px;color:var(--g600)">Choose date
           <input id="overviewDate" type="date" class="fc" style="width:auto;padding:7px 10px" onchange="renderDayOverview(this.value)">
         </label>
       </div>
-      <div id="dayOverview"><p style="padding:40px;text-align:center;color:var(--g400)">Đang tải lịch…</p></div>
+      <div id="dayOverview"><p style="padding:40px;text-align:center;color:var(--g400)">Loading your schedule…</p></div>
+      <section class="card" style="padding:18px 20px;margin-top:18px">
+        <div class="sec-hd" style="align-items:center;margin-bottom:14px">
+          <div><div class="sec-title">Schedule</div><div class="sec-sub" id="glanceWeekRange"></div></div>
+          <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
+            <select id="glanceClassSel" class="fc" style="max-width:190px;padding:6px 10px;font-size:13px" onchange="renderGlanceSchedule()"><option value="">Select class</option></select>
+            <button class="btn btn-g" onclick="changeGlanceWeek(-1)">‹ Previous</button>
+            <button class="btn btn-g" onclick="changeGlanceWeek(0)">This week</button>
+            <button class="btn btn-g" onclick="changeGlanceWeek(1)">Next ›</button>
+          </div>
+        </div>
+        <div class="tw" id="glanceSchedule"><p style="padding:24px;text-align:center;color:var(--g400)">Select a class to view its weekly schedule.</p></div>
+      </section>
     </div>
 
     <!-- ② WEEKLY SCHEDULE -->
@@ -786,7 +802,7 @@ textarea.fc{resize:vertical;min-height:60px;}
 <nav class="mobile-nav">
   <div class="mobile-nav-inner">
     <button class="mnav-btn active" id="mnav-overview" onclick="mnavGo('overview',this)">
-      <span class="mnav-ico">📊</span><span class="mnav-lbl">Overview</span>
+      <span class="mnav-ico">📊</span><span class="mnav-lbl">Glance</span>
     </button>
     <button class="mnav-btn" id="mnav-tuition" onclick="mnavGo('tuition',this)">
       <span class="mnav-ico">💳</span><span class="mnav-lbl">Attendance</span>
@@ -886,7 +902,7 @@ async function refreshVisible(){
 // NAV
 // ═══════════════════════════════════════════════════════
 var TITLES = {
-  overview:'Lịch dạy', weekly:'Weekly Schedule',
+  overview:'Glance', weekly:'Weekly Schedule',
   tuition:'Tuition & Attendance', homework:'Homework Tracker',
   hwbook:'Homework Book',
   participation:'Participation Report', diligence:'Diligent Report',
@@ -1009,7 +1025,7 @@ async function init() {
 var _dayOverviewData = {};
 function dayEsc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function dayPlus(dateStr, days){var d=new Date(dateStr+'T12:00:00');d.setDate(d.getDate()+days);return fmtD(d);}
-function dayLong(dateStr){return new Date(dateStr+'T12:00:00').toLocaleDateString('vi-VN',{weekday:'long',day:'numeric',month:'long',year:'numeric'});}
+function dayLong(dateStr){return new Date(dateStr+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});}
 async function ensureDayOverviewData(){
   var missing=classData.filter(function(c){return !_dayOverviewData[c.classId];});
   for(var i=0;i<missing.length;i++){
@@ -1030,7 +1046,10 @@ function dayCardsFor(dateStr){
     sessions.forEach(function(session){
       var pos=realSessions.indexOf(session.date);
       var month=Math.floor(Math.max(pos,0)/8)+1, inMonth=Math.max(pos,0)%8+1;
-      var unpaid=data.students.filter(function(s){return !(s.monthPayments||{})[String(month)];}).map(function(s){return s.name||s.email;});
+      var unpaid=data.students.map(function(s){
+        var months=[]; for(var m=1;m<=month;m++) if(!(s.monthPayments||{})[String(m)]) months.push(m);
+        return {name:s.name||s.email,email:s.email,months:months};
+      }).filter(function(s){return s.months.length>0;});
       var deadlines=data.homework.filter(function(h){return h.deadline===dateStr;});
       cards.push({classId:cls.classId,session:session,month:month,inMonth:inMonth,unpaid:unpaid,deadlines:deadlines});
     });
@@ -1039,26 +1058,65 @@ function dayCardsFor(dateStr){
 }
 function renderDayCards(dateStr,label){
   var cards=dayCardsFor(dateStr);
-  if(!cards.length) return '<div class="card" style="padding:30px;text-align:center;color:var(--g600)">Ngày '+dayEsc(dayLong(dateStr))+' không có lớp.</div>';
+  if(!cards.length) return '<div class="card" style="padding:24px;text-align:center;color:var(--g600)">No classes on '+dayEsc(dayLong(dateStr))+'.</div>';
   return '<div style="font-size:16px;font-weight:700;margin:16px 0 10px">'+label+' · '+dayEsc(dayLong(dateStr))+'</div>'+
     '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px">'+cards.map(function(c){
-      var hw=c.deadlines.length?'<ul style="margin:6px 0 0 18px">'+c.deadlines.map(function(h){return '<li>'+dayEsc(h.type||'Bài tập')+': '+dayEsc(h.content||'')+'</li>';}).join('')+'</ul>':'<span style="color:var(--g400)">Không có bài tập đến hạn.</span>';
-      var unpaid=c.unpaid.length?'<span class="day-unpaid" tabindex="0" title="'+dayEsc(c.unpaid.join(', '))+'">'+c.unpaid.length+' bạn chưa đóng học phí<span class="day-tooltip">'+c.unpaid.map(dayEsc).join('<br>')+'</span></span>':'<span style="color:#15803d">Tất cả đã đóng học phí</span>';
-      return '<article class="card" style="padding:18px 20px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div class="ct">'+dayEsc(c.classId)+'</div><span class="badge">Buổi '+c.inMonth+'/8</span></div>'+
-        '<div style="font-size:13px;color:var(--g600);margin:12px 0 8px">Tháng '+c.month+'/14 · '+dayEsc(c.session.dayLabel||('Buổi '+c.inMonth))+'</div>'+
-        '<div style="font-weight:650;margin:8px 0 14px">'+dayEsc(c.session.skill||'')+(c.session.skill&&c.session.content?' · ':'')+dayEsc(c.session.content||'Chưa có nội dung trong lịch')+'</div>'+
-        '<div style="font-size:13px;margin-bottom:12px">'+unpaid+'</div><div style="font-size:13px"><strong>Deadline hôm nay</strong>'+hw+'</div>'+
-        '<button class="btn btn-r btn-sm" style="margin-top:16px" onclick="openHomeworkForClass(\''+dayEsc(c.classId).replace(/'/g,"\\'")+'\')">Mở Homework Tracker →</button></article>';
+      var hw=c.deadlines.length?'<ul style="margin:6px 0 0 18px">'+c.deadlines.map(function(h){return '<li>'+dayEsc(h.type||'Homework')+': '+dayEsc(h.content||'')+'</li>';}).join('')+'</ul>':'<span style="color:var(--g400)">No homework due.</span>';
+      var tuition=c.unpaid.length?'<button type="button" class="day-tuition-btn" onclick="toggleOverviewTuition(this,\''+dayEsc(c.classId).replace(/'/g,"\\'")+'\','+c.month+')">Tuition · '+c.unpaid.length+' unpaid</button>':'<span style="color:#15803d">Tuition · All paid</span>';
+      return '<article class="card" style="padding:18px 20px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div class="ct">'+dayEsc(c.classId)+'</div><span class="badge">Session '+c.inMonth+'/8</span></div>'+
+        '<div style="font-size:13px;color:var(--g600);margin:12px 0 8px">Month '+c.month+'/14 · '+dayEsc(c.session.dayLabel||('Session '+c.inMonth))+'</div>'+
+        '<div style="font-weight:650;margin:8px 0 14px">'+dayEsc(c.session.skill||'')+(c.session.skill&&c.session.content?' · ':'')+dayEsc(c.session.content||'No lesson details in the schedule')+'</div>'+
+        '<div style="font-size:13px;margin-bottom:12px">'+tuition+'</div><div class="day-tuition-details" hidden></div><div style="font-size:13px"><strong>Homework due today</strong>'+hw+'</div>'+
+        '<button class="btn btn-r btn-sm" style="margin-top:16px" onclick="openHomeworkForClass(\''+dayEsc(c.classId).replace(/'/g,"\\'")+'\')">Open Homework Tracker →</button></article>';
     }).join('')+'</div>';
+}
+function toggleOverviewTuition(button,classId,monthNo){
+  var detail=button.closest('article').querySelector('.day-tuition-details');
+  if(!detail)return;
+  if(!detail.hidden){detail.hidden=true;return;}
+  var data=_dayOverviewData[classId]||{},rows=[];
+  (data.students||[]).forEach(function(s){
+    var months=[];for(var m=1;m<=monthNo;m++)if(!(s.monthPayments||{})[String(m)])months.push(m);
+    if(months.length)rows.push({name:s.name||s.email,email:s.email,months:months});
+  });
+  detail.innerHTML=rows.length?'<div style="font-size:13px;font-weight:700;margin:8px 0">Outstanding tuition</div><div style="overflow-x:auto"><table class="day-tuition-table"><thead><tr><th>Student</th><th>Outstanding months</th></tr></thead><tbody>'+rows.map(function(s){return '<tr><td>'+dayEsc(s.name)+'</td><td>'+s.months.map(function(m){return 'Month '+m;}).join(' + ')+'</td></tr>';}).join('')+'</tbody></table></div>':'<p style="padding:10px 0;color:#15803d">All tuition is paid through Month '+monthNo+'.</p>';
+  detail.hidden=false;
+}
+var glanceWeekOffset=0;
+function buildGlanceClassSel(){
+  var sel=document.getElementById('glanceClassSel');if(!sel)return;
+  var current=sel.value;
+  sel.innerHTML='<option value="">Select class</option>';
+  classData.forEach(function(c){var o=document.createElement('option');o.value=c.classId;o.textContent=c.classId;if(c.classId===current)o.selected=true;sel.appendChild(o);});
+  if(!sel.value&&classData.length)sel.value=classData[0].classId;
+  renderGlanceSchedule();
+}
+function changeGlanceWeek(dir){glanceWeekOffset=dir===0?0:glanceWeekOffset+dir;renderGlanceSchedule();}
+function renderGlanceSchedule(){
+  var sel=document.getElementById('glanceClassSel'),el=document.getElementById('glanceSchedule'),range=document.getElementById('glanceWeekRange');if(!sel||!el)return;
+  var classId=sel.value;
+  if(!classId){el.innerHTML='<p style="padding:24px;text-align:center;color:var(--g400)">Select a class to view its weekly schedule.</p>';if(range)range.textContent='';return;}
+  var dates=getWeekDates(glanceWeekOffset),days=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  var start=fmtD(dates[0]),end=fmtD(dates[6]);
+  if(range)range.textContent=fmtBrit(start,true)+' – '+fmtBrit(end,true);
+  var schedule=(_dayOverviewData[classId]||{}).sessions||[];
+  var html='<div style="overflow-x:auto"><table class="glance-schedule-table"><thead><tr><th>Day</th><th>Date</th><th>Session</th><th>Lesson</th></tr></thead><tbody>';
+  dates.forEach(function(d,i){var ds=fmtD(d),items=schedule.filter(function(s){return s.date===ds;});
+    if(!items.length)html+='<tr><td>'+days[i]+'</td><td>'+fmtBrit(ds,true)+'</td><td colspan="2" style="color:var(--g400)">No class scheduled</td></tr>';
+    else items.forEach(function(s){html+='<tr><td>'+days[i]+'</td><td>'+fmtBrit(ds,true)+'</td><td>'+dayEsc(s.dayLabel||'—')+'</td><td><strong>'+dayEsc(s.skill||'')+'</strong>'+(s.skill&&s.content?' · ':'')+dayEsc(s.content||'—')+'</td></tr>';});
+  });
+  el.innerHTML=html+'</tbody></table></div>';
 }
 async function renderDayOverview(dateStr){
   var el=document.getElementById('dayOverview'); if(!el)return;
-  dateStr=dateStr||localToday(); el.innerHTML='<p style="padding:35px;text-align:center;color:var(--g400)">Đang tải lịch và deadline…</p>';
+  dateStr=dateStr||localToday(); el.innerHTML='<p style="padding:35px;text-align:center;color:var(--g400)">Loading classes and deadlines…</p>';
   await ensureDayOverviewData();
   var cards=dayCardsFor(dateStr);
-  if(!cards.length){el.innerHTML='<div class="card" style="padding:28px;text-align:center"><div style="font-size:18px;font-weight:700;margin-bottom:7px">Ngày '+dayEsc(dayLong(dateStr))+' không có lớp.</div><div style="color:var(--g600)">Chọn ngày khác để xem lịch dạy.</div></div>';return;}
+  buildGlanceClassSel();
+  if(!cards.length){el.innerHTML='<div class="card" style="padding:28px;text-align:center"><div style="font-size:18px;font-weight:700;margin-bottom:7px">No classes on '+dayEsc(dayLong(dateStr))+'.</div><div style="color:var(--g600)">Choose another date to see your classes.</div></div>';renderGlanceSchedule();return;}
   var classCount=new Set(cards.map(function(c){return c.classId;})).size;
-  el.innerHTML=renderDayCards(dateStr,'Ngày này có '+classCount+' lớp')+renderDayCards(dayPlus(dateStr,1),'Ngày hôm sau');
+  el.innerHTML=renderDayCards(dateStr,(dateStr===localToday()?'Today':'Selected date')+' · '+classCount+' '+(classCount===1?'class':'classes'))+renderDayCards(dayPlus(dateStr,1),'Next day');
+  renderGlanceSchedule();
 }
 function openHomeworkForClass(classId){activeClassId=classId;lastUsedClassId=classId;showSec('homework');var btn=document.querySelector('#hwTrackerTabs [data-cid="'+CSS.escape(classId)+'"]');if(btn){document.querySelectorAll('#hwTrackerTabs .ctab').forEach(function(b){b.classList.remove('active');});btn.classList.add('active');}loadHWTracker(classId);}
 
