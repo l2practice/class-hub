@@ -558,7 +558,7 @@ function getHomeworkTracker(b) {
     const ntIdx = emailKey+'_Note' in col ? col[emailKey+'_Note'] : -1;
     const subMap = {};
     hwRows.forEach((r, j) => {
-      const status = statusIdx>=0 ? (String(r[statusIdx]||'').trim()||'Done') : 'Done';
+      const status = statusIdx>=0 ? (String(r[statusIdx]||'').trim()||'Undone') : 'Done';
       subMap[hwList[j].hwId] = {
         status,
         gradedDate: gdIdx>=0 ? fmtDate(r[gdIdx]) : '',
@@ -914,7 +914,7 @@ function getStudentData(b) {
     const dl      = fmtDate(r[ddC]);
     const isExtra = dayLbl === 'EXTRA' || !sesDate;
     const key     = isExtra ? ('EXTRA_'+dl+'_'+type) : (sesDate+'_'+type);
-    const subStatus = hwStatusMap[key] || 'Done';
+    const subStatus = hwStatusMap[key] || 'Undone';
     const deadlineDate = dl ? new Date(dl+'T00:00:00') : null;
     const daysLeft = deadlineDate ? Math.ceil((deadlineDate - todayMid) / 86400000) : 0;
     return {
@@ -1336,11 +1336,34 @@ var WRITES = {
     });
     if (!f) return Promise.resolve({ success: false, message: 'Homework row not found' });
     var ops = [], id = studentFor(b.studentEmail, ops);
-    var pairs = [[['hw', f.id, 'st'], b.status || 'Done'], [['hw', f.id, 'gd'], today()]];
+    var pairs = [[['hw', f.id, 'st'], b.status || 'Undone'], [['hw', f.id, 'gd'], today()]];
     if (b.note !== undefined) pairs.push([['hw', f.id, 'nt'], b.note || '']);
     else if (!((S.students[id] || {}).hw || {})[f.id]) pairs.push([['hw', f.id, 'nt'], '']);
     ops.push(upd('students', id, pairs), dirty());
     return commit(ops);
+  },
+  saveAllHomeworkDone: function(b) {
+    var classId=String(b.classId||'').trim(), emails=b.studentEmails||[], assignments=b.assignments||[];
+    if(!classId||!emails.length||!assignments.length)return Promise.resolve({success:false,message:'classId, students, and homework are required'});
+    var entries=hwEntries(classId),resolved=[],seen={};
+    assignments.forEach(function(hw){
+      var match=entries.find(function(x){
+        if(String(x.h.t).trim()!==String(hw.type||'').trim())return false;
+        var rowDate=fmtDate(x.h.sd);
+        return rowDate?rowDate===hw.sessionDate:!hw.sessionDate&&fmtDate(x.h.dd)===fmtDate(hw.deadline);
+      });
+      if(match&&!seen[match.id]){seen[match.id]=true;resolved.push(match);}
+    });
+    if(!resolved.length)return Promise.resolve({success:false,message:'No matching homework assignments found'});
+    var ops=[];
+    emails.forEach(function(email){
+      var id=studentFor(email,ops),pairs=[];
+      resolved.forEach(function(entry){pairs.push([['hw',entry.id,'st'],'Done'],[['hw',entry.id,'gd'],today()]);});
+      if(id)ops.push(upd('students',id,pairs));
+    });
+    if(!ops.length)return Promise.resolve({success:false,message:'No students found'});
+    ops.push(dirty());
+    return commit(ops,{success:true,updated:emails.length*resolved.length});
   },
   deleteHomework: function(b) {
     if (!b.classId || !b.sessionDate) return Promise.resolve({ success: false, message: 'classId and sessionDate required' });
