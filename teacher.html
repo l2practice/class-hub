@@ -899,7 +899,7 @@ var currentFinishClass = null;
 var spinCandidates = [];
 var archiveMode = 'students';
 var activeClassId = null; // tracks the last class tab selected in any tracker
-function isSystemClassTab(classId){return String(classId||'').trim().toLowerCase().replace(/[\\s_-]+/g,'')==='classsessions';}
+function isSystemClassTab(classId){return String(classId||'').trim().toLowerCase().replace(/[^a-z0-9]/g,'')==='classsessions';}
 function visibleClassData(data){return (data||[]).filter(function(item){return !isSystemClassTab(item&&item.classId);});}
 var lastUsedClassId = null; // persists across init() reloads for End Session restore
 
