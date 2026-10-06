@@ -41,9 +41,9 @@ var M_ATT_H   = ['StudentEmail','ClassID','SessionDate','DayLabel','Status','Par
 var M_HW_H    = ['ClassID','SessionDate','DayLabel','Type','Content','Deadline','AssignedBy'];
 var M_PAY_H   = ['ClassID','StudentEmail','MonthNo','PaidDate','Note'];
 var M_HWM_H   = ['ClassID','MonthNo','EndedDate'];
-var M_SYSTEM  = ['Users','Attendance_Master','Homework_Master','Class_Schedules','Reference',
+var M_SYSTEM  = ['Users','Attendance_Master','Homework_Master','Class_Schedules','Class_Sessions','Reference',
                  'Tuition_Payments','Archived_Users','HW_Month_Status'];
-var M_EXCLUDE = ['reference','agenda','score','archived','archive','tuition','payment','users'];
+var M_EXCLUDE = ['reference','agenda','score','archived','archive','tuition','payment','users','class_sessions'];
 
 function mNormEmail(e) { return String(e == null ? '' : e).trim().toLowerCase(); }
 function mEmailKey(e)  { return String(e == null ? '' : e).replace(/[@.]/g, '_'); }
