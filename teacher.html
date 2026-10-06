@@ -899,6 +899,8 @@ var currentFinishClass = null;
 var spinCandidates = [];
 var archiveMode = 'students';
 var activeClassId = null; // tracks the last class tab selected in any tracker
+function isSystemClassTab(classId){return String(classId||'').trim().toLowerCase().replace(/[\\s_-]+/g,'')==='classsessions';}
+function visibleClassData(data){return (data||[]).filter(function(item){return !isSystemClassTab(item&&item.classId);});}
 var lastUsedClassId = null; // persists across init() reloads for End Session restore
 
 // ═══════════════════════════════════════════════════════
@@ -917,7 +919,7 @@ DB.onRemoteChange(function(){
 async function refreshVisible(){
   hwTrackerCache={}; hwBookCache={}; tuitionCache={}; allSchedules={}; _hwScheduleDates={}; _dayOverviewData={};
   var r = await api('getClassList');
-  if (r.success) { classData = r.data || []; renderDayOverview(document.getElementById('overviewDate').value || localToday()); }
+  if (r.success) { classData = visibleClassData(r.data); renderDayOverview(document.getElementById('overviewDate').value || localToday()); }
   var active = document.querySelector('.sec.active'); if (!active) return;
   var id = active.id.replace('sec-','');
   if (id==='homework') { var b=document.querySelector('#hwTrackerTabs .ctab.active[data-cid]'); if (b) loadHWTracker(b.getAttribute('data-cid')); }
@@ -1036,7 +1038,7 @@ async function init() {
   try {
     var r = await api('getClassList');
     if (!r.success) { toast('Failed to load class data','err'); return; }
-    classData = r.data || [];
+    classData = visibleClassData(r.data);
     buildTuitionTabs();
     buildDiligenceTabs();
     buildPartTabs();
