@@ -1,5 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40">
-  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e3a36a"/><stop offset="1" stop-color="#bd7040"/></linearGradient></defs>
-  <rect width="40" height="40" rx="10" fill="url(#g)"/>
-  <g transform="translate(3 3) scale(1.4167)" fill="none" stroke="#fff" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"><rect x="2.6" y="4.4" width="18.8" height="15.2" rx="2.4"/><rect x="5" y="6.6" width="14" height="10.8" rx=".9"/><path d="M14.7 17.4v-1.5h3.3v1.5"/><circle cx="12" cy="10.3" r="1.45"/><circle cx="8" cy="11.3" r="1.1"/><circle cx="16" cy="11.3" r="1.1"/><path d="M6.4 15v-.6a1.2 1.2 0 0 1 1.2-1.2h1.9M17.6 15v-.6a1.2 1.2 0 0 0-1.2-1.2h-1.9M9.8 15v-.85a1.45 1.45 0 0 1 1.45-1.45h1.5a1.45 1.45 0 0 1 1.45 1.45V15M6.4 15h11.2"/></g>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4ae3d"/><stop offset="1" stop-color="#e96d34"/></linearGradient>
+    <mask id="cut">
+      <rect width="40" height="40" fill="#fff"/>
+      <g transform="translate(4 4) scale(1.3333)" fill="#000" stroke="#000" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="15.3" cy="9.4" r="2.25" stroke="none"/>
+        <path d="M6.4 7.7 9.9 11.4 13 12.9" fill="none" stroke-width="2"/>
+        <path d="M11.9 19.5 12.3 14.2Q12.4 13 13.6 13H17.4Q18.5 13 19.2 13.8L21.2 16.3 22 19.5Z" stroke="none"/>
+      </g>
+    </mask>
+  </defs>
+  <rect width="40" height="40" rx="10" fill="url(#bg)"/>
+  <rect x="6.7" y="10" width="26.6" height="18.7" rx="2.6" fill="#fff" mask="url(#cut)"/>
 </svg>
