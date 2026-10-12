@@ -556,6 +556,18 @@ textarea.fc{resize:vertical;min-height:60px;}
     <div id="sec-settings" class="sec">
       <div class="sec-hd"><div class="sec-title">Settings</div></div>
       <div class="card" style="max-width:560px">
+        <div class="ch"><div class="ct">🏫 Create Class</div></div>
+        <div class="cb">
+          <p style="font-size:13px;color:var(--g600);margin-bottom:12px">Tạo lớp mới. Lớp xuất hiện ngay trong app và trong danh sách đăng ký của học viên. Trong vòng 5 phút, Google Sheet sẽ có tab lịch học cùng tên để thầy điền lịch.</p>
+          <div class="fg">
+            <label class="fl">Tên lớp</label>
+            <input type="text" class="fc" id="newClassName" placeholder="VD: IELTS 44" maxlength="40" onkeydown="if(event.key==='Enter')doCreateClass()"/>
+          </div>
+          <div id="createClassResult" style="display:none;margin-bottom:10px;padding:8px 12px;border-radius:7px;font-size:13px"></div>
+          <button class="btn btn-r" id="createClassBtn" onclick="doCreateClass()">➕ Create Class</button>
+        </div>
+      </div>
+      <div class="card" style="max-width:560px">
         <div class="ch"><div class="ct">🪪 Student ID Assignment</div></div>
         <div class="cb">
           <p style="font-size:13px;color:var(--g600);margin-bottom:12px">Auto-generate IDs for all students without one. Format: <code style="background:var(--g100);padding:1px 6px;border-radius:4px;font-size:12px">IE42-001</code></p>
@@ -3415,19 +3427,28 @@ async function loadArchive(){
           }).join('')+'</tbody></table></div></div>';
     }catch(e){el.innerHTML='<p style="color:var(--red);padding:20px">Connection error</p>';}
   } else {
-    // Classes — show archived class tabs
+    // Classes: active ones can be archived, archived ones restored
     try{
-      var r2=await api('getClassList');
-      // We need to list tabs starting with ARCHIVED_ — GAS getClassList doesn't return archived
-      // Show message + restore option
-      el.innerHTML='<div class="card"><div class="ch"><div class="ct">Archived Classes</div></div>'+
-        '<div class="cb"><p style="color:var(--g600);font-size:13px;margin-bottom:12px">'+
-        'Archived classes are stored in Google Sheets as ARCHIVED_[classId] tabs. '+
-        'To restore a class, enter the class ID below.</p>'+
-        '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
-        '<input type="text" class="fc" id="arcClassInput" placeholder="e.g. IELTS 41" style="max-width:220px"/>'+
-        '<button class="btn btn-o" onclick="restoreClass()">Restore Class</button>'+
-        '</div></div></div>';
+      var r2=await api('getClassStatusList');
+      if(!r2.success){el.innerHTML='<p style="color:var(--red);padding:20px">Error: '+r2.message+'</p>';return;}
+      var esc=function(t){return String(t).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});};
+      var active=r2.classes.filter(function(c){return c.status==='active';}), archived=r2.classes.filter(function(c){return c.status==='archived';});
+      var table=function(rows,btn){
+        if(!rows.length) return '<div class="cb" style="text-align:center;color:var(--g400);padding:24px">None</div>';
+        return '<div class="tw"><table><thead><tr><th>Class</th><th>Active students</th><th></th></tr></thead><tbody>'+
+          rows.map(function(c){
+            return '<tr><td style="padding:8px 12px"><span class="badge '+getLevelClass(c.classId)+'">'+esc(c.classId)+'</span></td>'+
+              '<td style="padding:8px 12px">'+c.students+'</td>'+
+              '<td style="padding:8px 12px;text-align:right">'+btn(c)+'</td></tr>';
+          }).join('')+'</tbody></table></div>';
+      };
+      el.innerHTML=
+        '<div class="card"><div class="ch"><div class="ct">Active Classes</div><span style="font-size:12px;color:var(--g400)">'+active.length+' class(es)</span></div>'+
+          table(active,function(c){return '<button class="btn btn-g btn-sm" data-arc-class="'+esc(c.classId)+'" data-students="'+c.students+'">🗄 Archive</button>';})+'</div>'+
+        '<div class="card"><div class="ch"><div class="ct">Archived Classes</div><span style="font-size:12px;color:var(--g400)">'+archived.length+' class(es)</span></div>'+
+          table(archived,function(c){return '<button class="btn btn-o btn-sm" data-restore-class="'+esc(c.classId)+'">Restore</button>';})+'</div>';
+      el.querySelectorAll('[data-arc-class]').forEach(function(b){ b.onclick=function(){ archiveClassUI(b.getAttribute('data-arc-class'), +b.getAttribute('data-students'), b); }; });
+      el.querySelectorAll('[data-restore-class]').forEach(function(b){ b.onclick=function(){ restoreClass(b.getAttribute('data-restore-class'), b); }; });
     }catch(e){el.innerHTML='<p style="color:var(--red);padding:20px">Connection error</p>';}
   }
 }
@@ -3441,14 +3462,24 @@ async function restoreStudent(email,name){
   }catch(e){toast('Connection error','err');}
 }
 
-async function restoreClass(){
-  var classId=document.getElementById('arcClassInput').value.trim();
-  if(!classId){toast('Enter class ID','err');return;}
+async function archiveClassUI(classId, students, btn){
+  if(!confirm('Archive class '+classId+'?\n\n'+students+' active student(s) of this class will be archived too: they can no longer sign in and get no more reminder emails.\nYou can restore the class later; students are restored one by one from the Students tab.'))return;
+  btn.disabled=true;
+  try{
+    var r=await api('archiveClass',{classId:classId,archive:true});
+    if(r.success){toast('Class '+classId+' archived ✓','ok');classData=[];await init();loadArchive();}
+    else{toast('Error: '+r.message,'err');btn.disabled=false;}
+  }catch(e){toast('Connection error','err');btn.disabled=false;}
+}
+
+async function restoreClass(classId, btn){
+  if(!confirm('Restore class '+classId+'?'))return;
+  if(btn)btn.disabled=true;
   try{
     var r=await api('archiveClass',{classId:classId,archive:false});
-    if(r.success){toast('Class '+classId+' restored ✓','ok');classData=[];await init();}
-    else toast('Error: '+r.message,'err');
-  }catch(e){toast('Connection error','err');}
+    if(r.success){toast('Class '+classId+' restored ✓','ok');classData=[];await init();loadArchive();}
+    else{toast('Error: '+r.message,'err');if(btn)btn.disabled=false;}
+  }catch(e){toast('Connection error','err');if(btn)btn.disabled=false;}
 }
 
 // ═══════════════════════════════════════════════════════
@@ -3472,6 +3503,22 @@ async function assignAllIds(){
     res.style.cssText='display:block;padding:9px 12px;border-radius:7px;background:#fee2e2;color:#991b1b;font-size:13px;margin-bottom:12px;';
   }
   btn.disabled=false; btn.textContent='🪪 Assign IDs to All Students';
+}
+
+async function doCreateClass(){
+  var inp=document.getElementById('newClassName'), res=document.getElementById('createClassResult'), btn=document.getElementById('createClassBtn');
+  var name=inp.value.trim();
+  if(!name){inp.focus();return;}
+  btn.disabled=true;
+  try{
+    var r=await api('createClass',{className:name});
+    res.style.display='block';
+    res.style.background=r.success?'#dcfce7':'#fee2e2'; res.style.color=r.success?'#166534':'#991b1b';
+    res.textContent=r.success?('✓ Đã tạo lớp '+r.className+'. Tab lịch học trong Google Sheet sẽ có trong vòng 5 phút.'):('Lỗi: '+r.message);
+    if(r.success){ inp.value=''; await doRefresh(); }
+  }catch(e){
+    res.style.display='block'; res.style.background='#fee2e2'; res.style.color='#991b1b'; res.textContent='Connection error';
+  }finally{ btn.disabled=false; }
 }
 
 async function doExport(){
