@@ -1261,7 +1261,7 @@ async function archiveStudentUI(classId, email, name) {
   if (!confirm('Archive '+name+'? They will be moved to Archive and can be restored later.')) return;
   try {
     var r = await api('archiveStudent', {email:email, archive:true});
-    if (r.success) { toast(name+' archived ✓','ok'); closeMo('moStudent'); classData=[]; await init(); }
+    if (r.success) { toast(name+' archived ✓','ok'); closeMo('moStudent'); classData=[]; await init(); if(document.getElementById('sec-archive').classList.contains('active')) loadArchive(); }
     else toast('Error: '+r.message,'err');
   } catch(e){ toast('Connection error','err'); }
 }
@@ -3399,32 +3399,68 @@ async function loadArchive(){
   el.innerHTML='<p style="padding:30px;text-align:center;color:var(--g400)">Loading…</p>';
 
   if(archiveMode==='students'){
+    // Active students (Archive) above, archived students (Restore) below
     try{
       var r=await api('getArchivedStudents');
       if(!r.success){el.innerHTML='<p style="color:var(--red);padding:20px">Error: '+r.message+'</p>';return;}
+      if(!classData.length){var cl=await api('getClassList'); if(cl.success) classData=cl.data||[];}
+      var esc=function(t){return String(t==null?'':t).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});};
       var students=r.students||[];
-      if(!students.length){
-        el.innerHTML='<div class="card"><div class="cb" style="text-align:center;color:var(--g400);padding:40px">'+
-          '<div style="font-size:32px;margin-bottom:8px">🗄</div>'+
-          '<div style="font-weight:600">No archived students</div></div></div>';
-        return;
-      }
+      var opts='<option value="">All classes</option>'+classData.map(function(c){return '<option value="'+esc(c.classId)+'">'+esc(c.classId)+'</option>';}).join('');
       el.innerHTML='<div class="card">'+
+        '<div class="ch"><div class="ct">Active Students</div><span id="arcActiveCount" style="font-size:12px;color:var(--g400)"></span></div>'+
+        '<div class="cb" style="display:flex;gap:8px;flex-wrap:wrap;padding-bottom:0">'+
+          '<select class="fc" id="arcStuClass" style="max-width:200px">'+opts+'</select>'+
+          '<input type="text" class="fc" id="arcStuSearch" placeholder="Search name or ID…" style="max-width:240px"/>'+
+        '</div>'+
+        '<div class="tw"><table><thead><tr><th>Student</th><th>Class</th><th>Sessions</th><th></th></tr></thead><tbody id="arcActiveBody"></tbody></table></div></div>'+
+        '<div class="card">'+
         '<div class="ch"><div class="ct">Archived Students</div>'+
         '<span style="font-size:12px;color:var(--g400)">'+students.length+' student(s)</span></div>'+
+        (students.length?
         '<div class="tw"><table>'+
           '<thead><tr><th>#</th><th>Student</th><th>Class</th><th>Sessions</th><th>Archived</th><th></th></tr></thead>'+
           '<tbody>'+students.map(function(s,i){
             return '<tr>'+
               '<td style="padding:8px 12px;color:var(--g400)">'+(i+1)+'</td>'+
-              '<td style="padding:8px 12px"><strong>'+s.name+'</strong><br><code style="font-size:10px;color:var(--g400)">'+(s.studentId||'')+'</code></td>'+
-              '<td style="padding:8px 12px"><span class="badge '+getLevelClass(s.class||'')+'">'+s.class+'</span></td>'+
+              '<td style="padding:8px 12px"><strong>'+esc(s.name)+'</strong><br><code style="font-size:10px;color:var(--g400)">'+esc(s.studentId)+'</code></td>'+
+              '<td style="padding:8px 12px"><span class="badge '+getLevelClass(s.class||'')+'">'+esc(s.class)+'</span></td>'+
               '<td style="padding:8px 12px">'+s.totalSessions+' sess · M'+s.monthsCompleted+'</td>'+
-              '<td style="padding:8px 12px;color:var(--g400);font-size:12px">'+s.archivedDate+'</td>'+
+              '<td style="padding:8px 12px;color:var(--g400);font-size:12px">'+esc(s.archivedDate)+'</td>'+
               '<td style="padding:8px 12px">'+
-                '<button class="btn btn-o btn-sm" onclick="restoreStudent(\''+s.email+'\',\''+s.name+'\')">Restore</button>'+
+                '<button class="btn btn-o btn-sm" data-restore-email="'+esc(s.email)+'" data-name="'+esc(s.name)+'">Restore</button>'+
               '</td></tr>';
-          }).join('')+'</tbody></table></div></div>';
+          }).join('')+'</tbody></table></div>'
+        : '<div class="cb" style="text-align:center;color:var(--g400);padding:24px">No archived students</div>')+
+        '</div>';
+      var renderActive=function(){
+        var cls=document.getElementById('arcStuClass').value, q=document.getElementById('arcStuSearch').value.trim().toLowerCase();
+        var rows=[];
+        classData.forEach(function(c){
+          if(cls&&c.classId!==cls)return;
+          c.students.forEach(function(st){
+            if(q&&(st.name+' '+(st.studentId||'')+' '+st.email).toLowerCase().indexOf(q)<0)return;
+            rows.push({c:c.classId,s:st});
+          });
+        });
+        document.getElementById('arcActiveCount').textContent=rows.length+' student(s)';
+        var body=document.getElementById('arcActiveBody');
+        body.innerHTML=rows.length?rows.map(function(x){
+          return '<tr><td style="padding:8px 12px"><strong>'+esc(x.s.name)+'</strong><br><code style="font-size:10px;color:var(--g400)">'+esc(x.s.studentId)+'</code></td>'+
+            '<td style="padding:8px 12px"><span class="badge '+getLevelClass(x.c)+'">'+esc(x.c)+'</span></td>'+
+            '<td style="padding:8px 12px">'+(x.s.total||0)+'</td>'+
+            '<td style="padding:8px 12px;text-align:right"><button class="btn btn-g btn-sm" data-arc-email="'+esc(x.s.email)+'" data-cid="'+esc(x.c)+'" data-name="'+esc(x.s.name)+'">🗄 Archive</button></td></tr>';
+        }).join(''):'<tr><td colspan="4" style="padding:20px;text-align:center;color:var(--g400)">No students</td></tr>';
+        body.querySelectorAll('[data-arc-email]').forEach(function(b){
+          b.onclick=function(){ archiveStudentUI(b.getAttribute('data-cid'), b.getAttribute('data-arc-email'), b.getAttribute('data-name')); };
+        });
+      };
+      document.getElementById('arcStuClass').onchange=renderActive;
+      document.getElementById('arcStuSearch').oninput=renderActive;
+      renderActive();
+      el.querySelectorAll('[data-restore-email]').forEach(function(b){
+        b.onclick=function(){ restoreStudent(b.getAttribute('data-restore-email'), b.getAttribute('data-name')); };
+      });
     }catch(e){el.innerHTML='<p style="color:var(--red);padding:20px">Connection error</p>';}
   } else {
     // Classes: active ones can be archived, archived ones restored
@@ -3457,7 +3493,7 @@ async function restoreStudent(email,name){
   if(!confirm('Restore '+name+' to active students?'))return;
   try{
     var r=await api('archiveStudent',{email:email,archive:false});
-    if(r.success){toast(name+' restored ✓','ok');loadArchive();classData=[];await init();}
+    if(r.success){toast(name+' restored ✓','ok');classData=[];await init();loadArchive();}
     else toast('Error: '+r.message,'err');
   }catch(e){toast('Connection error','err');}
 }
