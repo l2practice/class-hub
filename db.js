@@ -1239,6 +1239,13 @@ function outbox(type, data) {
   return { op: 'set', col: 'outbox', id: null, data: Object.assign({}, data, { kind: type, by: S.email, at: new Date().toISOString() }) };
 }
 function dirty() { return { op: 'set', col: 'outbox', id: 'dirty', data: { kind: 'dirty', at: new Date().toISOString() } }; }
+// public/meta.classNames feeds the registration dropdown; the worker rebuilds it from the
+// Sheet tabs, this keeps it right in the minutes before that
+function classNamesOp(name, present) {
+  var names = (S.meta.classNames || []).filter(function(n){ return n !== name; });
+  if (present) names.push(name);
+  return { op: 'set', col: 'public', id: 'meta', merge: true, data: { classNames: names } };
+}
 function commit(ops, result) {
   return A.commit(ops).then(function(){ return result || { success: true }; });
 }
@@ -1434,17 +1441,22 @@ var WRITES = {
       var tab = findClassTab(classId);
       if (!tab) return Promise.resolve({ success: false, message: 'Class tab not found' });
       ops.push(upd('classes', tab.getName(), [[['status'], 'archived']]));
-      var variants = [classId, classId.replace(/ /g, '_'), classId.replace(/_/g, ' ')];
+      var variants = [classId, classId.replace(/ /g, '_'), classId.replace(/_/g, ' ')], archived = 0;
       activeStudents().forEach(function(s){
-        if (variants.indexOf(String(s.u.Class || '').trim()) >= 0)
+        if (variants.indexOf(String(s.u.Class || '').trim()) >= 0) {
           ops.push(upd('students', s._id, [[['status'], 'archived'], [['archivedDate'], today()], [['ord'], Date.now() + _seq++]]));
+          // same clean-up as archiving one student: pending reminder emails are dropped
+          ops.push(outbox('archiveStudent', { email: s.email }));
+          archived++;
+        }
       });
+      ops.push(classNamesOp(tab.getName(), false));
     } else {
       if (!S.classes[classId] || S.classes[classId].status !== 'archived') return Promise.resolve({ success: false, message: 'Archived tab not found' });
-      ops.push(upd('classes', classId, [[['status'], 'active']]));
+      ops.push(upd('classes', classId, [[['status'], 'active']]), classNamesOp(classId, true));
     }
     ops.push(dirty());
-    return commit(ops);
+    return commit(ops, b.archive ? { success: true, studentsArchived: archived } : { success: true });
   },
   assignAllStudentIds: function() {
     var users = activeStudents(), counters = {}, byClass = {}, order = [];
@@ -1490,11 +1502,10 @@ var WRITES = {
     var clash = Object.keys(S.classes).filter(function(n){ return key(n) === key(name); })[0];
     if (clash) return Promise.resolve({ success: false, message: 'A class named "' + clash + '" already exists'
       + (S.classes[clash].status === 'archived' ? ' (archived — restore it from Archive).' : '.') });
-    var names = (S.meta.classNames || []).filter(function(n){ return n !== name; }).concat([name]);
     return commit([
       { op: 'set', col: 'classes', id: name, data: { status: 'active', ord: Date.now(), hw: {}, hwm: {},
         sched: [{ v: ['Day', 'AccumulatedHours', 'Skills', 'Contents', 'DATE', 'RemainingDays', 'AdjustedContent'] }] } },
-      { op: 'set', col: 'public', id: 'meta', merge: true, data: { classNames: names } },
+      classNamesOp(name, true),
       outbox('createClass', { className: name }),
     ], { success: true, className: name });
   },
@@ -1521,6 +1532,14 @@ var READS = {
   getRewardsMonth: getRewardsMonth, getTuitionForClass: getTuitionForClass, getStudentData: getStudentData,
   getArchivedStudents: getArchivedStudents, getArchivedStudentDetail: getArchivedStudentDetail,
   resetAttendance: resetAttendance, getStudentId: getStudentId,
+  getClassStatusList: function(){
+    var counts = {};
+    activeStudents().forEach(function(s){ var k = normalizeClass(s.u.Class); counts[k] = (counts[k] || 0) + 1; });
+    var list = Object.keys(S.classes).filter(function(n){ return S.classes[n].status === 'active' || S.classes[n].status === 'archived'; })
+      .sort(function(a, b){ return (S.classes[a].ord || 0) - (S.classes[b].ord || 0); })
+      .map(function(n){ return { classId: n, status: S.classes[n].status, students: counts[normalizeClass(n)] || 0 }; });
+    return { success: true, classes: list };
+  },
   getClassNames: function(){ return S.role === 'Teacher' ? getClassNames() : { success: true, classes: (S.meta.classNames || []) }; },
   getRewards: function(b){ return S.role === 'Teacher' ? getRewards(b) : { success: false, message: 'Not allowed' }; },
   // Student page: own ranking only (position among classmates, no names), written by the worker
