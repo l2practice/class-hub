@@ -1475,6 +1475,29 @@ var WRITES = {
     ops.push(dirty());
     return commit(ops, { success: true, assigned: ops.length - 1 });
   },
+  // New class: class doc (empty schedule) + registration dropdown; the worker then adds the
+  // schedule tab with the same name to the Sheet, where the schedule is edited as for other classes
+  createClass: function(b) {
+    var name = String(b.className || '').trim().replace(/\s+/g, ' ');
+    if (!name) return Promise.resolve({ success: false, message: 'Class name is required.' });
+    // Names end up as Sheet tab names, Firestore doc ids and inside onclick='…' strings in the pages
+    if (name.length > 40 || !/^[\p{L}\p{N} _.()#+-]+$/u.test(name))
+      return Promise.resolve({ success: false, message: 'Use letters, numbers, spaces and - _ . ( ) # + only (max 40 characters).' });
+    // Names the Sheet/app treat as system tabs would make the class invisible everywhere
+    if (name.indexOf('ARCHIVED_') === 0 || !mIsClassTab(name))
+      return Promise.resolve({ success: false, message: 'This name is reserved, please choose another one.' });
+    var key = function(x){ return String(x).toLowerCase().replace(/[ _]/g, ''); };
+    var clash = Object.keys(S.classes).filter(function(n){ return key(n) === key(name); })[0];
+    if (clash) return Promise.resolve({ success: false, message: 'A class named "' + clash + '" already exists'
+      + (S.classes[clash].status === 'archived' ? ' (archived — restore it from Archive).' : '.') });
+    var names = (S.meta.classNames || []).filter(function(n){ return n !== name; }).concat([name]);
+    return commit([
+      { op: 'set', col: 'classes', id: name, data: { status: 'active', ord: Date.now(), hw: {}, hwm: {},
+        sched: [{ v: ['Day', 'AccumulatedHours', 'Skills', 'Contents', 'DATE', 'RemainingDays', 'AdjustedContent'] }] } },
+      { op: 'set', col: 'public', id: 'meta', merge: true, data: { classNames: names } },
+      outbox('createClass', { className: name }),
+    ], { success: true, className: name });
+  },
   sendReport: function() { return commit([outbox('sendReport', {})]); },
   changePassword: function(b) {
     if (!b.newPassword || b.newPassword.length < 6) return Promise.resolve({ success: false, message: 'New password must be at least 6 characters.' });

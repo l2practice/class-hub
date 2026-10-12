@@ -556,6 +556,18 @@ textarea.fc{resize:vertical;min-height:60px;}
     <div id="sec-settings" class="sec">
       <div class="sec-hd"><div class="sec-title">Settings</div></div>
       <div class="card" style="max-width:560px">
+        <div class="ch"><div class="ct">🏫 Create Class</div></div>
+        <div class="cb">
+          <p style="font-size:13px;color:var(--g600);margin-bottom:12px">Tạo lớp mới. Lớp xuất hiện ngay trong app và trong danh sách đăng ký của học viên. Trong vòng 5 phút, Google Sheet sẽ có tab lịch học cùng tên để thầy điền lịch.</p>
+          <div class="fg">
+            <label class="fl">Tên lớp</label>
+            <input type="text" class="fc" id="newClassName" placeholder="VD: IELTS 44" maxlength="40" onkeydown="if(event.key==='Enter')doCreateClass()"/>
+          </div>
+          <div id="createClassResult" style="display:none;margin-bottom:10px;padding:8px 12px;border-radius:7px;font-size:13px"></div>
+          <button class="btn btn-r" id="createClassBtn" onclick="doCreateClass()">➕ Create Class</button>
+        </div>
+      </div>
+      <div class="card" style="max-width:560px">
         <div class="ch"><div class="ct">🪪 Student ID Assignment</div></div>
         <div class="cb">
           <p style="font-size:13px;color:var(--g600);margin-bottom:12px">Auto-generate IDs for all students without one. Format: <code style="background:var(--g100);padding:1px 6px;border-radius:4px;font-size:12px">IE42-001</code></p>
@@ -3472,6 +3484,22 @@ async function assignAllIds(){
     res.style.cssText='display:block;padding:9px 12px;border-radius:7px;background:#fee2e2;color:#991b1b;font-size:13px;margin-bottom:12px;';
   }
   btn.disabled=false; btn.textContent='🪪 Assign IDs to All Students';
+}
+
+async function doCreateClass(){
+  var inp=document.getElementById('newClassName'), res=document.getElementById('createClassResult'), btn=document.getElementById('createClassBtn');
+  var name=inp.value.trim();
+  if(!name){inp.focus();return;}
+  btn.disabled=true;
+  try{
+    var r=await api('createClass',{className:name});
+    res.style.display='block';
+    res.style.background=r.success?'#dcfce7':'#fee2e2'; res.style.color=r.success?'#166534':'#991b1b';
+    res.textContent=r.success?('✓ Đã tạo lớp '+r.className+'. Tab lịch học trong Google Sheet sẽ có trong vòng 5 phút.'):('Lỗi: '+r.message);
+    if(r.success){ inp.value=''; await doRefresh(); }
+  }catch(e){
+    res.style.display='block'; res.style.background='#fee2e2'; res.style.color='#991b1b'; res.textContent='Connection error';
+  }finally{ btn.disabled=false; }
 }
 
 async function doExport(){
