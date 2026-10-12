@@ -3480,11 +3480,12 @@ async function loadArchive(){
       };
       el.innerHTML=
         '<div class="card"><div class="ch"><div class="ct">Active Classes</div><span style="font-size:12px;color:var(--g400)">'+active.length+' class(es)</span></div>'+
-          table(active,function(c){return '<button class="btn btn-g btn-sm" data-arc-class="'+esc(c.classId)+'" data-students="'+c.students+'">🗄 Archive</button>';})+'</div>'+
+          table(active,function(c){return '<button class="btn btn-g btn-sm" data-rename-class="'+esc(c.classId)+'">✏️ Rename</button> <button class="btn btn-g btn-sm" data-arc-class="'+esc(c.classId)+'" data-students="'+c.students+'">🗄 Archive</button>';})+'</div>'+
         '<div class="card"><div class="ch"><div class="ct">Archived Classes</div><span style="font-size:12px;color:var(--g400)">'+archived.length+' class(es)</span></div>'+
-          table(archived,function(c){return '<button class="btn btn-o btn-sm" data-restore-class="'+esc(c.classId)+'">Restore</button>';})+'</div>';
+          table(archived,function(c){return '<button class="btn btn-g btn-sm" data-rename-class="'+esc(c.classId)+'">✏️ Rename</button> <button class="btn btn-o btn-sm" data-restore-class="'+esc(c.classId)+'">Restore</button>';})+'</div>';
       el.querySelectorAll('[data-arc-class]').forEach(function(b){ b.onclick=function(){ archiveClassUI(b.getAttribute('data-arc-class'), +b.getAttribute('data-students'), b); }; });
       el.querySelectorAll('[data-restore-class]').forEach(function(b){ b.onclick=function(){ restoreClass(b.getAttribute('data-restore-class'), b); }; });
+      el.querySelectorAll('[data-rename-class]').forEach(function(b){ b.onclick=function(){ renameClassUI(b.getAttribute('data-rename-class'), b); }; });
     }catch(e){el.innerHTML='<p style="color:var(--red);padding:20px">Connection error</p>';}
   }
 }
@@ -3505,6 +3506,20 @@ async function archiveClassUI(classId, students, btn){
     var r=await api('archiveClass',{classId:classId,archive:true});
     if(r.success){toast('Class '+classId+' archived ✓','ok');classData=[];await init();loadArchive();}
     else{toast('Error: '+r.message,'err');btn.disabled=false;}
+  }catch(e){toast('Connection error','err');btn.disabled=false;}
+}
+
+async function renameClassUI(classId, btn){
+  var to=prompt('Rename class "'+classId+'" to:\n(Students, attendance and tuition move to the new name. Rename the schedule tab in Google Sheet to the same name.)', classId);
+  if(to===null)return;
+  to=to.trim(); if(!to||to===classId)return;
+  btn.disabled=true;
+  try{
+    var r=await api('renameClass',{from:classId,to:to});
+    if(r.success){
+      toast('Renamed to '+r.className+' ✓'+(r.merged?' (merged with the existing class)':''),'ok');
+      classData=[];await init();loadArchive();
+    } else { toast('Error: '+r.message,'err'); btn.disabled=false; }
   }catch(e){toast('Connection error','err');btn.disabled=false;}
 }
 

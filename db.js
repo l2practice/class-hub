@@ -1111,6 +1111,7 @@ function makeFirebaseAdapter(config) {
       ops.forEach(function(op){
         var r = ref(op.col, op.id);
         if (op.op === 'set') b.set(r, op.data, { merge: !!op.merge });
+        else if (op.op === 'delete') b.delete(r);
         else {
           var args = [];
           op.pairs.forEach(function(p){ args.push(new firebase.firestore.FieldPath(p[0][0], ...p[0].slice(1)), val(p[1])); });
@@ -1239,6 +1240,17 @@ function outbox(type, data) {
   return { op: 'set', col: 'outbox', id: null, data: Object.assign({}, data, { kind: type, by: S.email, at: new Date().toISOString() }) };
 }
 function dirty() { return { op: 'set', col: 'outbox', id: 'dirty', data: { kind: 'dirty', at: new Date().toISOString() } }; }
+function cleanClassName(n) { return String(n || '').trim().replace(/\s+/g, ' '); }
+function classKeyOf(n) { return String(n).toLowerCase().replace(/[ _]/g, ''); }
+function classNameProblem(name) {
+  if (!name) return 'Class name is required.';
+  // Names end up as Sheet tab names, Firestore doc ids and inside onclick='…' strings in the pages
+  if (name.length > 40 || !/^[\p{L}\p{N} _.()#+-]+$/u.test(name))
+    return 'Use letters, numbers, spaces and - _ . ( ) # + only (max 40 characters).';
+  // Names the Sheet/app treat as system tabs would make the class invisible everywhere
+  if (name.indexOf('ARCHIVED_') === 0 || !mIsClassTab(name)) return 'This name is reserved, please choose another one.';
+  return '';
+}
 // public/meta.classNames feeds the registration dropdown; the worker rebuilds it from the
 // Sheet tabs, this keeps it right in the minutes before that
 function classNamesOp(name, present) {
@@ -1489,17 +1501,50 @@ var WRITES = {
   },
   // New class: class doc (empty schedule) + registration dropdown; the worker then adds the
   // schedule tab with the same name to the Sheet, where the schedule is edited as for other classes
+  // Rename a class everywhere it is referenced: the class doc id, every student's u.Class / cls,
+  // and the attendance and tuition maps keyed by class. If a class with the new name exists but is
+  // archived or has no active students (e.g. an older class doc with that name), it is merged in.
+  // The Sheet tab is renamed by hand; the worker then syncs the schedule from it.
+  renameClass: function(b) {
+    var from = String(b.from || '').trim(), to = cleanClassName(b.to), bad = classNameProblem(to);
+    var src = S.classes[from];
+    if (!src || src.status === 'hidden') return Promise.resolve({ success: false, message: 'Class "' + from + '" not found.' });
+    if (bad) return Promise.resolve({ success: false, message: bad });
+    if (to === from) return Promise.resolve({ success: false, message: 'The new name is the same as the current one.' });
+    var dstName = Object.keys(S.classes).filter(function(n){ return n !== from && classKeyOf(n) === classKeyOf(to); })[0];
+    var dst = dstName ? S.classes[dstName] : null;
+    var activeIn = function(name){ var k = normalizeClass(name);
+      return activeStudents().filter(function(s){ return normalizeClass(s.u.Class) === k; }).length; };
+    if (dst && dst.status === 'active' && activeIn(dstName))
+      return Promise.resolve({ success: false, message: 'Class "' + dstName + '" already exists and has active students.' });
+    var target = dstName || to;
+    var merged = function(a, c){ return Object.assign({}, (a || {}), (c || {})); };
+    var ops = [{ op: 'set', col: 'classes', id: target, data: {
+      status: src.status, ord: src.ord || Date.now(), sched: src.sched || [],
+      hw: merged(dst && dst.hw, src.hw), hwm: merged(dst && dst.hwm, src.hwm) } }];
+    if (target !== from) ops.push({ op: 'delete', col: 'classes', id: from });
+    var srcKey = normalizeClass(from), moved = 0;
+    Object.keys(S.students).forEach(function(id){
+      var st = S.students[id], pairs = [];
+      if (normalizeClass(st.u && st.u.Class) === srcKey) { pairs.push([['u', 'Class'], target]); moved++; }
+      if (st.cls === from || normalizeClass(st.cls) === srcKey) pairs.push([['cls'], target]);
+      [['att'], ['pay']].forEach(function(f){
+        var m = st[f[0]] || {};
+        Object.keys(m).filter(function(c){ return normalizeClass(c) === srcKey && c !== target; }).forEach(function(c){
+          pairs.push([[f[0], target], merged(m[target], m[c])], [[f[0], c], DEL]);
+        });
+      });
+      if (pairs.length) ops.push(upd('students', id, pairs));
+    });
+    var names = (S.meta.classNames || []).filter(function(n){ return n !== from && n !== target; });
+    if (src.status === 'active') names.push(target);
+    ops.push({ op: 'set', col: 'public', id: 'meta', merge: true, data: { classNames: names } }, dirty());
+    return commit(ops, { success: true, className: target, students: moved, merged: !!dstName });
+  },
   createClass: function(b) {
-    var name = String(b.className || '').trim().replace(/\s+/g, ' ');
-    if (!name) return Promise.resolve({ success: false, message: 'Class name is required.' });
-    // Names end up as Sheet tab names, Firestore doc ids and inside onclick='…' strings in the pages
-    if (name.length > 40 || !/^[\p{L}\p{N} _.()#+-]+$/u.test(name))
-      return Promise.resolve({ success: false, message: 'Use letters, numbers, spaces and - _ . ( ) # + only (max 40 characters).' });
-    // Names the Sheet/app treat as system tabs would make the class invisible everywhere
-    if (name.indexOf('ARCHIVED_') === 0 || !mIsClassTab(name))
-      return Promise.resolve({ success: false, message: 'This name is reserved, please choose another one.' });
-    var key = function(x){ return String(x).toLowerCase().replace(/[ _]/g, ''); };
-    var clash = Object.keys(S.classes).filter(function(n){ return key(n) === key(name); })[0];
+    var name = cleanClassName(b.className), bad = classNameProblem(name);
+    if (bad) return Promise.resolve({ success: false, message: bad });
+    var clash = Object.keys(S.classes).filter(function(n){ return classKeyOf(n) === classKeyOf(name); })[0];
     if (clash) return Promise.resolve({ success: false, message: 'A class named "' + clash + '" already exists'
       + (S.classes[clash].status === 'archived' ? ' (archived — restore it from Archive).' : '.') });
     return commit([
