@@ -1277,6 +1277,17 @@ function classNameProblem(name) {
   if (name.indexOf('ARCHIVED_') === 0 || !mIsClassTab(name)) return 'This name is reserved, please choose another one.';
   return '';
 }
+// Active students whose class matches no class in the app (class deleted, or the name mistyped
+// in the Firebase console): they appear in no list, and their page can't load a class
+function strayStudents() {
+  return activeStudents().filter(function(s){
+    if ((s.u.Role || 'Student') !== 'Student') return false;
+    var doc = mClassDocOf(s.u.Class, S.classes);
+    return !doc || S.classes[doc].status !== 'active' || s.cls !== doc;
+  }).map(function(s){
+    return { email: s.email, name: s.u.FullName || s.email, studentId: s.u.StudentID || '', class: s.u.Class || '', cls: s.cls || '' };
+  });
+}
 // public/meta.classNames feeds the registration dropdown; the worker rebuilds it from the
 // Sheet tabs, this keeps it right in the minutes before that
 function classNamesOp(name, present) {
@@ -1567,6 +1578,23 @@ var WRITES = {
     ops.push({ op: 'set', col: 'public', id: 'meta', merge: true, data: { classNames: names } }, dirty());
     return commit(ops, { success: true, className: target, students: moved, merged: !!dstName });
   },
+  // Put a student in an existing class (fixes students left in a deleted or mistyped class).
+  // Attendance and tuition kept under a class name that no longer exists move with them;
+  // records of another real class stay where they are.
+  moveStudent: function(b) {
+    var id = findStudent(b.email), target = String(b.classId || '').trim(), c = S.classes[target];
+    if (!id) return Promise.resolve({ success: false, message: 'Student not found.' });
+    if (!c || c.status !== 'active') return Promise.resolve({ success: false, message: 'Class "' + target + '" not found.' });
+    var st = S.students[id], pairs = [[['u', 'Class'], target], [['cls'], target]];
+    ['att', 'pay'].forEach(function(f){
+      var m = st[f] || {}, orphans = Object.keys(m).filter(function(k){ return k !== target && !mClassDocOf(k, S.classes); });
+      if (!orphans.length) return;
+      var into = Object.assign({}, m[target] || {});
+      orphans.forEach(function(k){ Object.assign(into, m[k]); pairs.push([[f, k], DEL]); });
+      pairs.push([[f, target], into]);
+    });
+    return commit([upd('students', id, pairs), dirty()], { success: true });
+  },
   createClass: function(b) {
     var name = cleanClassName(b.className), bad = classNameProblem(name);
     if (bad) return Promise.resolve({ success: false, message: bad });
@@ -1611,6 +1639,7 @@ var READS = {
       .map(function(n){ return { classId: n, status: S.classes[n].status, students: counts[normalizeClass(n)] || 0 }; });
     return { success: true, classes: list };
   },
+  getStrayStudents: function(){ return { success: true, students: strayStudents() }; },
   getClassNames: function(){ return S.role === 'Teacher' ? getClassNames() : { success: true, classes: (S.meta.classNames || []) }; },
   getRewards: function(b){ return S.role === 'Teacher' ? getRewards(b) : { success: false, message: 'Not allowed' }; },
   // Student page: own ranking only (position among classmates, no names), written by the worker
@@ -1658,7 +1687,18 @@ function login(email, password) {
 function register(d) {
   if (!A) A = makeFirebaseAdapter(FIREBASE_CONFIG);
   var email = String(d.email || '').trim().toLowerCase();
-  var TAKEN = { code: 'auth/email-already-in-use' };
+  var TAKEN = { code: 'auth/email-already-in-use' }, NOCLASS = { code: 'no-class' };
+  // Other apps (Skill Hub) pass a class name they stored themselves, e.g. "IELTS42" for "IELTS 42",
+  // or one of a class that no longer exists. Use the open class it names, and refuse a class
+  // that isn't open, so nobody ends up in a class the app doesn't have.
+  function resolveClass() {
+    return A.get('public', 'meta').then(function(m){
+      var k = classKeyOf(cleanClassName(d.classId));
+      var hit = ((m && m.classNames) || []).filter(function(n){ return classKeyOf(n) === k; })[0];
+      if (!hit) throw NOCLASS;
+      d = Object.assign({}, d, { classId: hit });
+    });
+  }
   function saveProfile() {
     return A.commit([
       { op: 'set', col: 'students', id: email, data: { email: email, status: 'active', ord: Date.now(),
@@ -1668,7 +1708,8 @@ function register(d) {
     ]);
   }
   function quietSignOut() { return Promise.resolve(A.signOut()).catch(function(){}); }
-  return A.createUser(email, d.password).catch(function(e){
+  return resolveClass().then(function(){ return A.createUser(email, d.password); }).catch(function(e){
+    if (e === NOCLASS) throw e;
     if (!/email-already-in-use/.test(e.code || '')) throw e;
     // The login exists. If an earlier attempt stopped before the profile was saved (e.g. a rules error),
     // finish it now; if the profile exists, or the password differs, it really is taken.
@@ -1677,7 +1718,8 @@ function register(d) {
       function(){ throw TAKEN; });
   }).then(saveProfile).then(quietSignOut).then(function(){ return { success: true }; }, function(e){
     return quietSignOut().then(function(){
-      return { success: false, message: /email-already-in-use/.test(e.code || '') ? 'Email already registered.' : (e.message || e.code) };
+      return { success: false, message: e === NOCLASS ? 'Class "' + d.classId + '" is not open for registration. Please contact your teacher.'
+        : /email-already-in-use/.test(e.code || '') ? 'Email already registered.' : (e.message || e.code) };
     });
   });
 }
