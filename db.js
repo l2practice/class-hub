@@ -184,8 +184,15 @@ function mClassDocOf(cls, classes) {
 // students/classes: { id: doc } → { sheets: { name: values2D }, order: [...] }
 function docsToTables(students, classes) {
   var sheets = {}, order = [];
+  // Students listed by Student ID (IE43-02 before IE43-05 before IE43-037); no ID last, in sign-up order
+  var sid = function(s){ return String((s.u || {}).StudentID || '').trim(); };
   var sList = Object.keys(students).map(function(id){ return students[id]; })
-    .sort(function(a, b){ return (a.ord || 0) - (b.ord || 0); });
+    .sort(function(a, b){
+      var x = sid(a), y = sid(b);
+      if (x && y && x !== y) return x.localeCompare(y, 'en', { numeric: true, sensitivity: 'base' });
+      if (!x !== !y) return x ? -1 : 1;
+      return (a.ord || 0) - (b.ord || 0);
+    });
   var cNames = Object.keys(classes).sort(function(a, b){ return (classes[a].ord || 0) - (classes[b].ord || 0); });
 
   cNames.forEach(function(n){
