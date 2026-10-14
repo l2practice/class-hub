@@ -1132,6 +1132,16 @@ function makeFirebaseAdapter(config) {
       }, onErr);
     },
     get: function(col, id) { return ref(col, id).get().then(function(d){ return d.exists ? d.data() : null; }); },
+    // Keep a copy of the data in this browser (IndexedDB): the next visit shows it at once and
+    // only the changes come over the network. Must run before the first read or listen.
+    enableCache: function() {
+      try { return fs.enablePersistence({ synchronizeTabs: true }).catch(function(e){ console.warn('[EduPortal] offline cache off:', e.code || e); }); }
+      catch(e) { console.warn('[EduPortal] offline cache off:', e); return Promise.resolve(); }
+    },
+    clearCache: function() {
+      try { return fs.terminate().then(function(){ return fs.clearPersistence(); }).catch(function(){}); }
+      catch(e) { return Promise.resolve(); }
+    },
     onAuth: function(cb) { return auth.onAuthStateChanged(function(u){ cb(u ? { email: u.email } : null); }); },
     signIn: function(e, p) { return auth.signInWithEmailAndPassword(e, p); },
     signOut: function() { return auth.signOut(); },
@@ -1170,6 +1180,15 @@ function subscribe(col, id) {
 function checkTeacher() {
   return A.get('public', 'teacher').then(function(d){ return !!d; }, function(){ return false; });
 }
+// This browser signed in as the teacher with this email (set by the sign-in page). Only a speed
+// hint: Firestore still checks every read, and the cache holds only what this browser could read.
+function teacherHint(email) {
+  try {
+    var s = JSON.parse(localStorage.getItem('userSession') || '{}');
+    return s.Role === 'Teacher' && String(s.Email || '').trim().toLowerCase() === email;
+  } catch(e) { return false; }
+}
+var _cacheOn = false;
 // Resolves { signedIn:false } or { signedIn:true, role, email } once data is loaded
 function ready() {
   if (_readyP) return _readyP;
@@ -1182,9 +1201,16 @@ function ready() {
       done = true;
       if (!user) return resolve({ signedIn: false });
       S.email = user.email.toLowerCase();
-      checkTeacher().then(function(teacher){
+      // Teacher coming back: open the cached data straight away instead of waiting for the
+      // teacher check and a full download, then confirm the role in the background
+      var hinted = teacherHint(S.email) && !!A.enableCache;
+      if (hinted) _cacheOn = true;
+      (hinted ? A.enableCache().then(function(){ return true; }) : checkTeacher()).then(function(teacher){
         if (teacher) {
           S.role = 'Teacher';
+          if (hinted) A.get('public', 'teacher').catch(function(e){
+            if (e && e.code === 'permission-denied') signOut().then(function(){ location.href = 'index.html'; });
+          });
           return Promise.all([subscribe('students'), subscribe('classes'), subscribe('public', 'meta')])
             .then(function(){ resolve({ signedIn: true, role: 'Teacher', email: S.email }); });
         }
@@ -1665,7 +1691,14 @@ function resetPassword(email) {
     function(e){ return { success: false, message: /user-not-found|invalid-email/.test(e.code || '') ? 'Email not found.' : (e.message || e.code) }; });
 }
 var _signingOut = false;
-function signOut() { _signingOut = true; return (A ? A.signOut() : Promise.resolve()).then(function(){ _unsubs.forEach(function(u){ try { u(); } catch(e){} }); }); }
+function signOut() {
+  _signingOut = true;
+  return (A ? A.signOut() : Promise.resolve()).then(function(){
+    _unsubs.forEach(function(u){ try { u(); } catch(e){} });
+    // Don't leave the class data on this browser after the teacher signs out
+    if (_cacheOn && A.clearCache) return A.clearCache();
+  });
+}
 
 var DB = {
   api: api, ready: ready, login: login, register: register, resetPassword: resetPassword,
