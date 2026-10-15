@@ -3399,6 +3399,25 @@ function switchArchive(mode, btn) {
   loadArchive();
 }
 
+function bindDeleteButtons(root){
+  root.querySelectorAll('[data-del-email]').forEach(function(b){
+    b.onclick=function(){ deleteStudentUI(b.getAttribute('data-del-email'), b.getAttribute('data-name'), b); };
+  });
+}
+// Permanent: profile, attendance, homework, tuition, login and Skill Hub row — as if never registered
+async function deleteStudentUI(email, name, btn){
+  var typed=prompt('Delete '+name+' ('+email+') permanently?\n\n'+
+    'This removes their login, profile, attendance, homework and tuition records, as if they never registered. It cannot be undone.\n'+
+    'They can register again about 5 minutes later.\n\nType DELETE to confirm:');
+  if(typed===null) return;
+  if(typed.trim().toUpperCase()!=='DELETE'){toast('Not deleted — type DELETE to confirm','err');return;}
+  btn.disabled=true;
+  try{
+    var r=await api('deleteStudent',{email:email});
+    if(r.success){toast(name+' deleted ✓','ok');classData=[];await init();loadArchive();}
+    else{toast('Error: '+r.message,'err');btn.disabled=false;}
+  }catch(e){toast('Connection error','err');btn.disabled=false;}
+}
 async function moveStudentUI(email, name, classId, btn){
   if(!classId){toast('Choose a class first','err');return;}
   btn.disabled=true;
@@ -3424,7 +3443,7 @@ async function loadArchive(){
       // Active students whose class doesn't exist (deleted class, mistyped name): in no list until moved
       var stray=(await api('getStrayStudents')).students||[];
       var moveOpts='<option value="">Choose class…</option>'+classData.map(function(c){return '<option value="'+esc(c.classId)+'">'+esc(c.classId)+'</option>';}).join('');
-      var strayCard=stray.length?'<div class="card" style="border:2px solid #f59e0b">'+
+      var strayCard=stray.length?'<div class="card" id="arcStrayCard" style="border:2px solid #f59e0b">'+
         '<div class="ch"><div class="ct">⚠ Students not in any class</div><span style="font-size:12px;color:var(--g400)">'+stray.length+' student(s)</span></div>'+
         '<div class="cb" style="padding-bottom:0;font-size:13px;color:var(--g600)">Their class does not exist, so they appear in no list and cannot see a schedule. Choose their class and press Move.</div>'+
         '<div class="tw"><table><thead><tr><th>Student</th><th>Current class</th><th>Move to</th><th></th></tr></thead><tbody>'+
@@ -3432,7 +3451,8 @@ async function loadArchive(){
           return '<tr><td style="padding:8px 12px"><strong>'+esc(st.name)+'</strong><br><code style="font-size:10px;color:var(--g400)">'+esc(st.studentId)+'</code> <span style="font-size:11px;color:var(--g400)">'+esc(st.email)+'</span></td>'+
             '<td style="padding:8px 12px">'+(esc(st.class)||'<em style="color:var(--g400)">(empty)</em>')+'</td>'+
             '<td style="padding:8px 12px"><select class="fc" style="max-width:180px">'+moveOpts+'</select></td>'+
-            '<td style="padding:8px 12px;text-align:right"><button class="btn btn-r btn-sm" data-move-email="'+esc(st.email)+'" data-name="'+esc(st.name)+'">Move</button></td></tr>';
+            '<td style="padding:8px 12px;text-align:right;white-space:nowrap"><button class="btn btn-r btn-sm" data-move-email="'+esc(st.email)+'" data-name="'+esc(st.name)+'">Move</button> '+
+            '<button class="btn btn-sm" style="background:#fee2e2;color:#991b1b" data-del-email="'+esc(st.email)+'" data-name="'+esc(st.name)+'">🗑 Delete</button></td></tr>';
         }).join('')+'</tbody></table></div></div>':'';
       el.innerHTML=strayCard+'<div class="card">'+
         '<div class="ch"><div class="ct">Active Students</div><span id="arcActiveCount" style="font-size:12px;color:var(--g400)"></span></div>'+
@@ -3441,7 +3461,7 @@ async function loadArchive(){
           '<input type="text" class="fc" id="arcStuSearch" placeholder="Search name or ID…" style="max-width:240px"/>'+
         '</div>'+
         '<div class="tw"><table><thead><tr><th>Student</th><th>Class</th><th>Sessions</th><th></th></tr></thead><tbody id="arcActiveBody"></tbody></table></div></div>'+
-        '<div class="card">'+
+        '<div class="card" id="arcArchivedCard">'+
         '<div class="ch"><div class="ct">Archived Students</div>'+
         '<span style="font-size:12px;color:var(--g400)">'+students.length+' student(s)</span></div>'+
         (students.length?
@@ -3455,7 +3475,8 @@ async function loadArchive(){
               '<td style="padding:8px 12px">'+s.totalSessions+' sess · M'+s.monthsCompleted+'</td>'+
               '<td style="padding:8px 12px;color:var(--g400);font-size:12px">'+esc(s.archivedDate)+'</td>'+
               '<td style="padding:8px 12px">'+
-                '<button class="btn btn-o btn-sm" data-restore-email="'+esc(s.email)+'" data-name="'+esc(s.name)+'">Restore</button>'+
+                '<button class="btn btn-o btn-sm" data-restore-email="'+esc(s.email)+'" data-name="'+esc(s.name)+'">Restore</button> '+
+                '<button class="btn btn-sm" style="background:#fee2e2;color:#991b1b" data-del-email="'+esc(s.email)+'" data-name="'+esc(s.name)+'">🗑 Delete</button>'+
               '</td></tr>';
           }).join('')+'</tbody></table></div>'
         : '<div class="cb" style="text-align:center;color:var(--g400);padding:24px">No archived students</div>')+
@@ -3476,11 +3497,13 @@ async function loadArchive(){
           return '<tr><td style="padding:8px 12px"><strong>'+esc(x.s.name)+'</strong><br><code style="font-size:10px;color:var(--g400)">'+esc(x.s.studentId)+'</code></td>'+
             '<td style="padding:8px 12px"><span class="badge '+getLevelClass(x.c)+'">'+esc(x.c)+'</span></td>'+
             '<td style="padding:8px 12px">'+(x.s.total||0)+'</td>'+
-            '<td style="padding:8px 12px;text-align:right"><button class="btn btn-g btn-sm" data-arc-email="'+esc(x.s.email)+'" data-cid="'+esc(x.c)+'" data-name="'+esc(x.s.name)+'">🗄 Archive</button></td></tr>';
+            '<td style="padding:8px 12px;text-align:right;white-space:nowrap"><button class="btn btn-g btn-sm" data-arc-email="'+esc(x.s.email)+'" data-cid="'+esc(x.c)+'" data-name="'+esc(x.s.name)+'">🗄 Archive</button> '+
+            '<button class="btn btn-sm" style="background:#fee2e2;color:#991b1b" data-del-email="'+esc(x.s.email)+'" data-name="'+esc(x.s.name)+'">🗑 Delete</button></td></tr>';
         }).join(''):'<tr><td colspan="4" style="padding:20px;text-align:center;color:var(--g400)">No students</td></tr>';
         body.querySelectorAll('[data-arc-email]').forEach(function(b){
           b.onclick=function(){ archiveStudentUI(b.getAttribute('data-cid'), b.getAttribute('data-arc-email'), b.getAttribute('data-name')); };
         });
+        bindDeleteButtons(body);
       };
       document.getElementById('arcStuClass').onchange=renderActive;
       document.getElementById('arcStuSearch').oninput=renderActive;
@@ -3488,6 +3511,8 @@ async function loadArchive(){
       el.querySelectorAll('[data-restore-email]').forEach(function(b){
         b.onclick=function(){ restoreStudent(b.getAttribute('data-restore-email'), b.getAttribute('data-name')); };
       });
+      bindDeleteButtons(document.getElementById('arcArchivedCard'));
+      if(stray.length) bindDeleteButtons(document.getElementById('arcStrayCard'));
       el.querySelectorAll('[data-move-email]').forEach(function(b){
         b.onclick=function(){ moveStudentUI(b.getAttribute('data-move-email'), b.getAttribute('data-name'), b.closest('tr').querySelector('select').value, b); };
       });
