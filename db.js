@@ -1602,6 +1602,18 @@ var WRITES = {
     });
     return commit([upd('students', id, pairs), dirty()], { success: true });
   },
+  // Delete a student completely, as if they never registered: every doc of that address now;
+  // the worker then removes the login, pending reminder emails and the Skill Hub row
+  deleteStudent: function(b) {
+    var id = findStudent(b.email);
+    if (!id) return Promise.resolve({ success: false, message: 'Student not found.' });
+    var email = mNormEmail(S.students[id].email || id);
+    var ids = Object.keys(S.students).filter(function(k){ return k === id || (email && mNormEmail(S.students[k].email) === email); });
+    var ops = ids.map(function(k){ return { op: 'delete', col: 'students', id: k }; });
+    if (email) ops.push(outbox('deleteStudent', { email: email }));
+    ops.push(dirty());
+    return commit(ops, { success: true });
+  },
   createClass: function(b) {
     var name = cleanClassName(b.className), bad = classNameProblem(name);
     if (bad) return Promise.resolve({ success: false, message: bad });
