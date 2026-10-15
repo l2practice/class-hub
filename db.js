@@ -565,7 +565,8 @@ function getHomeworkTracker(b) {
     const ntIdx = emailKey+'_Note' in col ? col[emailKey+'_Note'] : -1;
     const subMap = {};
     hwRows.forEach((r, j) => {
-      const status = statusIdx>=0 ? (String(r[statusIdx]||'').trim()||'Undone') : 'Done';
+      // Nothing recorded yet (incl. a student with no homework column at all, e.g. a new class) = Undone
+      const status = statusIdx>=0 ? (String(r[statusIdx]||'').trim()||'Undone') : 'Undone';
       subMap[hwList[j].hwId] = {
         status,
         gradedDate: gdIdx>=0 ? fmtDate(r[gdIdx]) : '',
