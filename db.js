@@ -112,7 +112,7 @@ function tablesToDocs(sheets, order) {
   });
   (order || Object.keys(sheets)).forEach(function(name, i){
     var archived = name.indexOf('ARCHIVED_') === 0;
-    if (!archived && !mIsClassTab(name)) return;
+    if (!mIsClassTab(archived ? name.slice(9) : name)) return;   // e.g. ARCHIVED_Class_Sessions is not a class
     var c = cls(archived ? name.slice(9) : name, archived ? 'archived' : 'active', i);
     c.sched = (sheets[name] || []).map(function(r){
       var v = []; for (var k = 0; k < 7; k++) v.push(mCell(r[k])); return { v: v };
