@@ -1197,6 +1197,36 @@ function teacherHint(email) {
   } catch(e) { return false; }
 }
 var _cacheOn = false;
+// A teacher sign-in lasts 3 h 30 min from the moment of signing in; then the page signs out
+var TEACHER_SESSION_MS = 3.5 * 3600 * 1000, SESSION_WARN_MS = 5 * 60 * 1000;
+function teacherSessionLeft() {
+  try {
+    var s = JSON.parse(localStorage.getItem('userSession') || '{}');
+    return s.Role === 'Teacher' && s.LoginAt ? Number(s.LoginAt) + TEACHER_SESSION_MS - Date.now() : -1;
+  } catch(e) { return -1; }
+}
+function expireSession() {
+  return signOut().then(function(){
+    try { localStorage.removeItem('userSession'); } catch(e) {}
+    location.href = 'index.html?expired=1';
+  });
+}
+// Checked every minute and whenever the tab comes back (timers stop while a laptop sleeps)
+var _sessionWatch = null, _warned5 = false;
+function watchTeacherSession() {
+  if (_sessionWatch || typeof window === 'undefined') return;
+  function check() {
+    var left = teacherSessionLeft();
+    if (left <= 0) { clearInterval(_sessionWatch); return expireSession(); }
+    if (left <= SESSION_WARN_MS && !_warned5) {
+      _warned5 = true;
+      window.dispatchEvent(new CustomEvent('eduportal:session-expiring', { detail: { minutesLeft: Math.ceil(left / 60000) } }));
+    }
+  }
+  _sessionWatch = setInterval(check, 60000);
+  document.addEventListener('visibilitychange', function(){ if (!document.hidden) check(); });
+  window.addEventListener('focus', check);
+}
 // Resolves { signedIn:false } or { signedIn:true, role, email } once data is loaded
 function ready() {
   if (_readyP) return _readyP;
@@ -1215,6 +1245,10 @@ function ready() {
       if (hinted) _cacheOn = true;
       (hinted ? A.enableCache().then(function(){ return true; }) : checkTeacher()).then(function(teacher){
         if (teacher) {
+          // Sign-in older than 3 h 30 min (or from before this limit existed): sign in again
+          if (teacherSessionLeft() <= 0)
+            return signOut().then(function(){ resolve({ signedIn: false, expired: true }); });
+          watchTeacherSession();
           S.role = 'Teacher';
           if (hinted) A.get('public', 'teacher').catch(function(e){
             if (e && e.code === 'permission-denied') signOut().then(function(){ location.href = 'index.html'; });
@@ -1693,7 +1727,7 @@ function login(email, password) {
   if (!A) A = makeFirebaseAdapter(FIREBASE_CONFIG);
   email = String(email || '').trim().toLowerCase();
   return A.signIn(email, password).then(checkTeacher).then(function(teacher){
-    if (teacher) return { success: true, user: { Role: 'Teacher', FullName: 'Teacher', Email: email } };
+    if (teacher) return { success: true, user: { Role: 'Teacher', FullName: 'Teacher', Email: email, LoginAt: Date.now() } };
     return A.get('students', email).then(function(s){
       if (!s || s.status !== 'active') { A.signOut(); return { success: false, message: 'This account is not active. Please contact your teacher.' }; }
       return { success: true, user: { FullName: s.u.FullName, Email: s.email, Class: s.u.Class, Role: s.u.Role || 'Student', StudentID: s.u.StudentID || '' } };
@@ -1755,7 +1789,8 @@ function resetPassword(email) {
 var _signingOut = false;
 function signOut() {
   _signingOut = true;
-  return (A ? A.signOut() : Promise.resolve()).then(function(){
+  if (!A) A = makeFirebaseAdapter(FIREBASE_CONFIG);
+  return A.signOut().then(function(){
     _unsubs.forEach(function(u){ try { u(); } catch(e){} });
     // Don't leave the class data on this browser after the teacher signs out
     if (_cacheOn && A.clearCache) return A.clearCache();
@@ -1765,6 +1800,7 @@ function signOut() {
 var DB = {
   api: api, ready: ready, login: login, register: register, resetPassword: resetPassword,
   publicClassNames: publicClassNames, signOut: signOut,
+  teacherSessionExpired: function(){ return teacherSessionLeft() <= 0; },
   onRemoteChange: function(cb){ _remoteCbs.push(cb); },
   _setAdapter: function(a){ A = a; }, _state: S,
 };
