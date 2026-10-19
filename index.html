@@ -378,6 +378,13 @@ async function sendOTP(){
 }
 
 // Already logged in banner
+// Teacher sign-in older than 3 h 30 min: forget it instead of offering "Continue"
+try {
+  if (JSON.parse(localStorage.getItem('userSession') || '{}').Role === 'Teacher' && DB.teacherSessionExpired()) {
+    localStorage.removeItem('userSession'); DB.signOut();
+  }
+} catch(e) {}
+if (/[?&]expired=1/.test(location.search)) showAlert('Your session ended after 3 h 30 min. Please sign in again.');
 const _sess = localStorage.getItem('userSession');
 if (_sess) {
   try {

@@ -3774,8 +3774,11 @@ document.querySelectorAll('.mo').forEach(function(mo){
   mo.addEventListener('click',function(e){if(e.target===mo)mo.classList.remove('show');});
 });
 
+window.addEventListener('eduportal:session-expiring', function(e){
+  toast('⏱ Your session ends in '+e.detail.minutesLeft+' min — save your work, then sign in again.','err');
+});
 DB.ready().then(function(st){
-  if (!st.signedIn || st.role !== 'Teacher') { localStorage.removeItem('userSession'); location.href='index.html'; return; }
+  if (!st.signedIn || st.role !== 'Teacher') { localStorage.removeItem('userSession'); location.href='index.html'+(st.expired?'?expired=1':''); return; }
   init();
 }, function(e){ console.error(e); toast('Không kết nối được dữ liệu. Tải lại trang.','err'); });
 </script>
