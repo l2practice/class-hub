@@ -1254,7 +1254,7 @@ function ready() {
             if (e && e.code === 'permission-denied') signOut().then(function(){ location.href = 'index.html'; });
           });
           return Promise.all([subscribe('students'), subscribe('classes'), subscribe('public', 'meta')])
-            .then(function(){ resolve({ signedIn: true, role: 'Teacher', email: S.email }); });
+            .then(function(){ fixClassLinks(); resolve({ signedIn: true, role: 'Teacher', email: S.email }); });
         }
         // A student can read exactly two docs: their own, and their class (rules enforce this)
         S.role = 'Student'; S.myId = S.email;
@@ -1321,6 +1321,19 @@ function classNameProblem(name) {
 }
 // Active students whose class matches no class in the app (class deleted, or the name mistyped
 // in the Firebase console): they appear in no list, and their page can't load a class
+// cls must be the class doc of u.Class: it is what lets the student's page open their class.
+// It drifts when u.Class is edited by hand in the Firebase console, so the teacher page sets it
+// again on load for every student whose u.Class names an existing class.
+function fixClassLinks() {
+  var ops = [];
+  Object.keys(S.students).forEach(function(id){
+    var s = S.students[id], doc = s && s.u ? mClassDocOf(s.u.Class, S.classes) : '';
+    if (doc && s.cls !== doc) ops.push(upd('students', id, [[['cls'], doc]]));
+  });
+  if (ops.length) A.commit(ops).then(function(){ console.info('[EduPortal] class link fixed for ' + ops.length + ' student(s)'); },
+    function(e){ console.warn('[EduPortal] could not fix class links', e); });
+  return ops.length;
+}
 function strayStudents() {
   return activeStudents().filter(function(s){
     if ((s.u.Role || 'Student') !== 'Student') return false;
@@ -1801,6 +1814,11 @@ var DB = {
   api: api, ready: ready, login: login, register: register, resetPassword: resetPassword,
   publicClassNames: publicClassNames, signOut: signOut,
   teacherSessionExpired: function(){ return teacherSessionLeft() <= 0; },
+  // The signed-in student's profile as stored now (the sign-in session in the browser can be older)
+  me: function(){
+    var s = S.students[S.myId];
+    return s && s.u ? { FullName: s.u.FullName || '', Email: s.email, Class: s.u.Class || '', StudentID: s.u.StudentID || '', Role: s.u.Role || 'Student' } : null;
+  },
   onRemoteChange: function(cb){ _remoteCbs.push(cb); },
   _setAdapter: function(a){ A = a; }, _state: S,
 };
