@@ -1650,6 +1650,42 @@ var WRITES = {
     });
     return commit([upd('students', id, pairs), dirty()], { success: true });
   },
+  // Correct a student's details. The email (their login) is not editable here.
+  // A class change works like moveStudent: u.Class and cls together.
+  updateStudent: function(b) {
+    var id = findStudent(b.email);
+    if (!id) return Promise.resolve({ success: false, message: 'Student not found.' });
+    var st = S.students[id], u = st.u || {}, pairs = [];
+    var name = String(b.fullName == null ? '' : b.fullName).trim().replace(/\s+/g, ' ');
+    var sid = String(b.studentId == null ? '' : b.studentId).trim();
+    if (!name) return Promise.resolve({ success: false, message: 'Full name is required.' });
+    var clash = sid && Object.keys(S.students).filter(function(k){
+      var o = S.students[k];
+      return k !== id && o.status !== 'orphan' && String((o.u || {}).StudentID || '').trim().toLowerCase() === sid.toLowerCase();
+    })[0];
+    if (clash) return Promise.resolve({ success: false, message: 'Student ID ' + sid + ' already belongs to ' + (S.students[clash].u.FullName || S.students[clash].email) + '.' });
+    var put = function(field, v){ if (String(u[field] == null ? '' : u[field]) !== v) pairs.push([['u', field], v]); };
+    put('FullName', name);
+    put('StudentID', sid);
+    put('Phone', String(b.phone == null ? '' : b.phone).trim());
+    put('DOB', String(b.dob == null ? '' : b.dob).trim());
+    var target = String(b.classId || '').trim();
+    if (target && target !== u.Class) {
+      var c = S.classes[target];
+      if (!c || c.status !== 'active') return Promise.resolve({ success: false, message: 'Class "' + target + '" not found.' });
+      pairs.push([['u', 'Class'], target], [['cls'], target]);
+      // records kept under a class that no longer exists follow the student (as moveStudent)
+      ['att', 'pay'].forEach(function(f){
+        var m = st[f] || {}, orphans = Object.keys(m).filter(function(k){ return k !== target && !mClassDocOf(k, S.classes); });
+        if (!orphans.length) return;
+        var into = Object.assign({}, m[target] || {});
+        orphans.forEach(function(k){ Object.assign(into, m[k]); pairs.push([[f, k], DEL]); });
+        pairs.push([[f, target], into]);
+      });
+    }
+    if (!pairs.length) return Promise.resolve({ success: true, changed: 0 });
+    return commit([upd('students', id, pairs), dirty()], { success: true, changed: pairs.length });
+  },
   // Delete a student completely, as if they never registered: every doc of that address now;
   // the worker then removes the login, pending reminder emails and the Skill Hub row
   deleteStudent: function(b) {
@@ -1707,6 +1743,13 @@ var READS = {
     return { success: true, classes: list };
   },
   getStrayStudents: function(){ return { success: true, students: strayStudents() }; },
+  getStudentProfile: function(b){
+    var id = findStudent(b.email), s = id && S.students[id];
+    if (!s) return { success: false, message: 'Student not found.' };
+    var u = s.u || {};
+    return { success: true, student: { email: s.email, fullName: u.FullName || '', studentId: u.StudentID || '',
+      phone: u.Phone == null ? '' : String(u.Phone), dob: u.DOB || '', classId: u.Class || '', status: s.status } };
+  },
   getClassNames: function(){ return S.role === 'Teacher' ? getClassNames() : { success: true, classes: (S.meta.classNames || []) }; },
   getRewards: function(b){ return S.role === 'Teacher' ? getRewards(b) : { success: false, message: 'Not allowed' }; },
   // Student page: own ranking only (position among classmates, no names), written by the worker
