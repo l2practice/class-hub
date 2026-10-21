@@ -829,6 +829,17 @@ async function loadRanking() {
 function doLogout() { localStorage.removeItem('userSession'); DB.signOut().then(() => { location.href='index.html'; }); }
 DB.ready().then(st => {
   if (!st.signedIn || st.role !== 'Student') { localStorage.removeItem('userSession'); location.href='index.html'; return; }
+  // Use the profile as it is now, not as it was at sign-in (the class or ID may have been changed since)
+  const me = DB.me();
+  if (me && (me.Class !== sess.Class || me.StudentID !== sess.StudentID || me.FullName !== sess.FullName)) {
+    Object.assign(sess, me);
+    localStorage.setItem('userSession', JSON.stringify(sess));
+    document.getElementById('uName').textContent = sess.FullName || '—';
+    document.getElementById('uClass').textContent = 'Class: ' + (sess.Class || '—');
+    document.getElementById('uAvatar').textContent = (sess.FullName||'S')[0].toUpperCase();
+    const idEl = document.getElementById('uStudentId');
+    if (idEl && sess.StudentID) { idEl.textContent = sess.StudentID; idEl.style.display='inline'; }
+  }
   init();
 }, e => { console.error(e); alert('Không kết nối được dữ liệu. Hãy tải lại trang.'); });
 
