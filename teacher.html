@@ -798,6 +798,26 @@ textarea.fc{resize:vertical;min-height:60px;}
   </div>
 </div>
 
+<!-- EDIT STUDENT -->
+<div class="mo" id="moEditStudent">
+  <div class="md" style="max-width:460px">
+    <div class="md-h">✏️ Edit student</div>
+    <div class="md-sub" id="edEmail"></div>
+    <div style="display:grid;gap:10px;margin-top:12px">
+      <div><label class="fl">Full name</label><input class="fc" id="edName"/></div>
+      <div><label class="fl">Student ID</label><input class="fc" id="edSid"/></div>
+      <div><label class="fl">Class</label><select class="fc" id="edClass"></select></div>
+      <div><label class="fl">Phone</label><input class="fc" id="edPhone"/></div>
+      <div><label class="fl">Date of birth</label><input class="fc" id="edDob" type="date"/></div>
+    </div>
+    <div style="font-size:11.5px;color:var(--g400);margin-top:8px">The email is the student's login and cannot be changed here.</div>
+    <div class="md-act" style="margin-top:14px">
+      <button class="btn btn-g" onclick="closeMo('moEditStudent')">Cancel</button>
+      <button class="btn btn-r" id="edSave">Save</button>
+    </div>
+  </div>
+</div>
+
 <!-- SPINNER (Diligence) -->
 <div class="mo" id="moSpin">
   <div class="md" style="max-width:560px;width:95vw">
@@ -3399,6 +3419,35 @@ function switchArchive(mode, btn) {
   loadArchive();
 }
 
+function editStudentUI(email){
+  var r=DB.api('getStudentProfile',{email:email});
+  r.then(function(r){
+    if(!r.success){toast('Error: '+r.message,'err');return;}
+    var st=r.student, sel=document.getElementById('edClass');
+    document.getElementById('edEmail').textContent=st.email;
+    document.getElementById('edName').value=st.fullName;
+    document.getElementById('edSid').value=st.studentId;
+    document.getElementById('edPhone').value=st.phone;
+    document.getElementById('edDob').value=/^\d{4}-\d{2}-\d{2}$/.test(st.dob)?st.dob:'';
+    sel.innerHTML='';
+    var ids=classData.map(function(c){return c.classId;});
+    if(st.classId&&ids.indexOf(st.classId)<0)ids.unshift(st.classId);
+    ids.forEach(function(id){var o=document.createElement('option');o.value=id;o.textContent=id;if(id===st.classId)o.selected=true;sel.appendChild(o);});
+    var btn=document.getElementById('edSave');
+    btn.disabled=false;
+    btn.onclick=async function(){
+      btn.disabled=true;
+      try{
+        var res=await api('updateStudent',{email:st.email,fullName:document.getElementById('edName').value,studentId:document.getElementById('edSid').value,
+          classId:sel.value,phone:document.getElementById('edPhone').value,dob:document.getElementById('edDob').value});
+        if(res.success){closeMo('moEditStudent');toast(res.changed?'Saved ✓':'No changes','ok');if(res.changed){classData=[];await init();loadArchive();}}
+        else{toast('Error: '+res.message,'err');btn.disabled=false;}
+      }catch(e){toast('Connection error','err');btn.disabled=false;}
+    };
+    document.getElementById('moEditStudent').classList.add('show');
+    document.getElementById('edName').focus();
+  });
+}
 function bindDeleteButtons(root){
   root.querySelectorAll('[data-del-email]').forEach(function(b){
     b.onclick=function(){ deleteStudentUI(b.getAttribute('data-del-email'), b.getAttribute('data-name'), b); };
@@ -3497,13 +3546,15 @@ async function loadArchive(){
           return '<tr><td style="padding:8px 12px"><strong>'+esc(x.s.name)+'</strong><br><code style="font-size:10px;color:var(--g400)">'+esc(x.s.studentId)+'</code></td>'+
             '<td style="padding:8px 12px"><span class="badge '+getLevelClass(x.c)+'">'+esc(x.c)+'</span></td>'+
             '<td style="padding:8px 12px">'+(x.s.total||0)+'</td>'+
-            '<td style="padding:8px 12px;text-align:right;white-space:nowrap"><button class="btn btn-g btn-sm" data-arc-email="'+esc(x.s.email)+'" data-cid="'+esc(x.c)+'" data-name="'+esc(x.s.name)+'">🗄 Archive</button> '+
+            '<td style="padding:8px 12px;text-align:right;white-space:nowrap"><button class="btn btn-g btn-sm" data-edit-email="'+esc(x.s.email)+'">✏️ Edit</button> '+
+            '<button class="btn btn-g btn-sm" data-arc-email="'+esc(x.s.email)+'" data-cid="'+esc(x.c)+'" data-name="'+esc(x.s.name)+'">🗄 Archive</button> '+
             '<button class="btn btn-sm" style="background:#fee2e2;color:#991b1b" data-del-email="'+esc(x.s.email)+'" data-name="'+esc(x.s.name)+'">🗑 Delete</button></td></tr>';
         }).join(''):'<tr><td colspan="4" style="padding:20px;text-align:center;color:var(--g400)">No students</td></tr>';
         body.querySelectorAll('[data-arc-email]').forEach(function(b){
           b.onclick=function(){ archiveStudentUI(b.getAttribute('data-cid'), b.getAttribute('data-arc-email'), b.getAttribute('data-name')); };
         });
         bindDeleteButtons(body);
+        body.querySelectorAll('[data-edit-email]').forEach(function(b){ b.onclick=function(){ editStudentUI(b.getAttribute('data-edit-email')); }; });
       };
       document.getElementById('arcStuClass').onchange=renderActive;
       document.getElementById('arcStuSearch').oninput=renderActive;
