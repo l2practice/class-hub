@@ -397,10 +397,28 @@ async function init() {
           if (!isNaN(d)) curDate = new Date(d.getFullYear(), d.getMonth(), 1);
         }
       }
-      renderStats(); renderCalendar(); renderHomework(); renderTuition(); renderParticipation(); loadRanking();
+      // Each part on its own: one that fails must not leave the others empty
+      safeRender('stats', renderStats, null);
+      safeRender('calendar', renderCalendar, 'calGrid');
+      safeRender('homework', renderHomework, 'hwGrid');
+      safeRender('tuition', renderTuition, 'tuitionContent');
+      safeRender('participation', renderParticipation, 'partCard');
+      safeRender('ranking', loadRanking, null);
     } else console.error(r.message);
   } catch(e) { console.error(e); }
   document.getElementById('loading').classList.remove('show');
+}
+
+// Runs one part of the page; if it fails, says so in that part (with the error, for the teacher)
+function safeRender(name, fn, targetId) {
+  try { const r = fn(); if (r && r.catch) r.catch(e => console.error('[' + name + ']', e)); }
+  catch (e) {
+    console.error('[' + name + ']', e);
+    const el = targetId && document.getElementById(targetId);
+    if (el) el.innerHTML = '<div style="padding:16px;border:1px solid #fecaca;background:#fef2f2;color:#991b1b;border-radius:10px;font-size:13px;line-height:1.5">'
+      + 'This part could not be shown. Please reload the page. If it happens again, send a screenshot of this box to your teacher.'
+      + '<div style="margin-top:6px;font-family:monospace;font-size:11px;color:#7f1d1d">' + name + ': ' + String(e && e.message || e).replace(/[<>&]/g, '') + '</div></div>';
+  }
 }
 
 function renderStats() {
@@ -430,8 +448,8 @@ function renderCalendar() {
   const firstDay = new Date(y,m,1).getDay();
   const daysInMonth = new Date(y,m+1,0).getDate();
   const today = new Date();
-  const att = sd ? sd.attendance : [];
-  const sessions = sd ? sd.sessions : [];
+  const att = (sd && sd.attendance) || [];
+  const sessions = (sd && sd.sessions) || [];
 
   let html = '<div class="cal-grid">';
   DAYS.forEach(d => html += `<div class="cal-dh">${d}</div>`);
@@ -527,12 +545,12 @@ function renderHomework() {
     var badge = (st !== 'Undone' || d < 0)
       ? '<div style="display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:6px;font-size:11px;font-weight:700;background:'+cfg.bg+';color:'+cfg.color+';margin-top:8px">'+cfg.icon+'</div>'
       : '';
-    var ddsp = h.deadline || '--';
-    if (h.deadline && h.deadline.length === 10) {
-      var dd = new Date(h.deadline + 'T00:00:00');
-      ddsp = dN[dd.getDay()] + ', ' + fmtDFull(h.deadline);
+    var dl = h.deadline == null ? '' : String(h.deadline), ddsp = dl || '--';
+    if (dl.length === 10) {
+      var dd = new Date(dl + 'T00:00:00');
+      ddsp = dN[dd.getDay()] + ', ' + fmtDFull(dl);
     }
-    var ch = (h.content || '--').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+    var ch = String(h.content == null || h.content === '' ? '--' : h.content).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
     return '<div class="hw-card ' + (h.type || 'W') + '" style="'
       + (st === 'Done' ? 'opacity:.65;border-left-color:#ccc' : '')
       + (d < 0 && st !== 'Done' ? ';border-left-color:#dc2626;background:linear-gradient(135deg,#fff1f1 0%,white 70%)' : '') + '">'
