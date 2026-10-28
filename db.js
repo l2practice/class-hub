@@ -936,8 +936,8 @@ function getStudentData(b) {
       isExtra:     !!isExtra,
     };
   });
-  const recentUndone = homework.filter(h=>h.status==='Undone'&&h.daysLeft<0).length;
-  if (recentUndone >= 3) enqueueHWWarning(classId, studentEmail, recentUndone);
+  // Homework warnings are no longer sent from here (every page visit): the worker sends one per
+  // month, 24 h after the 4th and the 8th session, listing that month's missed homework
   const total=tuitionSessions.length, monthsUsed=Math.floor(total/8), sessInCycle=total%8;
   const payments = getTuitionPayments(b.classId, b.studentEmail);
   const allSchedSessions = schedule.filter(s=>s.dayLabel.toLowerCase().replace(/ /g,'').replace('day','')!=='0');
@@ -1719,14 +1719,6 @@ var WRITES = {
             function(e){ return { success: false, message: /wrong-password|invalid-credential|invalid-login/.test(e.code || '') ? 'Current password is incorrect.' : (e.message || String(e)) }; });
   },
 };
-
-// getStudentData (from Code.gs) calls this instead of sending the warning email itself
-var _warned = {};
-function enqueueHWWarning(classId, email, count) {
-  if (_warned[email]) return;
-  _warned[email] = true;
-  A.commit([outbox('hwWarning', { classId: classId, email: email, count: count })]).catch(function(){});
-}
 
 var READS = {
   getClassList: getClassList, getClassDetail: getClassDetail, getAttendanceMatrix: getAttendanceMatrix,
