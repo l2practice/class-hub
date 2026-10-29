@@ -1592,7 +1592,7 @@ function renderTuitionGrid(classId){
       if(!cell)continue;
       var payment=s.monthPayments[moNo];
       var _pd=payment?(payment.date||''):'';if(_pd.length>10)_pd=_pd.slice(0,10);
-      buildPaidCell(cell,classId,s.email,moNo,!!payment,_pd,payment?payment.note:'');
+      buildPaidCell(cell,classId,s.email,moNo,!!payment,_pd,payment?payment.note:((s.monthNotes||{})[moNo]||''));
     }
   });
 }
@@ -1720,7 +1720,12 @@ function buildPaidCell(cell,classId,email,moNo,paid,paidDate,note){
     if(nEl.value===nEl.dataset.original) return;
     // Save note regardless of paid state — for unpaid: save with current paid status
     api('markTuitionPaid',{classId:cid,studentEmail:em,monthNo:mo,paid:isPaid,paidDate:isPaid?(pd||localToday()):'',note:nEl.value})
-      .then(function(){nEl.dataset.original=nEl.value;}).catch(function(){});
+      .then(function(){
+        nEl.dataset.original=nEl.value;
+        var st=(tuitionCache[cid]||[]).find(function(x){return x.email===em;});
+        if(st){ if(isPaid&&st.monthPayments[mo]) st.monthPayments[mo].note=nEl.value;
+          else if(!isPaid){ st.monthNotes=st.monthNotes||{}; if(nEl.value.trim()) st.monthNotes[mo]=nEl.value.trim(); else delete st.monthNotes[mo]; } }
+      }).catch(function(){});
   };})(classId,email,moNo,ni,paid,paidDate);
   wrap.appendChild(ni);
   cell.appendChild(wrap);
@@ -1731,10 +1736,14 @@ async function togglePaidCell(classId,email,moNo,cb){
   try{
     await api('markTuitionPaid',{classId:classId,studentEmail:email,monthNo:moNo,paid:paid,paidDate:paid?today:''});
     var st=(tuitionCache[classId]||[]).find(function(s){return s.email===email;});
-    if(st){if(paid)st.monthPayments[moNo]={date:today,note:''};else delete st.monthPayments[moNo];}
+    if(st){
+      st.monthNotes=st.monthNotes||{};
+      if(paid){st.monthPayments[moNo]={date:today,note:st.monthNotes[moNo]||''};delete st.monthNotes[moNo];}
+      else{var old=st.monthPayments[moNo];if(old&&old.note)st.monthNotes[moNo]=old.note;delete st.monthPayments[moNo];}
+    }
     var cellId='pc-'+classId.replace(/ /g,'_')+'-'+email.replace(/[@.]/g,'_')+'-'+moNo;
     var cell=document.getElementById(cellId);
-    if(cell)buildPaidCell(cell,classId,email,moNo,paid,paid?today:'','');
+    if(cell)buildPaidCell(cell,classId,email,moNo,paid,paid?today:'',st?(paid?((st.monthPayments[moNo]||{}).note||''):((st.monthNotes||{})[moNo]||'')):'');
     toast(paid?'Marked paid ✓':'Marked unpaid','ok');
   }catch(e){toast('Error','err');cb.checked=!paid;}
 }

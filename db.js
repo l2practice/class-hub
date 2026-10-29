@@ -26,7 +26,8 @@ var FIREBASE_CONFIG = {
 //   hwKey       prefix of this student's Homework_Master columns (email with @ and . → _)
 //   att         { classId: { 'yyyy-MM-dd': { dl, st, sc, d0 } } }   ← Attendance_Master
 //   hw          { hwId: { st, gd, nt } }                              ← <hwKey>_Status/_GradedDate/_Note
-//   pay         { classId: { monthNo: { d, n } } }                    ← Tuition_Payments
+//   pay         { classId: { monthNo: { d, n } } }                    ← Tuition_Payments (paid months)
+//   pn          { classId: { monthNo: note } }                        ← Tuition_Payments rows without PaidDate (unpaid month notes, e.g. the fee)
 //   cls         id of the class doc of u.Class — the only class doc this student may read
 //   rk          own ranking for the latest month, written by the worker (never classmates' data)
 // classes/{class name}
@@ -87,7 +88,7 @@ function tablesToDocs(sheets, order) {
     var id = raw ? mNormEmail(raw) : rowId;
     if (!id || students[id]) id = 'x:' + k.replace(/\//g, '_');
     return byRaw[k] = students[id] = { email: raw, status: status, ord: ord++, u: {},
-      archivedDate: '', hwKey: mEmailKey(raw), att: {}, hw: {}, pay: {} };
+      archivedDate: '', hwKey: mEmailKey(raw), att: {}, hw: {}, pay: {}, pn: {} };
   }
   function cls(name, status, o) {
     name = String(name).trim();
@@ -161,7 +162,8 @@ function tablesToDocs(sheets, order) {
   mObjRows(sheets['Tuition_Payments']).forEach(function(r){
     var s = student(r.StudentEmail, 'orphan'), c = String(r.ClassID == null ? '' : r.ClassID);
     if (!s || !c || !r.StudentEmail) return;
-    (s.pay[c] = s.pay[c] || {})[String(r.MonthNo)] = { d: mCell(r.PaidDate), n: mCell(r.Note) };
+    if (mCell(r.PaidDate) === '') { if (mCell(r.Note) !== '') (s.pn[c] = s.pn[c] || {})[String(r.MonthNo)] = String(mCell(r.Note)); }
+    else (s.pay[c] = s.pay[c] || {})[String(r.MonthNo)] = { d: mCell(r.PaidDate), n: mCell(r.Note) };
   });
   mObjRows(sheets['HW_Month_Status']).forEach(function(r){
     var c = cls(r.ClassID, 'hidden', hidden++);
@@ -249,10 +251,14 @@ function docsToTables(students, classes) {
 
   var pay = [M_PAY_H];
   sList.forEach(function(s){
-    Object.keys(s.pay || {}).forEach(function(c){
-      mSortKeys(s.pay[c], true).forEach(function(mo){
-        var p = s.pay[c][mo];
-        pay.push([c, s.email, mMonthVal(mo), p.d == null ? '' : p.d, p.n == null ? '' : p.n]);
+    var pp = s.pay || {}, pn = s.pn || {}, cs = {};
+    Object.keys(pp).concat(Object.keys(pn)).forEach(function(c){ cs[c] = 1; });
+    Object.keys(cs).forEach(function(c){
+      var ms = Object.assign({}, pn[c] || {}, pp[c] || {});
+      mSortKeys(ms, true).forEach(function(mo){
+        var p = (pp[c] || {})[mo];
+        if (p) pay.push([c, s.email, mMonthVal(mo), p.d == null ? '' : p.d, p.n == null ? '' : p.n]);
+        else if (String(pn[c][mo] || '') !== '') pay.push([c, s.email, mMonthVal(mo), '', String(pn[c][mo])]);
       });
     });
   });
@@ -460,15 +466,16 @@ function getAttendanceMatrix(b) {
     if (!attMap[r.email]) attMap[r.email] = {};
     attMap[r.email][r.date] = { status: r.status, score: Number(r.score) || 0 };
   });
-  var tuitionPayments = {};
+  var tuitionPayments = {}, tuitionNotes = {};
   try {
     toRows(sh('Tuition_Payments'))
       .filter(function(r) { return r.ClassID === classId; })
       .forEach(function(r) {
-        if (!tuitionPayments[r.StudentEmail]) tuitionPayments[r.StudentEmail] = {};
-        tuitionPayments[r.StudentEmail][String(r.MonthNo)] = {
-          date: fmtDate(r.PaidDate), note: r.Note || ''
-        };
+        // No PaidDate = not paid, the row only carries a note (e.g. the fee "1tr5")
+        var map = fmtDate(r.PaidDate) ? tuitionPayments : tuitionNotes;
+        if (!map[r.StudentEmail]) map[r.StudentEmail] = {};
+        map[r.StudentEmail][String(r.MonthNo)] = map === tuitionPayments
+          ? { date: fmtDate(r.PaidDate), note: r.Note || '' } : String(r.Note || '');
       });
   } catch(e) {}
   var students = allUsers.map(function(u) {
@@ -487,6 +494,7 @@ function getAttendanceMatrix(b) {
       studentId:       u.StudentID || '',
       attendance:      myAtt,
       monthPayments:   tuitionPayments[u.Email] || {},
+      monthNotes:      tuitionNotes[u.Email] || {},
       total:           total,
       present:         present,
       absent:          absent,
@@ -776,7 +784,7 @@ function getTuitionPayments(classId, studentEmail) {
           mC=h.indexOf('MonthNo'), pC=h.indexOf('PaidDate'), nC=h.indexOf('Note');
     const payments = {};
     for(let i=1;i<d.length;i++){
-      if(d[i][cC]===classId && d[i][eC]===studentEmail){
+      if(d[i][cC]===classId && d[i][eC]===studentEmail && fmtDate(d[i][pC])){   // no PaidDate = unpaid (note only)
         payments[String(d[i][mC])] = {date: fmtDate(d[i][pC]), note: d[i][nC]||''};
       }
     }
@@ -787,7 +795,7 @@ function getTuitionPayments(classId, studentEmail) {
 function getAllTuitionPayments(classId) {
   try {
     const s = sh('Tuition_Payments');
-    const rows = toRows(s).filter(r=>r.ClassID===classId);
+    const rows = toRows(s).filter(r=>r.ClassID===classId && fmtDate(r.PaidDate));   // no PaidDate = unpaid (note only)
     return rows.map(r=>({
       email: r.StudentEmail, monthNo: String(r.MonthNo),
       paidDate: fmtDate(r.PaidDate), note: r.Note||''
@@ -1285,7 +1293,7 @@ function newStudentOp(email, status, profile) {
   var id = String(email).trim().toLowerCase();
   if (S.students[id]) id = 'x:' + String(email).replace(/\//g, '_');
   return { id: id, op: { op: 'set', col: 'students', id: id, data: { email: String(email), status: status,
-    ord: Date.now(), u: profile || {}, cls: '', archivedDate: '', hwKey: mEmailKey(email), att: {}, hw: {}, pay: {} } } };
+    ord: Date.now(), u: profile || {}, cls: '', archivedDate: '', hwKey: mEmailKey(email), att: {}, hw: {}, pay: {}, pn: {} } } };
 }
 function studentFor(email, ops) {
   var id = findStudent(email);
@@ -1508,22 +1516,36 @@ var WRITES = {
                     : { op: 'set', col: 'classes', id: classId, merge: true, data: { hwm: hwm } };
     return commit([op, dirty()], { success: true, action: b.reopen ? 'reopened' : exists ? 'updated' : 'created' });
   },
+  // pay[c][mo] = { d, n } marks a paid month. An unpaid month can still carry a note (e.g. its
+  // fee, "1tr5"): that goes to pn[c][mo], so "has a pay record" keeps meaning "paid".
   markTuitionPaid: function(b) {
-    var ops = [], key = String(b.monthNo), id = findStudent(b.studentEmail);
-    var cur = id && ((S.students[id].pay || {})[b.classId] || {})[key];
-    if (cur) {
-      if (!b.paid) ops.push(upd('students', id, [[['pay', b.classId, key], DEL]]));
-      else {
-        var pairs = [[['pay', b.classId, key, 'd'], b.paidDate || today()]];
-        if (b.note !== undefined) pairs.push([['pay', b.classId, key, 'n'], b.note || '']);
-        ops.push(upd('students', id, pairs));
-      }
-    } else if (b.paid) {
+    var ops = [], c = b.classId, key = String(b.monthNo), id = findStudent(b.studentEmail);
+    var st = id ? S.students[id] : null;
+    var cur = st && ((st.pay || {})[c] || {})[key], pend = st && ((st.pn || {})[c] || {})[key];
+    if (b.paid) {
       if (!id) id = studentFor(b.studentEmail, ops);
-      var d = b.paidDate || today();
-      ops.push(upd('students', id, [[['pay', b.classId, key], { d: d, n: b.note || '' }]]),
-        outbox('tuitionPaid', { classId: b.classId, email: b.studentEmail, monthNo: b.monthNo, paidDate: d, note: b.note || '' }));
-    } else return Promise.resolve({ success: true });
+      if (cur) {
+        var pairs = [[['pay', c, key, 'd'], b.paidDate || today()]];
+        if (b.note !== undefined) pairs.push([['pay', c, key, 'n'], b.note || '']);
+        if (pend !== undefined) pairs.push([['pn', c, key], DEL]);
+        ops.push(upd('students', id, pairs));
+      } else {
+        var d = b.paidDate || today(), n = b.note !== undefined ? (b.note || '') : (pend || '');
+        var p2 = [[['pay', c, key], { d: d, n: n }]];
+        if (pend !== undefined) p2.push([['pn', c, key], DEL]);
+        ops.push(upd('students', id, p2),
+          outbox('tuitionPaid', { classId: c, email: b.studentEmail, monthNo: b.monthNo, paidDate: d, note: n }));
+      }
+    } else {
+      if (!id) return Promise.resolve({ success: true });
+      var note = b.note !== undefined ? String(b.note || '').trim() : String((cur && cur.n) || pend || '').trim();
+      var p3 = [];
+      if (cur) p3.push([['pay', c, key], DEL]);
+      if (note) { if (note !== pend) p3.push([['pn', c, key], note]); }
+      else if (pend !== undefined) p3.push([['pn', c, key], DEL]);
+      if (!p3.length) return Promise.resolve({ success: true });
+      ops.push(upd('students', id, p3));
+    }
     ops.push(dirty());
     return commit(ops);
   },
