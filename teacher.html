@@ -3886,10 +3886,9 @@ async function loadPrep(copyFrom){
   });
   var cell='padding:8px;border:1px solid var(--g100);vertical-align:top;min-width:118px';
   var wd=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  var head=days.map(function(d,i){return '<th style="'+cell+';text-align:center">'+fmtBrit(d)+'<div style="font-weight:400;font-size:11px">'+wd[i]+'</div></th>';}).join('');
-  var inClass=days.map(function(d){
-    var s=_prepData.sessions.filter(function(x){return x.date===d;})[0];
-    return '<td style="'+cell+';text-align:center;font-size:12px;'+(s?'background:#f1f1f1':'')+'">'+(s?dayEsc(s.content||s.skill||s.dayLabel):'')+'</td>';}).join('');
+  var head=days.map(function(d,i){return '<th style="'+cell+';text-align:center"><input type="date" class="fc prep-date" data-orig="'+d+'" value="'+d+'" style="font-size:12px;padding:4px 6px" onchange="prepDateChanged('+i+')">'+
+    '<div class="prep-wd" style="font-weight:400;font-size:11px;margin-top:3px">'+wd[i]+'</div></th>';}).join('');
+  var inClass=days.map(function(d,i){return '<td class="prep-inclass" style="'+cell+';text-align:center;font-size:12px">'+prepInClass(d)+'</td>';}).join('');
   var atHome=days.map(function(d,i){
     var it=item[d]||{};
     return '<td style="'+cell+'">'+
@@ -3906,21 +3905,39 @@ async function loadPrep(copyFrom){
     '<button class="btn btn-r" id="prepSaveBtn" onclick="savePrep()">Lưu tuần</button></div>'+
     '<p style="padding:0 12px 12px;font-size:12px;color:var(--g400)">Mỗi bài At home được nhắc qua email lúc 7:00 sáng chính ngày đó và theo dõi trong Homework Tracker. In-class lấy từ lịch lớp.</p>';
 }
+function prepInClass(d){
+  var s=_prepData.sessions.filter(function(x){return x.date===d;})[0];
+  return s?'<div style="background:#f1f1f1;border-radius:6px;padding:6px">'+dayEsc(s.content||s.skill||s.dayLabel)+'</div>':'';
+}
+// A day moved to another date: weekday + in-class follow it; a deadline before the new date moves up to it
+function prepDateChanged(i){
+  var d=document.querySelectorAll('#prepWrap .prep-date')[i].value; if(!d)return;
+  document.querySelectorAll('#prepWrap .prep-wd')[i].textContent=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(d+'T00:00:00').getDay()];
+  document.querySelectorAll('#prepWrap .prep-inclass')[i].innerHTML=prepInClass(d);
+  var dl=document.querySelectorAll('#prepWrap .prep-deadline')[i]; if(!dl.value||dl.value<d)dl.value=d;
+}
 async function savePrep(){
   var classId=_prepData&&_prepData.classId; if(!classId)return;
-  var days=prepDays(), types=document.querySelectorAll('#prepWrap .prep-type'), contents=document.querySelectorAll('#prepWrap .prep-content'), dls=document.querySelectorAll('#prepWrap .prep-deadline');
+  var dates=document.querySelectorAll('#prepWrap .prep-date'), types=document.querySelectorAll('#prepWrap .prep-type'), contents=document.querySelectorAll('#prepWrap .prep-content'), dls=document.querySelectorAll('#prepWrap .prep-deadline');
+  var orig=[].map.call(dates,function(x){return x.getAttribute('data-orig');}), now=[].map.call(dates,function(x){return x.value;});
   var old={}, todo=[], probs=[];
-  _prepData.homework.forEach(function(h){if(h.dayLabel==='PREP'&&days.indexOf(h.sessionDate)>=0&&!old[h.sessionDate])old[h.sessionDate]=h;});
-  days.forEach(function(d,i){
-    var t=types[i].value, c=contents[i].value.trim(), dl=dls[i].value||d, o=old[d];
+  _prepData.homework.forEach(function(h){if(h.dayLabel==='PREP'&&orig.indexOf(h.sessionDate)>=0&&!old[h.sessionDate])old[h.sessionDate]=h;});
+  now.forEach(function(d,i){
+    var t=types[i].value, c=contents[i].value.trim(), dl=dls[i].value||d, o=old[orig[i]];
+    if(!d){probs.push('Cột '+(i+1)+': chưa có ngày');return;}
+    // one Ôn thi homework per date: not two columns on one date, nor onto another week's day
+    var twin=now.some(function(x,j){return j!==i&&x===d&&types[j].value;});
+    if(t&&(twin||(orig.indexOf(d)<0&&_prepData.homework.some(function(h){return h.dayLabel==='PREP'&&h.sessionDate===d;}))))
+      {probs.push(fmtBrit(d)+': ngày này đã có bài ôn thi');return;}
     if(t&&!c){probs.push(fmtBrit(d)+': chưa có nội dung bài tập');return;}
     if(!t&&c){probs.push(fmtBrit(d)+': chưa chọn skill');return;}
     if(t&&dl<d){probs.push(fmtBrit(d)+': deadline trước ngày giao bài');return;}
     // one homework per date and skill: an in-class homework of the same skill that day would be mixed up with it
     if(t&&_prepData.homework.some(function(h){return h.dayLabel!=='PREP'&&h.sessionDate===d&&h.type===t;}))
       {probs.push(fmtBrit(d)+': đã có bài '+t+' giao trên lớp ngày này, hãy chọn skill khác');return;}
-    if(o&&o.type!==t)todo.push(['deleteHomework',{classId:classId,sessionDate:d,type:o.type,prep:true}]);
-    if(t&&(!o||o.type!==t||o.content!==c||o.deadline!==dl))todo.push(['addHomework',{classId:classId,sessionDate:d,type:t,content:c,deadline:dl,prep:true}]);
+    var moved=d!==orig[i];
+    if(o&&(o.type!==t||moved))todo.push(['deleteHomework',{classId:classId,sessionDate:orig[i],type:o.type,prep:true}]);
+    if(t&&(!o||moved||o.type!==t||o.content!==c||o.deadline!==dl))todo.push(['addHomework',{classId:classId,sessionDate:d,type:t,content:c,deadline:dl,prep:true}]);
   });
   if(probs.length){toast(probs[0],'err');return;}
   if(!todo.length){toast('Không có thay đổi','ok');return;}
