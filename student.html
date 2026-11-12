@@ -455,7 +455,7 @@ function renderRevision(){
           return '<div style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--g100)">'+
             '<div style="font-size:12px;font-weight:700">'+esc(skill[h.type]||h.type)+
             ' <span style="font-size:11px;font-weight:700;color:'+(stCol[st]||'#6b7280')+'">· '+(st==='Undone'?'Not done':esc(st))+'</span></div>'+
-            '<div style="font-size:12px;margin-top:2px">'+esc(h.content)+'</div></div>'; }).join('')+
+            '<div style="font-size:12px;margin-top:2px;white-space:pre-wrap;word-break:break-word">'+esc(h.content)+'</div></div>'; }).join('')+
           '<div style="font-size:11px;color:var(--g400);margin-top:6px">Reminder: '+fmtD(hs[0].deadline)+'</div>'
         : '<div style="font-size:12px;margin-top:3px;color:var(--g400)">'+(i===0?'Off':'—')+'</div>')+
     '</div>';
