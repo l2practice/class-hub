@@ -445,18 +445,19 @@ function renderRevision(){
   document.getElementById('revRange').textContent = fmtD(days[0],true)+' → '+fmtD(days[6],true);
   const prep = (sd.homework||[]).filter(h=>h.dayLabel==='PREP');
   document.getElementById('revGrid').innerHTML = days.map((d,i)=>{
-    const s = (sd.sessions||[]).find(x=>x.date===d), h = prep.find(x=>x.sessionDate===d);
-    const st = h ? (h.status||'Undone') : '';
+    const s = (sd.sessions||[]).find(x=>x.date===d), hs = prep.filter(x=>x.sessionDate===d);
     return '<div style="background:white;border:1px solid '+(d===today?'var(--red)':'var(--g200)')+';border-radius:12px;padding:12px;min-height:150px">'+
       '<div style="font-weight:700;font-size:13px">'+wd[new Date(d+'T00:00:00').getDay()]+' <span style="color:var(--g400);font-weight:500">'+fmtD(d)+'</span></div>'+
       '<div style="font-size:10px;font-weight:700;color:var(--g400);margin-top:10px;letter-spacing:.5px">IN-CLASS</div>'+
       '<div style="font-size:12px;margin-top:3px;min-height:18px">'+(s?esc(s.content||s.skill||s.dayLabel):'—')+'</div>'+
       '<div style="font-size:10px;font-weight:700;color:var(--g400);margin-top:10px;letter-spacing:.5px">AT HOME</div>'+
-      (h ? '<div style="font-size:12px;font-weight:700;margin-top:3px">'+esc(skill[h.type]||h.type)+'</div>'+
-           '<div style="font-size:12px;margin-top:2px">'+esc(h.content)+'</div>'+
-           '<div style="font-size:11px;color:var(--g400);margin-top:4px">Deadline: '+fmtD(h.deadline)+'</div>'+
-           '<div style="display:inline-block;margin-top:6px;font-size:11px;font-weight:700;color:'+(stCol[st]||'#6b7280')+'">'+(st==='Undone'?'Not done':esc(st))+'</div>'
-         : '<div style="font-size:12px;margin-top:3px;color:var(--g400)">'+(i===0?'Off':'—')+'</div>')+
+      (hs.length ? hs.map(h=>{ const st = h.status||'Undone';
+          return '<div style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--g100)">'+
+            '<div style="font-size:12px;font-weight:700">'+esc(skill[h.type]||h.type)+
+            ' <span style="font-size:11px;font-weight:700;color:'+(stCol[st]||'#6b7280')+'">· '+(st==='Undone'?'Not done':esc(st))+'</span></div>'+
+            '<div style="font-size:12px;margin-top:2px">'+esc(h.content)+'</div></div>'; }).join('')+
+          '<div style="font-size:11px;color:var(--g400);margin-top:6px">Reminder: '+fmtD(hs[0].deadline)+'</div>'
+        : '<div style="font-size:12px;margin-top:3px;color:var(--g400)">'+(i===0?'Off':'—')+'</div>')+
     '</div>';
   }).join('');
 }

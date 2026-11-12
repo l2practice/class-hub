@@ -409,7 +409,7 @@ textarea.fc{resize:vertical;min-height:60px;}
     <button class="ni" onclick="showSec('tuition')"><span class="ni-ico">💳</span>Tuition & Attendance</button>
     <button class="ni" onclick="showSec('homework')"><span class="ni-ico">📝</span>Homework Tracker</button>
     <button class="ni" onclick="showSec('hwbook')"><span class="ni-ico">📖</span>Homework Book</button>
-    <button class="ni" onclick="showSec('prep')"><span class="ni-ico">🎯</span>Ôn thi</button>
+    <button class="ni" onclick="showSec('prep')"><span class="ni-ico">🎯</span>Exam Revision</button>
     <button class="ni" onclick="showSec('participation')"><span class="ni-ico">🙋</span>Participation</button>
     <div class="nlbl">Reports</div>
     <button class="ni" onclick="showSec('diligence')"><span class="ni-ico">🏆</span>Diligent Report</button>
@@ -524,11 +524,11 @@ textarea.fc{resize:vertical;min-height:60px;}
       <div id="hwBookContent"><p style="padding:40px;text-align:center;color:var(--g400)">Select a class above to view assigned homework.</p></div>
     </div>
 
-    <!-- ÔN THI: a week of in-class sessions + one at-home homework per day -->
+    <!-- EXAM REVISION: a week of in-class sessions + the skills to practise at home each day -->
     <div id="sec-prep" class="sec">
       <div class="sec-hd">
         <div>
-          <div class="sec-title">Ôn thi</div>
+          <div class="sec-title">Exam Revision</div>
           <div class="sec-sub" id="prepRange"></div>
         </div>
         <div class="schedule-controls">
@@ -542,7 +542,7 @@ textarea.fc{resize:vertical;min-height:60px;}
           </div>
         </div>
       </div>
-      <div class="card"><div id="prepWrap"><p style="padding:40px;text-align:center;color:var(--g400)">Chọn lớp để soạn lịch ôn thi.</p></div></div>
+      <div class="card"><div id="prepWrap"><p style="padding:40px;text-align:center;color:var(--g400)">Chọn lớp để soạn lịch Exam Revision.</p></div></div>
     </div>
 
     <!-- ⑤ PARTICIPATION REPORT -->
@@ -907,7 +907,7 @@ textarea.fc{resize:vertical;min-height:60px;}
 <div class="mnav-more-menu" id="mnavMoreMenu">
   <button class="mnav-more-item" onclick="mnavGo('homework',null);toggleMnavMore()">📝 Homework Tracker</button>
   <button class="mnav-more-item" onclick="mnavGo('weekly',null);toggleMnavMore()"><span>🗓</span> Weekly Schedule</button>
-  <button class="mnav-more-item" onclick="mnavGo('prep',null);toggleMnavMore()"><span>🎯</span> Ôn thi</button>
+  <button class="mnav-more-item" onclick="mnavGo('prep',null);toggleMnavMore()"><span>🎯</span> Exam Revision</button>
   <button class="mnav-more-item" onclick="mnavGo('participation',null);toggleMnavMore()"><span>🙋</span> Participation</button>
   <button class="mnav-more-item" onclick="mnavGo('diligence',null);toggleMnavMore()"><span>🏆</span> Diligent Report</button>
   <button class="mnav-more-item" onclick="mnavGo('archive',null);toggleMnavMore()"><span>🗄</span> Archive</button>
@@ -990,7 +990,7 @@ async function refreshVisible(){
 var TITLES = {
   overview:'Glance', weekly:'Weekly Schedule',
   tuition:'Tuition & Attendance', homework:'Homework Tracker',
-  hwbook:'Homework Book', prep:'Ôn thi',
+  hwbook:'Homework Book', prep:'Exam Revision',
   participation:'Participation Report', diligence:'Diligent Report',
   archive:'Archive', settings:'Settings'
 };
@@ -3851,12 +3851,13 @@ showSec = function(id){
   var _mEl=map[id]?document.getElementById(map[id]):null;if(_mEl)_mEl.classList.add('active');
 };
 // ═══════════════════════════════════════════════════════
-// ÔN THI — a week (Sun → Sat): in-class sessions from the class schedule, and one at-home
-// homework per day. Each homework is an ordinary homework labelled PREP (tracked in the
-// Homework Tracker); the worker emails it on the morning of that day.
+// EXAM REVISION — a week (Sun → Sat): in-class sessions from the class schedule, and per day
+// one or more skills to practise at home. Each skill is an ordinary homework labelled PREP
+// (tracked in the Homework Tracker; its deadline field holds the day's Reminder Date). The
+// worker emails the day's plan on the morning of the Reminder Date.
 // ═══════════════════════════════════════════════════════
 var _prepStart=null, _prepData=null;
-var PREP_SKILLS=[['','— Không có —'],['W','Writing'],['L','Listening'],['S','Speaking'],['R','Reading'],['V','Vocabulary'],['G','Grammar']];
+var PREP_SKILLS=[['W','Writing'],['L','Listening'],['S','Speaking'],['R','Reading'],['V','Vocabulary'],['G','Grammar']];
 function prepAdd(ymd,n){var d=new Date(ymd+'T00:00:00');d.setDate(d.getDate()+n);return fmtD(d);}
 function prepDays(){var a=[];for(var i=0;i<7;i++)a.push(prepAdd(_prepStart,i));return a;}
 function buildPrepClassSel(){
@@ -3871,31 +3872,39 @@ function prepWeek(n){
   if(n===0){var t=new Date();t.setDate(t.getDate()-t.getDay());_prepStart=fmtD(t);} else _prepStart=prepAdd(_prepStart,7*n);
   loadPrep();
 }
+// One skill line of a day: skill + what to do
+function prepRow(type,content){
+  return '<div class="prep-row" style="border:1px solid var(--g100);border-radius:8px;padding:6px;margin-bottom:6px;position:relative">'+
+    '<select class="fc prep-type" style="font-size:12px;padding:4px 6px;width:calc(100% - 22px)">'+PREP_SKILLS.map(function(k){return '<option value="'+k[0]+'"'+(k[0]===type?' selected':'')+'>'+k[1]+'</option>';}).join('')+'</select>'+
+    '<button type="button" title="Xoá skill này" onclick="this.parentNode.remove()" style="position:absolute;top:8px;right:4px;border:none;background:none;cursor:pointer;color:var(--g400)">✕</button>'+
+    '<textarea class="fc prep-content" rows="2" style="margin-top:5px;font-size:12px;padding:5px 7px" placeholder="Nội dung luyện tập…">'+dayEsc(content||'')+'</textarea></div>';
+}
+function prepAddRow(btn){btn.insertAdjacentHTML('beforebegin',prepRow('',''));}
 async function loadPrep(copyFrom){
   var classId=document.getElementById('prepClassSel').value, wrap=document.getElementById('prepWrap'), days=prepDays();
   document.getElementById('prepRange').textContent=fmtBrit(days[0],true)+' → '+fmtBrit(days[6],true);
-  if(!classId){wrap.innerHTML='<p style="padding:40px;text-align:center;color:var(--g400)">Chọn lớp để soạn lịch ôn thi.</p>';return;}
+  if(!classId){wrap.innerHTML='<p style="padding:40px;text-align:center;color:var(--g400)">Chọn lớp để soạn lịch Exam Revision.</p>';return;}
   var mx=await api('getAttendanceMatrix',{classId:classId}), tr=await api('getHomeworkTracker',{classId:classId});
   _prepData={classId:classId,sessions:(mx&&mx.sessions)||[],homework:(tr&&tr.homework)||[]};
   // the week's PREP homework (or the previous week's, moved 7 days on, for "Chép tuần trước")
-  var shift=copyFrom?7:0, item={};
+  var shift=copyFrom?7:0, items={}, remind={};
   _prepData.homework.forEach(function(h){
     if(h.dayLabel!=='PREP')return;
     var d=prepAdd(h.sessionDate,shift);
-    if(days.indexOf(d)>=0&&!item[d])item[d]={type:h.type,content:h.content,deadline:h.deadline?prepAdd(h.deadline,shift):d};
+    if(days.indexOf(d)<0)return;
+    (items[d]=items[d]||[]).push(h);
+    if(!remind[d]&&h.deadline)remind[d]=prepAdd(h.deadline,shift);
   });
-  var cell='padding:8px;border:1px solid var(--g100);vertical-align:top;min-width:118px';
+  var cell='padding:8px;border:1px solid var(--g100);vertical-align:top;min-width:132px';
   var wd=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   var head=days.map(function(d,i){return '<th style="'+cell+';text-align:center"><input type="date" class="fc prep-date" data-orig="'+d+'" value="'+d+'" style="font-size:12px;padding:4px 6px" onchange="prepDateChanged('+i+')">'+
     '<div class="prep-wd" style="font-weight:400;font-size:11px;margin-top:3px">'+wd[i]+'</div></th>';}).join('');
-  var inClass=days.map(function(d,i){return '<td class="prep-inclass" style="'+cell+';text-align:center;font-size:12px">'+prepInClass(d)+'</td>';}).join('');
-  var atHome=days.map(function(d,i){
-    var it=item[d]||{};
-    return '<td style="'+cell+'">'+
-      '<select class="fc prep-type" style="font-size:12px;padding:5px 7px">'+PREP_SKILLS.map(function(k){return '<option value="'+k[0]+'"'+(k[0]===(it.type||'')?' selected':'')+'>'+k[1]+'</option>';}).join('')+'</select>'+
-      '<textarea class="fc prep-content" rows="3" style="margin-top:6px;font-size:12px;padding:6px 8px" placeholder="'+(i===0?'Off':'Bài tập…')+'">'+dayEsc(it.content||'')+'</textarea>'+
-      '<label style="display:block;margin-top:6px;font-size:11px;color:var(--g600)">Deadline'+
-      '<input type="date" class="fc prep-deadline" style="font-size:12px;padding:5px 7px" value="'+dayEsc(it.deadline||d)+'"></label></td>';}).join('');
+  var inClass=days.map(function(d){return '<td class="prep-inclass" style="'+cell+';text-align:center;font-size:12px">'+prepInClass(d)+'</td>';}).join('');
+  var atHome=days.map(function(d){
+    return '<td class="prep-day" style="'+cell+'">'+(items[d]||[]).map(function(h){return prepRow(h.type,h.content);}).join('')+
+      '<button type="button" class="btn btn-g btn-sm" style="width:100%" onclick="prepAddRow(this)">+ Skill</button>'+
+      '<label style="display:block;margin-top:8px;font-size:11px;color:var(--g600)">Reminder Date'+
+      '<input type="date" class="fc prep-remind" style="font-size:12px;padding:5px 7px" value="'+dayEsc(remind[d]||d)+'"></label></td>';}).join('');
   var lbl=cell+';min-width:64px;font-size:12px;font-weight:700;text-align:left;vertical-align:middle';
   wrap.innerHTML='<div class="tw"><table style="border-collapse:collapse;width:100%"><tr><th style="'+lbl+'"></th>'+head+'</tr>'+
     '<tr><td style="'+lbl+'">In-class</td>'+inClass+'</tr>'+
@@ -3903,41 +3912,53 @@ async function loadPrep(copyFrom){
     '<div style="display:flex;gap:8px;justify-content:flex-end;padding:12px">'+
     '<button class="btn btn-g" onclick="loadPrep(true)">Chép tuần trước</button>'+
     '<button class="btn btn-r" id="prepSaveBtn" onclick="savePrep()">Lưu tuần</button></div>'+
-    '<p style="padding:0 12px 12px;font-size:12px;color:var(--g400)">Mỗi bài At home được nhắc qua email lúc 7:00 sáng chính ngày đó và theo dõi trong Homework Tracker. In-class lấy từ lịch lớp.</p>';
+    '<p style="padding:0 12px 12px;font-size:12px;color:var(--g400)">Sáng ngày Reminder Date (7:00), học viên nhận một email nhắc các skill cần luyện hôm đó. Mỗi skill được theo dõi trong Homework Tracker. In-class lấy từ lịch lớp.</p>';
 }
 function prepInClass(d){
   var s=_prepData.sessions.filter(function(x){return x.date===d;})[0];
   return s?'<div style="background:#f1f1f1;border-radius:6px;padding:6px">'+dayEsc(s.content||s.skill||s.dayLabel)+'</div>':'';
 }
-// A day moved to another date: weekday + in-class follow it; a deadline before the new date moves up to it
+// A day moved to another date: weekday, in-class and the Reminder Date follow it
 function prepDateChanged(i){
-  var d=document.querySelectorAll('#prepWrap .prep-date')[i].value; if(!d)return;
+  var inp=document.querySelectorAll('#prepWrap .prep-date')[i], d=inp.value; if(!d)return;
+  var was=inp.getAttribute('data-shown')||inp.getAttribute('data-orig'); inp.setAttribute('data-shown',d);
   document.querySelectorAll('#prepWrap .prep-wd')[i].textContent=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(d+'T00:00:00').getDay()];
   document.querySelectorAll('#prepWrap .prep-inclass')[i].innerHTML=prepInClass(d);
-  var dl=document.querySelectorAll('#prepWrap .prep-deadline')[i]; if(!dl.value||dl.value<d)dl.value=d;
+  var rm=document.querySelectorAll('#prepWrap .prep-remind')[i]; if(!rm.value||rm.value===was)rm.value=d;
 }
 async function savePrep(){
   var classId=_prepData&&_prepData.classId; if(!classId)return;
-  var dates=document.querySelectorAll('#prepWrap .prep-date'), types=document.querySelectorAll('#prepWrap .prep-type'), contents=document.querySelectorAll('#prepWrap .prep-content'), dls=document.querySelectorAll('#prepWrap .prep-deadline');
+  var dates=document.querySelectorAll('#prepWrap .prep-date'), cols=document.querySelectorAll('#prepWrap .prep-day'), rms=document.querySelectorAll('#prepWrap .prep-remind');
   var orig=[].map.call(dates,function(x){return x.getAttribute('data-orig');}), now=[].map.call(dates,function(x){return x.value;});
-  var old={}, todo=[], probs=[];
-  _prepData.homework.forEach(function(h){if(h.dayLabel==='PREP'&&orig.indexOf(h.sessionDate)>=0&&!old[h.sessionDate])old[h.sessionDate]=h;});
+  var rows=[].map.call(cols,function(td){
+    return [].map.call(td.querySelectorAll('.prep-row'),function(r){return {t:r.querySelector('.prep-type').value,c:r.querySelector('.prep-content').value.trim()};})
+      .filter(function(r){return r.c;});   // a skill line left empty is ignored
+  });
+  var todo=[], probs=[];
   now.forEach(function(d,i){
-    var t=types[i].value, c=contents[i].value.trim(), dl=dls[i].value||d, o=old[orig[i]];
+    var mine=rows[i], rm=rms[i].value||d, moved=d!==orig[i];
+    var old=_prepData.homework.filter(function(h){return h.dayLabel==='PREP'&&h.sessionDate===orig[i];});
     if(!d){probs.push('Cột '+(i+1)+': chưa có ngày');return;}
-    // one Ôn thi homework per date: not two columns on one date, nor onto another week's day
-    var twin=now.some(function(x,j){return j!==i&&x===d&&types[j].value;});
-    if(t&&(twin||(orig.indexOf(d)<0&&_prepData.homework.some(function(h){return h.dayLabel==='PREP'&&h.sessionDate===d;}))))
-      {probs.push(fmtBrit(d)+': ngày này đã có bài ôn thi');return;}
-    if(t&&!c){probs.push(fmtBrit(d)+': chưa có nội dung bài tập');return;}
-    if(!t&&c){probs.push(fmtBrit(d)+': chưa chọn skill');return;}
-    if(t&&dl<d){probs.push(fmtBrit(d)+': deadline trước ngày giao bài');return;}
-    // one homework per date and skill: an in-class homework of the same skill that day would be mixed up with it
-    if(t&&_prepData.homework.some(function(h){return h.dayLabel!=='PREP'&&h.sessionDate===d&&h.type===t;}))
-      {probs.push(fmtBrit(d)+': đã có bài '+t+' giao trên lớp ngày này, hãy chọn skill khác');return;}
-    var moved=d!==orig[i];
-    if(o&&(o.type!==t||moved))todo.push(['deleteHomework',{classId:classId,sessionDate:orig[i],type:o.type,prep:true}]);
-    if(t&&(!o||moved||o.type!==t||o.content!==c||o.deadline!==dl))todo.push(['addHomework',{classId:classId,sessionDate:d,type:t,content:c,deadline:dl,prep:true}]);
+    if(mine.length){
+      // a date holds one day's plan: not two columns on one date, nor onto another week's day
+      var twin=now.some(function(x,j){return j!==i&&x===d&&rows[j].length;});
+      if(twin||(orig.indexOf(d)<0&&_prepData.homework.some(function(h){return h.dayLabel==='PREP'&&h.sessionDate===d;})))
+        {probs.push(fmtBrit(d)+': ngày này đã có lịch Exam Revision');return;}
+    }
+    var seen={}, bad='';
+    mine.forEach(function(r){
+      if(seen[r.t])bad=fmtBrit(d)+': skill '+r.t+' có hai lần trong cùng ngày';
+      seen[r.t]=1;
+      // one homework per date and skill: an in-class homework of the same skill that day would be mixed up with it
+      if(_prepData.homework.some(function(h){return h.dayLabel!=='PREP'&&h.sessionDate===d&&h.type===r.t;}))
+        bad=fmtBrit(d)+': đã có bài '+r.t+' giao trên lớp ngày này, hãy chọn skill khác';
+    });
+    if(bad){probs.push(bad);return;}
+    old.forEach(function(o){ if(moved||!seen[o.type])todo.push(['deleteHomework',{classId:classId,sessionDate:orig[i],type:o.type,prep:true}]); });
+    mine.forEach(function(r){
+      var o=moved?null:old.filter(function(h){return h.type===r.t;})[0];
+      if(!o||o.content!==r.c||o.deadline!==rm)todo.push(['addHomework',{classId:classId,sessionDate:d,type:r.t,content:r.c,deadline:rm,prep:true}]);
+    });
   });
   if(probs.length){toast(probs[0],'err');return;}
   if(!todo.length){toast('Không có thay đổi','ok');return;}
@@ -3945,7 +3966,7 @@ async function savePrep(){
   try{
     for(var k=0;k<todo.length;k++){var r=await api(todo[k][0],todo[k][1]); if(!r||!r.success)throw new Error((r&&r.message)||'Save failed');}
     invalidateAndReloadTracker(classId);
-    toast('Đã lưu lịch ôn thi ✓','ok');
+    toast('Đã lưu lịch Exam Revision ✓','ok');
     loadPrep();
   }catch(e){toast('Error: '+e.message,'err');btn.disabled=false;btn.textContent='Lưu tuần';}
 }
