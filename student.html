@@ -407,7 +407,7 @@ async function init() {
       const allSessions = (r.sessions||[]).filter(s=>s.date);
       if (allSessions.length) {
         // Find first upcoming session >= today
-        const todayStr = new Date().toISOString().split('T')[0];
+        const todayStr = revYmd(new Date());   // local date (toISOString is UTC: yesterday before 7am in Vietnam)
         const upcoming = allSessions.find(s=>s.date>=todayStr) || allSessions[0];
         if (upcoming && upcoming.date) {
           const d = new Date(upcoming.date);
@@ -768,7 +768,7 @@ function renderListView() {
   const att = sd.attendance||[];
   const attMap = {};
   att.forEach(a=>{ if(a.date) attMap[a.date]=a; });
-  const today = new Date().toISOString().split('T')[0];
+  const today = revYmd(new Date());
 
   const skillColors = {
     WRITING: {bg:'#ffedd5',color:'#7c2d12'},
