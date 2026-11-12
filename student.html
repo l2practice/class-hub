@@ -204,6 +204,7 @@ body{background:var(--bg)!important;}
     <div class="nav-lbl">LEARNING</div>
     <div class="nav-item active" onclick="nav('schedule')"><span>📅</span>Schedule</div>
     <div class="nav-item" onclick="nav('homework')"><span>📝</span>Homework</div>
+    <div class="nav-item" onclick="nav('revision')"><span>🎯</span>Revision</div>
     <div class="nav-lbl">PROGRESS</div>
     <div class="nav-item" onclick="nav('tuition')"><span>💳</span>Tuition</div>
     <div class="nav-item" onclick="nav('participation')"><span>⭐</span>Participation</div>
@@ -292,6 +293,22 @@ body{background:var(--bg)!important;}
         </div>
         <div id="overdueBody"><div class="hw-grid" id="hwGridOverdue"></div></div>
       </div>
+    </div>
+
+    <!-- REVISION: the exam-prep week the teacher set (Ôn thi) -->
+    <div id="section-revision" class="section">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+        <div>
+          <div style="font-family:'Playfair Display',serif;font-size:18px;font-weight:700;">Revision</div>
+          <div style="font-size:12px;color:var(--g400)" id="revRange"></div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="pf-btn" onclick="revWeek(-1)">‹ Prev</button>
+          <button class="pf-btn" onclick="revWeek(0)">This week</button>
+          <button class="pf-btn" onclick="revWeek(1)">Next ›</button>
+        </div>
+      </div>
+      <div id="revGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:10px"></div>
     </div>
 
     <!-- TUITION -->
@@ -401,12 +418,47 @@ async function init() {
       safeRender('stats', renderStats, null);
       safeRender('calendar', renderCalendar, 'calGrid');
       safeRender('homework', renderHomework, 'hwGrid');
+      safeRender('revision', renderRevision, 'revGrid');
       safeRender('tuition', renderTuition, 'tuitionContent');
       safeRender('participation', renderParticipation, 'partCard');
       safeRender('ranking', loadRanking, null);
     } else console.error(r.message);
   } catch(e) { console.error(e); }
   document.getElementById('loading').classList.remove('show');
+}
+
+// ── Revision: a week (Sun → Sat) of in-class sessions and the teacher's exam-prep homework (labelled PREP)
+let revStart = null;
+function revYmd(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function revWeek(n){
+  const d = n===0 || !revStart ? new Date() : new Date(revStart+'T00:00:00');
+  if (n===0 || !revStart) d.setDate(d.getDate()-d.getDay()); else d.setDate(d.getDate()+7*n);
+  revStart = revYmd(d); renderRevision();
+}
+function renderRevision(){
+  if (!revStart) { const t=new Date(); t.setDate(t.getDate()-t.getDay()); revStart=revYmd(t); }
+  const esc = v => String(v==null?'':v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const wd = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], today = revYmd(new Date());
+  const skill = {W:'Writing',L:'Listening',S:'Speaking',R:'Reading',V:'Vocabulary',G:'Grammar'};
+  const stCol = {Done:'#16a34a',Late:'#d97706',Partial:'#d97706',Undone:'#dc2626'};
+  const days = []; for (let i=0;i<7;i++){ const d=new Date(revStart+'T00:00:00'); d.setDate(d.getDate()+i); days.push(revYmd(d)); }
+  document.getElementById('revRange').textContent = fmtD(days[0],true)+' → '+fmtD(days[6],true);
+  const prep = (sd.homework||[]).filter(h=>h.dayLabel==='PREP');
+  document.getElementById('revGrid').innerHTML = days.map((d,i)=>{
+    const s = (sd.sessions||[]).find(x=>x.date===d), h = prep.find(x=>x.sessionDate===d);
+    const st = h ? (h.status||'Undone') : '';
+    return '<div style="background:white;border:1px solid '+(d===today?'var(--red)':'var(--g200)')+';border-radius:12px;padding:12px;min-height:150px">'+
+      '<div style="font-weight:700;font-size:13px">'+wd[new Date(d+'T00:00:00').getDay()]+' <span style="color:var(--g400);font-weight:500">'+fmtD(d)+'</span></div>'+
+      '<div style="font-size:10px;font-weight:700;color:var(--g400);margin-top:10px;letter-spacing:.5px">IN-CLASS</div>'+
+      '<div style="font-size:12px;margin-top:3px;min-height:18px">'+(s?esc(s.content||s.skill||s.dayLabel):'—')+'</div>'+
+      '<div style="font-size:10px;font-weight:700;color:var(--g400);margin-top:10px;letter-spacing:.5px">AT HOME</div>'+
+      (h ? '<div style="font-size:12px;font-weight:700;margin-top:3px">'+esc(skill[h.type]||h.type)+'</div>'+
+           '<div style="font-size:12px;margin-top:2px">'+esc(h.content)+'</div>'+
+           '<div style="font-size:11px;color:var(--g400);margin-top:4px">Deadline: '+fmtD(h.deadline)+'</div>'+
+           '<div style="display:inline-block;margin-top:6px;font-size:11px;font-weight:700;color:'+(stCol[st]||'#6b7280')+'">'+(st==='Undone'?'Not done':esc(st))+'</div>'
+         : '<div style="font-size:12px;margin-top:3px;color:var(--g400)">'+(i===0?'Off':'—')+'</div>')+
+    '</div>';
+  }).join('');
 }
 
 // Runs one part of the page; if it fails, says so in that part (with the error, for the teacher)
@@ -764,7 +816,7 @@ function renderListView() {
     : '<p style="padding:40px;text-align:center;color:var(--g400)">No sessions found.</p>';
 }
 
-const navTitles = {schedule:'Schedule',homework:'Homework',tuition:'Tuition',participation:'Participation',settings:'Settings'};
+const navTitles = {schedule:'Schedule',homework:'Homework',revision:'Revision',tuition:'Tuition',participation:'Participation',settings:'Settings'};
 function nav(name) {
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.getElementById('section-'+name).classList.add('active');
@@ -873,6 +925,9 @@ DB.ready().then(st => {
     <button class="mnb" id="mnb-homework" onclick="mobNav('homework',this)">
       <span class="mi">📝</span><span class="ml">Homework</span>
     </button>
+    <button class="mnb" id="mnb-revision" onclick="mobNav('revision',this)">
+      <span class="mi">🎯</span><span class="ml">Revision</span>
+    </button>
     <button class="mnb" id="mnb-tuition" onclick="mobNav('tuition',this)">
       <span class="mi">💳</span><span class="ml">Tuition</span>
     </button>
@@ -911,7 +966,7 @@ function mobNav(secId, btn){
   window._origNav = orig;
   window.nav = function(id){
     orig(id);
-    var map = {schedule:'mnb-schedule',homework:'mnb-homework',
+    var map = {schedule:'mnb-schedule',homework:'mnb-homework',revision:'mnb-revision',
                tuition:'mnb-tuition',participation:'mnb-participation',settings:'mnb-settings'};
     document.querySelectorAll('.mnb').forEach(function(b){b.classList.remove('active');});
     if(map[id]){var el=document.getElementById(map[id]);if(el)el.classList.add('active');}

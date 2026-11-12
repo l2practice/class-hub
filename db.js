@@ -1439,10 +1439,11 @@ var WRITES = {
     return commit([upd('students', id, pairs), dirty()], { success: true, deleted: pairs.length });
   },
   addHomework: function(b) {
-    var classId = String(b.classId).trim(), isExtra = !!b.isExtra;
-    var effDate = isExtra ? '' : (b.sessionDate || ''), effLabel = isExtra ? 'EXTRA' : (b.dayLabel || '');
+    // prep: an exam-prep day's homework (Ôn thi tab), labelled PREP and reminded on the morning of that day
+    var classId = String(b.classId).trim(), isExtra = !!b.isExtra, prep = !!b.prep;
+    var effDate = isExtra ? '' : (b.sessionDate || ''), effLabel = isExtra ? 'EXTRA' : prep ? 'PREP' : (b.dayLabel || '');
     var f = hwEntries(classId).find(function(x){
-      if (String(x.h.t).trim() !== (b.type || '')) return false;
+      if (String(x.h.t).trim() !== (b.type || '') || (x.h.dl === 'PREP') !== prep) return false;
       var rowDate = fmtDate(x.h.sd);
       return isExtra ? (!rowDate && fmtDate(x.h.dd) === (b.deadline || '')) : rowDate === effDate;
     });
@@ -1455,7 +1456,7 @@ var WRITES = {
       var hw = {}; hw[newId('h')] = { sd: effDate, dl: effLabel, t: b.type || '', ct: b.content, dd: b.deadline || '', by: 'Teacher', ord: Date.now() + _seq++ };
       ops.push({ op: 'set', col: 'classes', id: classId, merge: true, data: { hw: hw } });
     }
-    ops.push(outbox('addHomework', { classId: classId, hw: { type: b.type || '', content: b.content, deadline: b.deadline || '', sessionDate: effDate, isExtra: isExtra } }), dirty());
+    ops.push(outbox('addHomework', { classId: classId, hw: { type: b.type || '', content: b.content, deadline: b.deadline || '', sessionDate: effDate, isExtra: isExtra, prep: prep } }), dirty());
     return commit(ops);
   },
   saveHomeworkSubmission: function(b) {
@@ -1500,7 +1501,7 @@ var WRITES = {
     var ids = hwEntries(b.classId).filter(function(x){
       // Extra homework has no session date: it is found by its deadline
       var at = b.sessionDate ? fmtDate(x.h.sd) === b.sessionDate : !fmtDate(x.h.sd) && fmtDate(x.h.dd) === b.deadline;
-      return at && (!b.type || String(x.h.t).trim() === b.type);
+      return at && (!b.type || String(x.h.t).trim() === b.type) && (b.prep === undefined || (x.h.dl === 'PREP') === !!b.prep);
     }).map(function(x){ return x.id; });
     if (!ids.length) return Promise.resolve({ success: true, deleted: 0 });
     var ops = [upd('classes', String(b.classId).trim(), ids.map(function(i){ return [['hw', i], DEL]; }))];
