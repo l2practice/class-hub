@@ -2007,6 +2007,16 @@ async function doFinish(){
     window._finishIP=false;if(_fb){_fb.disabled=false;_fb.textContent='Finish Session';}
     toast('Select date','err');return;
   }
+  // Only dates in the class schedule count as sessions (8 sessions = 1 month): warn before saving another date
+  if(!/^(day0|0)$/i.test(String(dayLabel).replace(/\s/g,''))){
+    var mx=await api('getAttendanceMatrix',{classId:classId});
+    var sess=(mx&&mx.success&&mx.sessions)||[];
+    if(sess.length&&!sess.some(function(s){return s.date===date;})&&
+       !confirm('Ngày '+fmtBrit(date)+' không có trong lịch lớp '+classId+'.\nĐiểm danh ngày này sẽ không được tính là một buổi học cho đến khi bạn thêm ngày này vào lịch lớp.\n\nVẫn lưu?')){
+      window._finishIP=false;if(_fb){_fb.disabled=false;_fb.textContent='Finish Session';}
+      return;
+    }
+  }
 
   var cls=classData.find(function(c){return c.classId===classId;});
   var students=cls?cls.students:[];
@@ -2535,7 +2545,7 @@ function renderHWTracker(classId){
         '<div style="font-size:11px;font-weight:800;color:'+col+'">'+tname+'</div>'+
         '<div style="font-size:9px;color:var(--g600);margin-top:2px">📅 '+dTaught+'</div>'+
         '<div style="font-size:9px;color:#dc2626;margin-top:1px">⏰ '+dDue+'</div>'+
-        '<button onclick="deleteHWCol(\''+classId+'\',\''+hw.sessionDate+'\',\''+hw.type+'\')" title="Xóa" '+
+        '<button onclick="deleteHWCol(\''+classId+'\',\''+hw.sessionDate+'\',\''+hw.type+'\',\''+(hw.deadline||'')+'\')" title="Xóa" '+
           'style="position:absolute;top:2px;right:2px;background:none;border:none;cursor:pointer;font-size:11px;color:var(--g300);padding:0;line-height:1;opacity:.5" '+
           'onmouseenter="this.style.opacity=1;this.style.color=\'#dc2626\'" onmouseleave="this.style.opacity=.5;this.style.color=\'var(--g300)\'">🗑</button>'+
       '</th>';
@@ -2552,7 +2562,7 @@ function renderHWTracker(classId){
       '<div style="font-size:9px;font-weight:800;color:#854d0e;margin-bottom:2px">⭐ Extra</div>'+
       '<div style="font-size:11px;font-weight:800;color:'+col+'">'+tname+'</div>'+
       '<div style="font-size:9px;color:#dc2626;margin-top:1px">⏰ '+dDue+'</div>'+
-      '<button onclick="deleteHWCol(\''+classId+'\',\''+hw.sessionDate+'\',\''+hw.type+'\')" title="Xóa" '+
+      '<button onclick="deleteHWCol(\''+classId+'\',\''+hw.sessionDate+'\',\''+hw.type+'\',\''+(hw.deadline||'')+'\')" title="Xóa" '+
         'style="position:absolute;top:2px;right:2px;background:none;border:none;cursor:pointer;font-size:11px;color:var(--g300);padding:0;line-height:1;opacity:.5" '+
         'onmouseenter="this.style.opacity=1;this.style.color=\'#dc2626\'" onmouseleave="this.style.opacity=.5;this.style.color=\'var(--g300)\'">🗑</button>'+
     '</th>';
@@ -2739,9 +2749,11 @@ function printHWReport(classId){
 async function updateHWDeadlineFromBook(classId, sessionDate, type, newDeadline, hwId, inputId){
   var statusEl=document.getElementById(inputId+'-status');
   if(statusEl)statusEl.textContent='Saving…';
+  var inp=document.getElementById(inputId);   // defaultValue = the deadline saved now (finds Extra homework)
   try{
-    var r=await api('updateHomeworkDeadline',{classId:classId,sessionDate:sessionDate,type:type,deadline:newDeadline});
+    var r=await api('updateHomeworkDeadline',{classId:classId,sessionDate:sessionDate,type:type,deadline:newDeadline,oldDeadline:inp?inp.defaultValue:''});
     if(r.success){
+      if(inp)inp.defaultValue=newDeadline;
       if(statusEl)statusEl.textContent='✓ Saved';
       setTimeout(function(){if(statusEl)statusEl.textContent='';},2000);
       // Invalidate caches so tracker and book both reflect new deadline
@@ -2759,13 +2771,13 @@ async function updateHWDeadlineFromBook(classId, sessionDate, type, newDeadline,
   }
 }
 
-async function deleteHWCol(classId, sessionDate, type){
+async function deleteHWCol(classId, sessionDate, type, deadline){
   var typeNames={W:'Writing',L:'Listening',S:'Speaking',V:'Vocab',R:'Reading',G:'Grammar'};
   var tname=typeNames[type]||type;
-  var dl=fmtBrit(sessionDate);
+  var dl=fmtBrit(sessionDate||deadline);
   if(!confirm('Xóa homework '+tname+' ngày '+dl+'?\nTất cả dữ liệu submission của bài này cũng bị xóa.')) return;
   try{
-    var r=await api('deleteHomework',{classId:classId,sessionDate:sessionDate,type:type});
+    var r=await api('deleteHomework',{classId:classId,sessionDate:sessionDate,type:type,deadline:deadline});
     if(r.success){
       toast('Đã xóa homework '+tname+' ('+dl+') ✓','ok');
       invalidateAndReloadTracker(classId);

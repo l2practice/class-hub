@@ -278,7 +278,7 @@ function docsToTables(students, classes) {
 // ── Read functions copied from Code.gs
 var SYSTEM_TABS = M_SYSTEM;
 var EXCLUDE_KEYWORDS = M_EXCLUDE;
-let _attByClass = null;
+let _attByClass = null, _schedDates = {};
 function toRows(sheet) {
   const d = sheet.getDataRange().getValues();
   if (d.length < 2) return [];
@@ -329,7 +329,7 @@ function readSchedule(classId) {
   return out;
 }
 
-function clearAttendanceMemo() { _attByClass = null; }
+function clearAttendanceMemo() { _attByClass = null; _schedDates = {}; }
 
 function readAttendance(classId, studentEmail) {
   try {
@@ -348,6 +348,9 @@ function readAttendance(classId, studentEmail) {
       });
     }
     let recs = _attByClass[classId] || [];
+    // Only dates in the class schedule count: attendance left on a cancelled or moved session is not a session
+    const sd = _schedDates[classId] || (_schedDates[classId] = new Set(readSchedule(classId).map(s=>s.date)));
+    if (sd.size) recs = recs.filter(r=>sd.has(r.date));
     if (studentEmail) recs = recs.filter(r=>r.email===studentEmail);
     // Copies, so callers mutating a record can't corrupt the memo
     return recs.map(r=>Object.assign({}, r));
@@ -1173,11 +1176,19 @@ function makeFirebaseAdapter(config) {
 
 // ── Loading + live updates
 var _listeners = [], _remoteCbs = [], _readyP = null, _unsubs = [];
+// Profile text is typed by the students themselves and the pages build HTML and onclick code from
+// it: drop the characters that could break out of either (a "name" carrying a script)
+function cleanProfile(d) {
+  var bad = /[<>"'`]/g;
+  if (d && d.u) Object.keys(d.u).forEach(function(k){ if (typeof d.u[k] === 'string') d.u[k] = d.u[k].replace(bad, ''); });
+  if (d && typeof d.email === 'string') d.email = d.email.replace(bad, '');
+  return d;
+}
 function applyChanges(col, changes, local) {
   var store = col === 'students' ? S.students : col === 'classes' ? S.classes : null;
   changes.forEach(function(c){
     if (col === 'public') { S.meta = c.data || {}; return; }
-    if (c.type === 'removed') delete store[c.id]; else store[c.id] = c.data;
+    if (c.type === 'removed') delete store[c.id]; else store[c.id] = col === 'students' ? cleanProfile(c.data) : c.data;
   });
   S.ver++;
   if (!local) _remoteCbs.forEach(function(cb){ try { cb(col, changes); } catch(e){ console.error(e); } });
@@ -1485,9 +1496,11 @@ var WRITES = {
     return commit(ops,{success:true,updated:emails.length*resolved.length});
   },
   deleteHomework: function(b) {
-    if (!b.classId || !b.sessionDate) return Promise.resolve({ success: false, message: 'classId and sessionDate required' });
+    if (!b.classId || !(b.sessionDate || b.deadline)) return Promise.resolve({ success: false, message: 'classId and sessionDate required' });
     var ids = hwEntries(b.classId).filter(function(x){
-      return fmtDate(x.h.sd) === b.sessionDate && (!b.type || String(x.h.t).trim() === b.type);
+      // Extra homework has no session date: it is found by its deadline
+      var at = b.sessionDate ? fmtDate(x.h.sd) === b.sessionDate : !fmtDate(x.h.sd) && fmtDate(x.h.dd) === b.deadline;
+      return at && (!b.type || String(x.h.t).trim() === b.type);
     }).map(function(x){ return x.id; });
     if (!ids.length) return Promise.resolve({ success: true, deleted: 0 });
     var ops = [upd('classes', String(b.classId).trim(), ids.map(function(i){ return [['hw', i], DEL]; }))];
@@ -1499,12 +1512,17 @@ var WRITES = {
     return commit(ops, { success: true, deleted: ids.length });
   },
   updateHomeworkDeadline: function(b) {
-    if (!b.classId || !b.sessionDate || !b.type || !b.deadline) return Promise.resolve({ success: false, message: 'Missing required fields.' });
-    var rows = hwEntries(b.classId).filter(function(x){ return fmtDate(x.h.sd) === b.sessionDate && String(x.h.t).trim() === b.type; });
-    if (!rows.length) return Promise.resolve({ success: true, updated: 0 });
+    if (!b.classId || !(b.sessionDate || b.oldDeadline) || !b.type || !b.deadline) return Promise.resolve({ success: false, message: 'Missing required fields.' });
+    var rows = hwEntries(b.classId).filter(function(x){
+      // Extra homework has no session date: it is found by its current deadline
+      var at = b.sessionDate ? fmtDate(x.h.sd) === b.sessionDate : !fmtDate(x.h.sd) && fmtDate(x.h.dd) === b.oldDeadline;
+      return at && String(x.h.t).trim() === b.type;
+    });
+    if (!rows.length) return Promise.resolve({ success: false, message: 'Homework not found.' });
     var content = rows.map(function(x){ return String(x.h.ct || '').trim(); }).filter(Boolean)[0] || '';
     return commit([upd('classes', String(b.classId).trim(), rows.map(function(x){ return [['hw', x.id, 'dd'], b.deadline]; })),
-      outbox('hwDeadline', { classId: b.classId, sessionDate: b.sessionDate, type: b.type, deadline: b.deadline, content: content }), dirty()],
+      outbox('hwDeadline', { classId: b.classId, sessionDate: b.sessionDate || '', type: b.type, deadline: b.deadline, content: content,
+        isExtra: !b.sessionDate, oldDeadline: b.oldDeadline || '' }), dirty()],
       { success: true, updated: rows.length });
   },
   endHWMonth: function(b) {
@@ -1642,7 +1660,7 @@ var WRITES = {
       var st = S.students[id], pairs = [];
       if (normalizeClass(st.u && st.u.Class) === srcKey) { pairs.push([['u', 'Class'], target]); moved++; }
       if (st.cls === from || normalizeClass(st.cls) === srcKey) pairs.push([['cls'], target]);
-      [['att'], ['pay']].forEach(function(f){
+      [['att'], ['pay'], ['pn']].forEach(function(f){
         var m = st[f[0]] || {};
         Object.keys(m).filter(function(c){ return normalizeClass(c) === srcKey && c !== target; }).forEach(function(c){
           pairs.push([[f[0], target], merged(m[target], m[c])], [[f[0], c], DEL]);
@@ -1663,7 +1681,7 @@ var WRITES = {
     if (!id) return Promise.resolve({ success: false, message: 'Student not found.' });
     if (!c || c.status !== 'active') return Promise.resolve({ success: false, message: 'Class "' + target + '" not found.' });
     var st = S.students[id], pairs = [[['u', 'Class'], target], [['cls'], target]];
-    ['att', 'pay'].forEach(function(f){
+    ['att', 'pay', 'pn'].forEach(function(f){
       var m = st[f] || {}, orphans = Object.keys(m).filter(function(k){ return k !== target && !mClassDocOf(k, S.classes); });
       if (!orphans.length) return;
       var into = Object.assign({}, m[target] || {});
@@ -1697,7 +1715,7 @@ var WRITES = {
       if (!c || c.status !== 'active') return Promise.resolve({ success: false, message: 'Class "' + target + '" not found.' });
       pairs.push([['u', 'Class'], target], [['cls'], target]);
       // records kept under a class that no longer exists follow the student (as moveStudent)
-      ['att', 'pay'].forEach(function(f){
+      ['att', 'pay', 'pn'].forEach(function(f){
         var m = st[f] || {}, orphans = Object.keys(m).filter(function(k){ return k !== target && !mClassDocOf(k, S.classes); });
         if (!orphans.length) return;
         var into = Object.assign({}, m[target] || {});
