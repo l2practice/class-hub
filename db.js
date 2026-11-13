@@ -334,8 +334,10 @@ function clearAttendanceMemo() { _attByClass = null; _schedDates = {}; }
 function readAttendance(classId, studentEmail) {
   try {
     if (!_attByClass) {
+      // read first: rebuilding the tables after a data change clears this memo
+      const rows = toRows(sh('Attendance_Master'));
       _attByClass = {};
-      toRows(sh('Attendance_Master')).forEach(r=>{
+      rows.forEach(r=>{
         const rec = {
           email:    r.StudentEmail,
           classId:  r.ClassID,
@@ -648,15 +650,17 @@ function getRewardsMonth(b) {
   const monthDates = allDates.slice(mo*8,(mo+1)*8);
   if(!monthDates.length) return {success:false, message:'No data for this month'};
 
-  // hwDue = số bài tập thực tế trong tháng (không cố định = 8)
-  // Mỗi row trong Homework_Master với SessionDate trong monthDates = 1 bài
-  // Dùng Set để dedup theo SessionDate+Type (1 buổi có thể có 2 bài khác skill)
-  const hwDueSet = new Set();
+  // Homework of the month, as in the Homework Tracker: given on one of its sessions or on a day before
+  // the next month's first session (Exam Revision days); Extra homework (no session date) by its deadline.
+  // One per date + skill. A student's homework counts as done when Done or Late (Partial is not complete).
+  const sched = [...new Set(readSchedule(classId).filter(x=>{const d=x.dayLabel.toLowerCase().replace(/ /g,'');return d!=='day0'&&d!=='0'&&x.date;}).map(x=>x.date))].sort();
+  const mStart = monthDates[0], si = sched.indexOf(mStart), mEnd = (si>=0 && sched[si+8]) || '9999-99-99';
+  const hwKeys = {};
   hwRecs.forEach(r => {
-    const sesDate = fmtDate(r.SessionDate);
-    if(monthDates.includes(sesDate) && r.Type) hwDueSet.add(sesDate+'_'+r.Type);
+    const sd = fmtDate(r.SessionDate), dd = fmtDate(r.Deadline), type = String(r.Type||'').trim(), at = sd || dd;
+    if (type && at && at >= mStart && at < mEnd) hwKeys[(sd || 'EXTRA_' + dd) + '_' + type] = 1;
   });
-  const hwDueTotal = hwDueSet.size;
+  const hwDueTotal = Object.keys(hwKeys).length;
 
   const studentStats = students.map(s=>{
     const myAtt = attRecs.filter(r=>r.email===s.Email && monthDates.includes(r.date));
@@ -668,40 +672,27 @@ function getRewardsMonth(b) {
     const payments = getTuitionPayments(classId,s.Email);
     const tuitionPaid = !!payments[String(mo+1)];
 
-    // hwDone: đếm theo từng hwDueSet key mà sinh viên đã nộp Done/Late/Partial
     let hwDone = 0;
-    try {
-      const hmSheet = sh('Homework_Master');
-      const hmData = hmSheet.getDataRange().getValues();
-      const hmHeaders = hmData[0].map(x=>String(x).trim());
-      const emailKey = s.Email.replace(/[@.]/g,'_');
-      const stColKey = emailKey+'_Status';
-      const stColIdx = hmHeaders.indexOf(stColKey);
-      if(stColIdx >= 0) {
-        const hwDueSeen = new Set();
-        hmData.slice(1).forEach(r => {
-          const sesDate = fmtDate(r[1]);
-          const type = String(r[3]||'').trim();
-          if(!monthDates.includes(sesDate)||!type) return;
-          const key = sesDate+'_'+type;
-          if(hwDueSeen.has(key)) return; // dedup
-          hwDueSeen.add(key);
-          const st = String(r[stColIdx]||'').trim();
-          if(['Done','Late','Partial'].includes(st)) hwDone++;
-        });
-      }
-    } catch(e){}
+    const stCol = s.Email.replace(/[@.]/g,'_') + '_Status', seen = {};
+    hwRecs.forEach(r => {
+      const sd = fmtDate(r.SessionDate), key = (sd || 'EXTRA_' + fmtDate(r.Deadline)) + '_' + String(r.Type||'').trim();
+      if (!hwKeys[key] || seen[key]) return;
+      seen[key] = 1;
+      if (['Done','Late'].includes(String(r[stCol]||'').trim())) hwDone++;
+    });
 
     return {
       name:s.FullName, email:s.Email,
       present, absent, late, avgScore:Number(avgScore),
       tuitionPaid, hwDue:hwDueTotal, hwDone,
       sessions:myAtt.length,
+      // Diligent: 8 sessions present, this month's tuition paid, every homework of the month done
+      diligent: present===8 && absent===0 && late===0 && tuitionPaid && hwDueTotal>0 && hwDone>=hwDueTotal,
     };
   });
 
   const sorted = [...studentStats].sort((a,b)=>b.present-a.present||b.avgScore-a.avgScore);
-  const diligent = studentStats.filter(s=>s.absent===0&&s.late===0&&s.tuitionPaid&&s.hwDue>0&&s.hwDone>=s.hwDue);
+  const diligent = studentStats.filter(s=>s.diligent);
   return {
     success:true,
     month:mo+1, dates:monthDates,
