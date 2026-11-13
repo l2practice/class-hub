@@ -145,7 +145,7 @@ async function loadMonths(classId, autoMonth){
   var sel=document.getElementById('selMonth');
   sel.innerHTML='<option value="">&#9203; Loading…</option>';
   try{
-    var r=await gasCall('getRewards',{classId:classId});
+    var r=await gasCall('getRewardsMonths',{classId:classId});
     sel.innerHTML='<option value="">— Month —</option>';
     (r.months||[]).forEach(function(mo){
       var o=document.createElement('option');
@@ -177,18 +177,13 @@ async function loadCandidates(){
   document.getElementById('statusBar').textContent='';
 
   try{
-    var r=await gasCall('getRewards',{classId:classId});
-    var mo=(r.months||[]).find(function(m){return m.month===month;});
-    if(!mo){wall.innerHTML='<div class="empty">No data for this month.</div>';return;}
-
-    // Only the students checked for this class and month in Diligent Report join the draw.
-    var eligible=mo.students.filter(function(s){
-      return s.tuitionPaid===true&&s.present===8&&s.late===0&&s.absent===0&&s.hwDue>0&&s.hwDone>=s.hwDue;
-    });
-    var selectionKey='classhub:diligent-draw:'+encodeURIComponent(classId)+':'+month;
-    var selectedEmails=[];
-    try{var saved=JSON.parse(localStorage.getItem(selectionKey)||'[]');selectedEmails=Array.isArray(saved)?saved:[];}catch(e){selectedEmails=[];}
-    candidates=eligible.filter(function(s){return selectedEmails.indexOf(s.email)>=0;}).map(function(s){return s.name;});
+    // Same month data and rule as the Diligent Report; the students ticked there for this class and month
+    // (or, if the teacher hasn't changed the ticks, everyone who qualifies)
+    var mo=await gasCall('getRewardsMonth',{classId:classId,month:month});
+    if(!mo||!mo.success){wall.innerHTML='<div class="empty">No data for this month.</div>';return;}
+    var saved=null;
+    try{var v=JSON.parse(localStorage.getItem('classhub:diligent-draw:'+encodeURIComponent(classId)+':'+month));saved=Array.isArray(v)?v:null;}catch(e){}
+    candidates=mo.students.filter(function(s){return saved?saved.indexOf(s.email)>=0:s.diligent;}).map(function(s){return s.name;});
 
     if(!candidates.length){
       wall.innerHTML='<div class="empty">No students selected for this draw.<br><small style="opacity:.5">Select qualified students in the Diligent Report first.<br>Criteria: tuition paid · 8 present · 0 late · 0 absent · all homework submitted</small></div>';

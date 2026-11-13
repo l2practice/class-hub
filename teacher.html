@@ -3254,23 +3254,29 @@ async function loadDiligenceMonth(classId, month){
 }
 
 function diligentSelectionKey(classId,month){return 'classhub:diligent-draw:'+encodeURIComponent(classId)+':'+month;}
+// The teacher's own pick for the draw, or null if they haven't changed it (then: everyone who qualifies)
 function getDiligentDrawSelection(classId,month){
-  try{var value=JSON.parse(localStorage.getItem(diligentSelectionKey(classId,month))||'[]');return Array.isArray(value)?value:[];}catch(e){return [];}
+  try{var value=JSON.parse(localStorage.getItem(diligentSelectionKey(classId,month)));return Array.isArray(value)?value:null;}catch(e){return null;}
 }
 function toggleDiligentCandidate(input){
-  var classId=input.getAttribute('data-class-id'),month=input.getAttribute('data-month'),email=input.getAttribute('data-email');
-  var selected=getDiligentDrawSelection(classId,month).filter(function(e){return e!==email;});
-  if(input.checked)selected.push(email);
+  var classId=input.getAttribute('data-class-id'),month=input.getAttribute('data-month');
+  var selected=[].filter.call(document.querySelectorAll('input[data-draw]'),function(x){
+    return x.checked&&x.getAttribute('data-class-id')===classId&&x.getAttribute('data-month')===month;
+  }).map(function(x){return x.getAttribute('data-email');});
   try{localStorage.setItem(diligentSelectionKey(classId,month),JSON.stringify(selected));}catch(e){}
-  var id='dilRandomCount-'+String(classId).replace(/[^a-zA-Z0-9_-]/g,'_')+'-'+month;
-  var label=document.getElementById(id);if(label)label.textContent=selected.length+' selected';
+  redrawDiligentMonth(classId,month);
+}
+function resetDiligentPick(classId,month){
+  try{localStorage.removeItem(diligentSelectionKey(classId,month));}catch(e){}
+  redrawDiligentMonth(classId,month);
+}
+function redrawDiligentMonth(classId,month){
+  var c=_diligenceMonthDataCache[classId+'_'+month], body=document.getElementById('dil-body-'+month);
+  if(c&&body)body.innerHTML=renderDiligenceMonthHTML(classId,c);
 }
 function renderDiligenceMonthHTML(classId,mo){
   var sessCount=mo.dates?mo.dates.length:0;
   var students=mo.students||[];
-  students.forEach(function(s){
-    s.diligent=s.tuitionPaid===true&&s.present===8&&s.late===0&&s.absent===0&&s.hwDue>0&&s.hwDone>=s.hwDue;
-  });
   var sorted=[].concat(students).sort(function(a,b){
     if(a.tuitionPaid!==b.tuitionPaid)return a.tuitionPaid?-1:1;
     var aPerfect=a.present===8&&a.late===0&&a.absent===0,bPerfect=b.present===8&&b.late===0&&b.absent===0;
@@ -3284,17 +3290,20 @@ function renderDiligenceMonthHTML(classId,mo){
     if(a.hwDone!==b.hwDone)return b.hwDone-a.hwDone;
     return String(a.name||'').localeCompare(String(b.name||''));
   });
-  var selected=getDiligentDrawSelection(classId,mo.month),selectedSet=new Set(selected);
+  // Ticked for the Random Draw: the teacher's own pick, else everyone who qualifies (a box fixes a wrong filter result)
+  var saved=getDiligentDrawSelection(classId,mo.month);
+  var selectedSet=new Set(saved||eligible.map(function(s){return s.email;}));
   var rankByEmail={};eligible.forEach(function(s,i){rankByEmail[s.email]=i+1;});
   var countId='dilRandomCount-'+String(classId).replace(/[^a-zA-Z0-9_-]/g,'_')+'-'+mo.month;
-  var selectedCount=eligible.filter(function(s){return selectedSet.has(s.email);}).length;
+  var selectedCount=students.filter(function(s){return selectedSet.has(s.email);}).length;
   return '<div class="rcard-wrap">'+
       (eligible[0]?'<div class="rcard rcard-gold"><div class="rcard-lbl">🏆 Most Diligent #1</div><div class="rcard-name">'+dayEsc(eligible[0].name)+'</div><div class="rcard-sub">8P · 0L · 0A · HW '+eligible[0].hwDone+'/'+eligible[0].hwDue+' · Paid</div></div>':'')+
       (eligible[1]?'<div class="rcard rcard-silver"><div class="rcard-lbl">🥈 Most Diligent #2</div><div class="rcard-name">'+dayEsc(eligible[1].name)+'</div><div class="rcard-sub">8P · 0L · 0A · HW '+eligible[1].hwDone+'/'+eligible[1].hwDue+' · Paid</div></div>':'')+
     '</div>'+
     '<div style="padding:8px 18px 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">'+
       '<span style="font-size:11px;color:var(--g400)">'+sessCount+' sessions · '+eligible.length+' qualified · Homework submissions ranked highest first</span>'+
-      (eligible.length>0?'<a href="random.html?class='+encodeURIComponent(classId)+'&month='+mo.month+'" target="_blank" class="btn btn-r btn-sm" style="text-decoration:none">🎰 Random Draw (<span id="'+countId+'">'+selectedCount+' selected</span>)</a>':'')+
+      '<a href="random.html?class='+encodeURIComponent(classId)+'&month='+mo.month+'" target="_blank" class="btn btn-r btn-sm" style="text-decoration:none">🎰 Random Draw (<span id="'+countId+'">'+selectedCount+' selected</span>)</a>'+
+      (saved?'<button class="btn btn-g btn-sm" onclick="resetDiligentPick(\''+dayEsc(classId).replace(/'/g,"\\'")+'\','+mo.month+')">Chọn lại theo điều kiện</button>':'')+
     '</div>'+
     '<div class="tw"><table>'+
       '<thead><tr><th>Select</th><th>Rank</th><th>Student</th><th>Present</th><th>Absent</th><th>Late</th><th>HW Done</th><th>HW Due</th><th>Tuition</th><th>Diligent?</th></tr></thead>'+
@@ -3302,7 +3311,7 @@ function renderDiligenceMonthHTML(classId,mo){
         var hwBadge=s.hwDue>0
           ?'<span class="badge '+(s.hwDone>=s.hwDue?'bp':'ba')+'">'+s.hwDone+'</span>'
           :'<span style="color:var(--g400)">—</span>';
-        var drawCheckbox=s.diligent?'<input type="checkbox" aria-label="Select '+dayEsc(s.name)+' for Random Draw" data-class-id="'+dayEsc(classId)+'" data-month="'+mo.month+'" data-email="'+dayEsc(s.email)+'" '+(selectedSet.has(s.email)?'checked':'')+' onchange="toggleDiligentCandidate(this)" style="width:16px;height:16px;accent-color:#15803d;cursor:pointer">':'—';
+        var drawCheckbox='<input type="checkbox" data-draw aria-label="Select '+dayEsc(s.name)+' for Random Draw" data-class-id="'+dayEsc(classId)+'" data-month="'+mo.month+'" data-email="'+dayEsc(s.email)+'" '+(selectedSet.has(s.email)?'checked':'')+' onchange="toggleDiligentCandidate(this)" style="width:16px;height:16px;accent-color:#15803d;cursor:pointer">';
         return '<tr'+(s.diligent?' class="diligent-qualified"':'')+'>'+
           '<td style="padding:8px 12px;border-bottom:1px solid var(--g100);text-align:center">'+drawCheckbox+'</td>'+
           '<td style="padding:8px 12px;border-bottom:1px solid var(--g100);font-weight:700;color:var(--g600)">'+(rankByEmail[s.email]?'#'+rankByEmail[s.email]:'—')+'</td>'+
