@@ -20,7 +20,8 @@
     '✏️':'<path d="M4 20l4-1 11-11-3-3L5 16zM14 6l3 3"/>',
     '🕒':'<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2h6"/>',
     '🏠':'<path d="M3 10l9-7 9 7v10a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1z"/>',
-    '🔍':'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>'
+    '🔍':'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+    '🎯':'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>'
   };
   function convert(root){
     (root||document).querySelectorAll('.nav-item>span,.ni-ico,.mnb .mi,.mnav-ico,.stat-icon,.mnav-more-item>span').forEach(function(el){
