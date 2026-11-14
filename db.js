@@ -650,14 +650,14 @@ function getRewardsMonth(b) {
   const monthDates = allDates.slice(mo*8,(mo+1)*8);
   if(!monthDates.length) return {success:false, message:'No data for this month'};
 
-  // Homework of the month, as in the Homework Tracker: given on one of its sessions or on a day before
-  // the next month's first session (Exam Revision days); Extra homework (no session date) by its deadline.
+  // Homework of the month, as in the Homework Tracker: its deadline falls from the month's first session
+  // to the day before the next month's first session (no deadline: the day it was given).
   // One per date + skill. Only Done counts (Late and Partial do not count for Diligent).
   const sched = [...new Set(readSchedule(classId).filter(x=>{const d=x.dayLabel.toLowerCase().replace(/ /g,'');return d!=='day0'&&d!=='0'&&x.date;}).map(x=>x.date))].sort();
   const mStart = monthDates[0], si = sched.indexOf(mStart), mEnd = (si>=0 && sched[si+8]) || '9999-99-99';
   const hwKeys = {};
   hwRecs.forEach(r => {
-    const sd = fmtDate(r.SessionDate), dd = fmtDate(r.Deadline), type = String(r.Type||'').trim(), at = sd || dd;
+    const sd = fmtDate(r.SessionDate), dd = fmtDate(r.Deadline), type = String(r.Type||'').trim(), at = dd || sd;
     if (type && at && at >= mStart && at < mEnd) hwKeys[(sd || 'EXTRA_' + dd) + '_' + type] = 1;
   });
   const hwDueTotal = Object.keys(hwKeys).length;
