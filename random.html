@@ -9,132 +9,114 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
 <style>
-:root{
-  --ink:#251b35;--muted:#f4ecfa;--cream:#fff5df;--gold:#ffd478;
-  --glass:rgba(255,255,255,.105);--line:rgba(255,255,255,.25);
-}
 *{box-sizing:border-box}
-html{min-width:320px;background:#261d3b}
-body{
-  min-width:320px;min-height:100vh;margin:0;color:#fff;
-  font-family:"Plus Jakarta Sans",sans-serif;
+html{min-width:320px;min-height:100%;background-color:#261d3b;
   background:
     radial-gradient(ellipse at 88% 15%,rgba(255,177,143,.67),transparent 38%),
     radial-gradient(ellipse at 12% 92%,rgba(123,86,166,.62),transparent 42%),
     linear-gradient(128deg,#352447 0%,#4b3557 45%,#d58e88 100%);
-  overflow-x:hidden;
 }
+body{min-width:320px;min-height:100vh;margin:0;color:#fff;font-family:"Plus Jakarta Sans",sans-serif;overflow-x:hidden}
 button,input,select{font:inherit}
 button{cursor:pointer}
 button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #ffe39a;outline-offset:3px}
+svg.i{width:1.15em;height:1.15em;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* ── Header */
 .header{
-  min-height:68px;padding:12px clamp(16px,4vw,52px);display:flex;align-items:center;
-  gap:20px;background:rgba(25,18,38,.35);border-bottom:1px solid rgba(255,255,255,.15);
+  min-height:84px;padding:14px clamp(16px,3.4vw,52px);display:flex;align-items:center;gap:22px;
+  background:rgba(25,18,38,.42);border-bottom:1px solid rgba(255,255,255,.12);
   backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)
 }
-.logo{color:white;text-decoration:none;font-size:18px;font-weight:800;letter-spacing:-.04em;white-space:nowrap}
-.logo span{color:#ffd28c}
-.controls{display:flex;align-items:center;gap:9px;flex:1;flex-wrap:wrap}
+.logo{color:#fff;text-decoration:none;font-size:30px;font-weight:800;letter-spacing:-.05em;white-space:nowrap;padding-right:24px;border-right:1px solid rgba(255,255,255,.2)}
+.logo span{color:#ffc65c}
+.controls{display:flex;align-items:center;gap:22px;flex:1;flex-wrap:wrap}
 select,.header button{
-  min-height:40px;padding:9px 13px;border-radius:11px;border:1px solid rgba(255,255,255,.24);
-  color:#fff;background:rgba(255,255,255,.1);font-size:12px;font-weight:700
+  min-height:52px;padding:10px 18px;border-radius:14px;border:1px solid rgba(255,255,255,.24);
+  color:#fff;background:rgba(36,26,52,.45);font-size:17px;font-weight:600
 }
-select{min-width:128px}
-select option{background:#302540;color:white}
-.header .btn-load{background:#f2a67f;border-color:transparent;color:#32233e}
-.header .btn-load:hover{background:#ffc09a}
-.header .btn-reset{background:rgba(255,255,255,.08)}
-.status-bar{margin-left:auto;color:rgba(255,255,255,.76);font-size:11px;font-weight:600}
-main{width:min(1120px,calc(100% - 40px));margin:clamp(24px,5vh,58px) auto 54px}
+select{min-width:180px;appearance:none;-webkit-appearance:none;padding-right:44px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='none' stroke='white' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M3 5l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 16px center}
+#selMonth{min-width:230px}
+select option{background:#302540;color:#fff}
+.header button{display:inline-flex;align-items:center;gap:10px;padding:10px 26px}
+.header .btn-load{background:#f7b57f;border-color:transparent;color:#2c1d34;font-weight:700}
+.header .btn-load:hover{background:#ffc79a}
+.header .btn-reset{background:rgba(255,255,255,.06)}
+.header .btn-reset:hover{background:rgba(255,255,255,.14)}
+.status-bar{margin-left:auto;display:inline-flex;align-items:center;gap:12px;color:#fff;font-size:18px;font-weight:600;white-space:nowrap}
+.status-bar svg{color:#f7b57f;width:28px;height:28px}
+
+/* ── Panel */
+main{width:min(1350px,calc(100% - 48px));margin:38px auto 48px}
 .glass-panel{
-  position:relative;overflow:hidden;display:grid;grid-template-columns:minmax(280px,.88fr) minmax(420px,1.12fr);
-  gap:clamp(16px,4vw,54px);padding:clamp(26px,5vw,58px);
-  border:1px solid rgba(255,255,255,.31);border-radius:30px;
-  background:linear-gradient(135deg,rgba(255,255,255,.13),rgba(255,255,255,.045));
-  box-shadow:0 28px 90px rgba(25,13,37,.24),inset 0 1px rgba(255,255,255,.23);
+  position:relative;overflow:hidden;padding:clamp(28px,4.4vw,58px) clamp(22px,4.4vw,62px) clamp(26px,3.4vw,46px);
+  border:1px solid rgba(255,255,255,.3);border-radius:36px;
+  background:linear-gradient(135deg,rgba(255,255,255,.12),rgba(255,255,255,.04));
+  box-shadow:0 28px 90px rgba(25,13,37,.24),inset 0 1px rgba(255,255,255,.22);
   backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px)
 }
-.glass-panel:before{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(120deg,rgba(255,255,255,.1),transparent 34%,transparent 70%,rgba(255,198,172,.08))}
-.intro,.draw-area{position:relative;z-index:1;min-width:0}
-.intro{display:flex;flex-direction:column;align-items:flex-start}
-.slash-rule{width:150px;height:12px;margin:2px 0 20px;border-top:1px solid rgba(255,255,255,.3);position:relative}
-.slash-rule:after{content:"";position:absolute;inset:5px 0 0;background:repeating-linear-gradient(135deg,transparent 0 4px,rgba(255,255,255,.12) 4px 5px)}
-.eyebrow{display:inline-flex;align-items:center;gap:8px;padding:8px 13px;margin-bottom:18px;
-  color:#fff0d5;background:rgba(34,25,47,.44);border:1px solid rgba(255,255,255,.15);
-  border-radius:8px;font-size:10px;font-weight:800;letter-spacing:.18em}
-.eyebrow:before{content:"";width:6px;height:6px;border-radius:50%;background:#ffd581;box-shadow:0 0 10px #ffd581}
-h1{max-width:440px;margin:0;color:#fff;font-family:Fraunces,Georgia,serif;font-size:clamp(38px,5vw,62px);font-weight:700;line-height:.99;letter-spacing:-.045em}
-.draw-sub{margin:15px 0 17px;color:#ffe2c5;font-size:13px;font-weight:700;letter-spacing:.03em}
-.intro .slash-rule{margin-bottom:18px}
-.instructions{
-  width:100%;padding:17px 18px;margin:0;border:1px solid rgba(255,255,255,.16);
-  border-radius:16px;background:rgba(27,20,41,.38);color:rgba(255,255,255,.91);
-  font-size:12px;line-height:1.7
-}
-.instructions ul{list-style:none;display:grid;gap:9px;padding:0;margin:0}
-.instructions li{position:relative;padding-left:17px}
-.instructions li:before{content:"";position:absolute;left:0;top:.72em;width:5px;height:5px;border-radius:50%;background:#ffd17d}
-.winner-log{display:flex;flex-direction:column;gap:7px;width:100%;margin-top:auto;padding-top:19px}
-.winner-log-title{color:rgba(255,255,255,.6);font-size:9px;font-weight:800;letter-spacing:.15em;text-transform:uppercase}
-.win-log{display:flex;flex-wrap:wrap;gap:7px}
-.win-badge{padding:7px 10px;border:1px solid rgba(255,213,120,.37);border-radius:999px;background:rgba(255,205,112,.13);color:#ffe4a9;font-size:11px;font-weight:700}
-.draw-area{display:flex;flex-direction:column;align-items:center;min-width:0}
-.bowl-stage{position:relative;width:min(100%,490px);aspect-ratio:1.12;display:grid;place-items:center;isolation:isolate}
-.bowl-glow{position:absolute;z-index:-1;left:18%;right:18%;bottom:11%;height:25%;border-radius:50%;background:rgba(255,184,156,.4);filter:blur(42px)}
+.top{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:center;gap:24px}
+.intro{min-width:0}
+.eyebrow{display:inline-flex;align-items:center;gap:12px;padding:12px 24px;margin-bottom:26px;
+  color:#ffd9a6;background:rgba(34,25,47,.35);border:1px solid rgba(255,255,255,.2);
+  border-radius:999px;font-size:21px;font-weight:700}
+.eyebrow svg{width:26px;height:26px;fill:#ffc65c;stroke:none}
+h1{margin:0;color:#fff;font-size:clamp(46px,6.4vw,82px);font-weight:800;line-height:.92;letter-spacing:-.035em}
+.draw-sub{margin:26px 0 0;color:#fff;font-size:clamp(20px,2vw,27px);font-weight:500}
+.rule{width:86px;height:5px;margin:20px 0 26px;border-radius:9px;background:#f7b57f}
+.lead{margin:0;max-width:520px;color:rgba(255,255,255,.88);font-size:clamp(16px,1.6vw,21px);line-height:1.5}
+.bowl-stage{position:relative;justify-self:center;width:min(100%,510px);aspect-ratio:1.09;margin:-24px 0 -18px;isolation:isolate}
+.bowl-glow{position:absolute;z-index:-1;left:12%;right:12%;bottom:4%;height:26%;border-radius:50%;background:rgba(255,170,120,.55);filter:blur(46px)}
 .bowl-art{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;z-index:2;pointer-events:none;user-select:none}
-.bowl-contents{
-  position:absolute;z-index:3;left:16%;top:41%;width:68%;height:45%;
-  clip-path:ellipse(49% 48% at 50% 51%);pointer-events:none;overflow:hidden
-}
+.bowl-contents{position:absolute;z-index:3;left:15%;top:40%;width:70%;height:46%;clip-path:ellipse(49% 48% at 50% 51%);pointer-events:none;overflow:hidden}
 .paper{
-  position:absolute;width:clamp(25px,4.1vw,39px);height:clamp(18px,3vw,27px);
-  display:grid;place-items:center;border:1px solid rgba(148,113,67,.18);border-radius:3px;
-  background:linear-gradient(145deg,#fff8e8,#efdcb8);box-shadow:0 3px 7px rgba(55,35,28,.19);
-  transform-origin:center;color:#6d5941;font-size:7px
+  position:absolute;width:clamp(46px,5.2vw,66px);height:clamp(32px,3.7vw,46px);
+  border:1px solid rgba(148,113,67,.2);border-radius:4px;
+  background:linear-gradient(145deg,#fff8e8,#efdcb8);box-shadow:0 4px 9px rgba(55,35,28,.22);transform-origin:center
 }
-.paper:after{content:"";position:absolute;inset:2px 3px auto;height:1px;background:rgba(163,129,81,.14)}
-.bowl-status{
-  position:absolute;z-index:4;left:50%;bottom:4%;transform:translateX(-50%);
-  width:max-content;max-width:92%;padding:7px 12px;border:1px solid rgba(255,255,255,.2);
-  border-radius:999px;background:rgba(37,27,53,.54);color:#fff4df;
-  font-size:10px;font-weight:700;text-align:center;backdrop-filter:blur(10px)
-}
-.student-area{width:100%;margin-top:-3px}
-.student-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:1px 0 9px}
-.student-heading strong{font-size:11px;color:rgba(255,255,255,.88);letter-spacing:.04em}
-.remaining{color:#ffdfb2;font-size:11px;font-weight:700;white-space:nowrap}
-.wall{display:flex;flex-wrap:wrap;justify-content:center;gap:7px;min-height:41px}
+.paper:after{content:"";position:absolute;inset:6px 8px auto;height:2px;border-radius:2px;background:rgba(163,129,81,.18);box-shadow:0 7px 0 rgba(163,129,81,.13)}
+.bowl-status{display:none}
+
+/* ── Participants */
+.bottom{margin-top:30px;padding-top:34px;border-top:1px solid rgba(255,255,255,.2)}
+.participants{display:grid;grid-template-columns:auto 1fr;gap:28px;align-items:start}
+.p-head{display:flex;align-items:center;gap:18px;padding-right:28px;min-height:60px;border-right:1px solid rgba(255,255,255,.2)}
+.p-head strong{display:inline-flex;align-items:center;gap:14px;font-size:clamp(20px,2vw,27px);font-weight:700;white-space:nowrap}
+.p-head strong svg{color:#f7b57f;width:34px;height:34px}
+.remaining{padding:9px 18px;border:1px solid rgba(255,255,255,.28);border-radius:999px;background:rgba(36,26,52,.35);color:#fff;font-size:18px;font-weight:600;white-space:nowrap}
+.wall{display:flex;flex-wrap:wrap;gap:12px 22px;min-height:52px;align-content:flex-start}
 .tile{
-  min-height:34px;max-width:100%;display:inline-flex;align-items:center;gap:7px;
-  padding:5px 6px 5px 12px;border:1px solid rgba(255,247,225,.58);border-radius:999px;
-  color:#493b36;background:#fff4dc;font-size:10px;font-weight:800;
-  box-shadow:0 4px 10px rgba(35,20,37,.11);transition:opacity .2s,transform .2s,border-color .2s
+  min-height:52px;max-width:100%;display:inline-flex;align-items:center;gap:12px;
+  padding:6px 9px 6px 24px;border-radius:999px;color:#2f2433;background:#fff1d6;
+  font-size:clamp(15px,1.4vw,19px);font-weight:700;box-shadow:0 6px 16px rgba(35,20,37,.16);
+  transition:opacity .2s,transform .2s
 }
-.tile.winner{border-color:#ffda79;background:#fff0c2;opacity:.55}
+.tile.winner{background:#ffe7a8;opacity:.6}
 .tile-name{overflow-wrap:anywhere}
-.tile-trophy{font-size:12px}
-.remove-pill{width:22px;height:22px;padding:0;border:0;border-radius:50%;background:rgba(83,63,54,.09);color:#79695b;font-size:12px;line-height:1}
-.remove-pill:hover{background:rgba(181,92,82,.18);color:#8f3f39}
-.empty,.loading{width:100%;padding:12px 14px;border:1px dashed rgba(255,255,255,.25);border-radius:12px;color:rgba(255,255,255,.85);font-size:11px;line-height:1.6;text-align:center}
-.loading{color:#ffe0be}
-.actions{display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px;width:min(100%,350px);margin:17px auto 0}
+.tile-trophy{font-size:18px}
+.remove-pill{width:34px;height:34px;flex:none;padding:0;border:0;border-radius:50%;background:transparent;color:#4d3d4c;font-size:17px;line-height:1}
+.remove-pill:hover{background:rgba(181,92,82,.15);color:#8f3f39}
+.add-tile{display:inline-flex;align-items:center;min-height:52px;padding:4px 6px 4px 18px;border:1px dashed rgba(255,255,255,.4);border-radius:999px;background:rgba(255,255,255,.06)}
+.add-tile input{width:150px;border:0;background:transparent;color:#fff;font-size:15px;outline:none}
+.add-tile input::placeholder{color:rgba(255,255,255,.7)}
+.add-tile button{min-height:40px;padding:4px 14px;border:0;border-radius:999px;background:rgba(255,255,255,.16);color:#fff;font-size:14px;font-weight:700}
+.empty,.loading{padding:14px 18px;border:1px dashed rgba(255,255,255,.3);border-radius:14px;color:rgba(255,255,255,.88);font-size:16px;line-height:1.6}
+.actions{display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:36px}
 .spin-btn{
-  grid-column:1/-1;min-height:58px;padding:14px 24px;border:1px solid rgba(255,255,255,.46);
-  border-radius:17px;color:#402c39;background:linear-gradient(110deg,#ffe9b8,#f5b991);
-  box-shadow:0 10px 28px rgba(41,22,41,.2),inset 0 1px rgba(255,255,255,.75);
-  font-size:16px;font-weight:800;letter-spacing:.01em;transition:transform .18s,box-shadow .18s,opacity .18s
+  display:inline-flex;align-items:center;justify-content:center;gap:16px;
+  width:min(100%,476px);min-height:80px;padding:14px 30px;border:0;border-radius:999px;
+  color:#2c1d34;background:linear-gradient(180deg,#ffd29d,#f6ae76);
+  box-shadow:0 18px 40px rgba(41,22,41,.28),inset 0 2px rgba(255,255,255,.55);
+  font-size:clamp(26px,2.6vw,34px);font-weight:800;transition:transform .18s,box-shadow .18s,opacity .18s
 }
-.spin-btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 14px 32px rgba(41,22,41,.3)}
-.spin-btn:disabled{opacity:.48;cursor:not-allowed}
-.draw-hint{grid-column:1/-1;min-height:16px;color:rgba(255,255,255,.75);font-size:10px;text-align:center}
-.add-row{display:flex;gap:7px;width:100%;margin-top:12px}
-.add-row input{
-  width:0;min-width:0;flex:1;min-height:39px;padding:9px 13px;border:1px solid rgba(255,255,255,.23);
-  border-radius:11px;background:rgba(38,28,53,.3);color:white;font-size:11px
-}
-.add-row input::placeholder{color:rgba(255,255,255,.65)}
-.add-row button{min-height:39px;padding:8px 15px;border:1px solid rgba(255,255,255,.27);border-radius:11px;background:rgba(255,255,255,.15);color:white;font-size:11px;font-weight:800}
-.add-row button:hover{background:rgba(255,255,255,.24)}
+.spin-btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 22px 46px rgba(41,22,41,.34)}
+.spin-btn:disabled{opacity:.5;cursor:not-allowed}
+.draw-hint{min-height:20px;color:rgba(255,255,255,.75);font-size:14px;text-align:center}
+.win-log{display:none}
+
+/* ── Draw effects and the winner card */
 .canvas-confetti{position:fixed;inset:0;z-index:20;width:100%;height:100%;pointer-events:none}
 .overlay{
   position:fixed;inset:0;z-index:30;display:grid;place-items:center;padding:20px;
@@ -143,51 +125,51 @@ h1{max-width:440px;margin:0;color:#fff;font-family:Fraunces,Georgia,serif;font-s
 }
 .overlay.open{opacity:1;visibility:visible}
 .winner-card{
-  position:relative;width:min(440px,100%);padding:40px 25px 34px;border:1px solid rgba(255,255,255,.72);
-  border-radius:28px;background:linear-gradient(145deg,#fff7e8,#f8dbc7);
+  position:relative;width:min(520px,100%);padding:44px 28px 36px;border:1px solid rgba(255,255,255,.72);
+  border-radius:30px;background:linear-gradient(145deg,#fff7e8,#f8dbc7);
   box-shadow:0 24px 90px rgba(16,10,25,.38);color:#433047;text-align:center;cursor:pointer
 }
-.winner-card:before{content:"";position:absolute;inset:8px;border:1px solid rgba(163,113,91,.2);border-radius:21px;pointer-events:none}
-.winner-kicker{margin:0 0 11px;color:#a15d66;font-size:11px;font-weight:800;letter-spacing:.17em}
-.winner-name{margin:0;font-family:Fraunces,Georgia,serif;font-size:clamp(36px,8vw,60px);line-height:1.02;overflow-wrap:anywhere}
-.winner-prize{margin:14px 0 0;color:#6b4f5c;font-size:12px;font-weight:700;line-height:1.5}
-.prize-undo{margin-left:8px;padding:3px 10px;border:1px solid rgba(161,93,102,.4);border-radius:999px;background:transparent;color:#a15d66;font-size:11px;font-weight:800}
+.winner-card:before{content:"";position:absolute;inset:8px;border:1px solid rgba(163,113,91,.2);border-radius:23px;pointer-events:none}
+.winner-kicker{margin:0 0 12px;color:#a15d66;font-size:13px;font-weight:800;letter-spacing:.17em}
+.winner-name{margin:0;font-family:Fraunces,Georgia,serif;font-size:clamp(38px,8vw,64px);line-height:1.02;overflow-wrap:anywhere}
+.winner-prize{margin:16px 0 0;color:#6b4f5c;font-size:14px;font-weight:700;line-height:1.5}
+.prize-undo{margin-left:8px;padding:3px 12px;border:1px solid rgba(161,93,102,.4);border-radius:999px;background:transparent;color:#a15d66;font-size:12px;font-weight:800}
 .prize-undo:hover{background:rgba(161,93,102,.1)}
-.winner-close{margin:17px 0 0;color:#79677d;font-size:10px;font-weight:600}
+.winner-close{margin:18px 0 0;color:#79677d;font-size:12px;font-weight:600}
 .flight-slip{
-  position:fixed;z-index:26;width:55px;height:39px;display:grid;place-items:center;
-  border:1px solid rgba(143,101,53,.22);border-radius:4px;background:#fff2d2;
-  box-shadow:0 8px 22px rgba(20,13,29,.26);font-size:8px;pointer-events:none
+  position:fixed;z-index:26;width:76px;height:54px;display:grid;place-items:center;
+  border:1px solid rgba(143,101,53,.22);border-radius:5px;background:#fff2d2;
+  box-shadow:0 8px 22px rgba(20,13,29,.26);font-size:12px;color:#a3815a;pointer-events:none
 }
 .sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
-.is-shaking{animation:bowl-shake .13s ease-in-out infinite alternate}
-@keyframes bowl-shake{from{transform:translateX(-2px) rotate(-.6deg)}to{transform:translateX(2px) rotate(.6deg)}}
-@keyframes paper-wait{0%,100%{translate:0 0;rotate:-2deg}50%{translate:0 -3px;rotate:2deg}}
-@media(max-width:800px){
-  .header{gap:12px}.status-bar{width:100%;margin:0}
-  .glass-panel{grid-template-columns:minmax(0,1fr) minmax(0,1.12fr);gap:20px;padding:28px}
-  .bowl-stage{width:min(100%,420px)}
+.is-shaking{animation:bowl-shake .09s ease-in-out infinite alternate}
+@keyframes bowl-shake{from{transform:translate(-6px,1px) rotate(-2deg)}to{transform:translate(6px,-1px) rotate(2deg)}}
+@keyframes paper-wait{0%,100%{translate:0 0;rotate:-3deg}50%{translate:0 -4px;rotate:3deg}}
+
+/* ── Smaller screens */
+@media(max-width:1100px){
+  .controls{gap:12px}.logo{font-size:24px;padding-right:16px}
+  select,.header button{min-height:46px;font-size:15px}select{min-width:140px}#selMonth{min-width:190px}
 }
-@media(max-width:640px){
-  .header{padding:12px 15px}.controls{gap:7px}.controls select{flex:1;min-width:115px}
-  .header .btn-load,.header .btn-reset{flex:1}
-  main{width:calc(100% - 24px);margin:16px auto 30px}
-  .glass-panel{grid-template-columns:1fr;gap:9px;padding:24px 17px 20px;border-radius:23px}
-  .intro{align-items:center;text-align:center}
-  .slash-rule{width:128px;margin:0 0 15px!important}
-  .eyebrow{margin-bottom:13px}
-  h1{max-width:350px;font-size:clamp(42px,12vw,56px)}
-  .draw-sub{margin:10px 0 15px}
-  .instructions{padding:14px 15px;text-align:left;font-size:11px}
-  .winner-log{margin-top:0;padding-top:14px}
-  .winner-log-title{text-align:center}
-  .win-log{justify-content:center}
-  .draw-area{margin-top:3px}
-  .bowl-stage{width:min(100%,390px);aspect-ratio:1.15}
-  .paper{width:clamp(24px,7vw,34px);height:clamp(17px,5vw,25px)}
-  .student-heading{padding:0 2px}
-  .wall{gap:6px}
-  .tile{font-size:10px}
+@media(max-width:760px){
+  .header{flex-wrap:wrap;gap:12px;padding:12px 16px}.logo{border:0;padding:0}
+  .controls{order:3;width:100%;flex:none;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .controls select{min-width:0;width:100%}#selMonth{min-width:0}
+  .header .btn-load,.header .btn-reset{justify-content:center;padding:10px 12px}
+  .status-bar{font-size:15px}
+  main{width:calc(100% - 32px);margin:16px auto 30px}
+  .glass-panel{border-radius:26px}
+  .top{grid-template-columns:1fr;gap:6px;text-align:center}
+  .eyebrow{font-size:16px;padding:9px 18px;margin-bottom:16px}
+  .rule{margin:14px auto 16px}.lead{margin:0 auto}
+  .bowl-stage{width:min(100%,360px);margin:0}
+  .paper{width:44px;height:31px}
+  .participants{grid-template-columns:1fr;gap:16px}
+  .p-head{border-right:0;padding-right:0;justify-content:space-between;min-height:0}
+  .wall{gap:10px;justify-content:center}
+  .tile{min-height:46px;font-size:15px;padding-left:18px}
+  .remove-pill{width:30px;height:30px}
+  .spin-btn{min-height:68px}
 }
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
@@ -200,59 +182,46 @@ h1{max-width:440px;margin:0;color:#fff;font-family:Fraunces,Georgia,serif;font-s
   <div class="controls">
     <select id="selClass" aria-label="Class" onchange="onClassChange()"><option value="">— Class —</option></select>
     <select id="selMonth" aria-label="Month"><option value="">— Month —</option></select>
-    <button class="btn-load" onclick="loadCandidates()">▶ Load</button>
-    <button class="btn-reset" onclick="resetDraw()">↺ Reset</button>
+    <button class="btn-load" onclick="loadCandidates()"><svg class="i" viewBox="0 0 24 24" style="fill:currentColor"><path d="M7 4.5v15l12-7.5z"/></svg>Load</button>
+    <button class="btn-reset" onclick="resetDraw()"><svg class="i" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg>Reset</button>
   </div>
-  <div class="status-bar" id="statusBar" aria-live="polite"></div>
+  <div class="status-bar"><svg class="i" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.3-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><path d="M15.5 4.7a3.5 3.5 0 0 1 0 6.6"/><path d="M18 14.8c2 .7 3.2 2.5 3.5 5.2"/></svg><span id="statusBar" aria-live="polite"></span></div>
 </header>
 
 <main>
   <section class="glass-panel" aria-label="Diligent Lucky Draw">
-    <div class="intro">
-      <div class="slash-rule" aria-hidden="true"></div>
-      <div class="eyebrow">LUCKY DRAW</div>
-      <h1>Diligent<br/>Lucky Draw</h1>
-      <p class="draw-sub" id="drawSub">Pick a class and month</p>
-      <div class="slash-rule" aria-hidden="true"></div>
-      <div class="instructions">
-        <ul>
-          <li>Each slip in the bowl is a diligent student ticked in this month's Diligent Report.</li>
-          <li>Press Draw: the slips swirl and one flies out — that student wins.</li>
-          <li>The winner gets a <b>1tr5</b> tuition note on their next unpaid month, so the tuition email asks for 1.500.000 đ.</li>
-          <li>Winners are out of the next draws.</li>
-        </ul>
+    <div class="top">
+      <div class="intro">
+        <div class="eyebrow"><svg viewBox="0 0 24 24"><path d="M10 2l1.9 5.6L17.5 9.5l-5.6 1.9L10 17l-1.9-5.6L2.5 9.5l5.6-1.9z"/><path d="M18.5 13l.9 2.6 2.6.9-2.6.9-.9 2.6-.9-2.6-2.6-.9 2.6-.9z"/></svg>Lucky Draw</div>
+        <h1>Diligent<br/>Lucky Draw</h1>
+        <p class="draw-sub" id="drawSub">Pick a class and month</p>
+        <div class="rule" aria-hidden="true"></div>
+        <p class="lead">Draw a winner from the selected diligent students for this month’s report.</p>
       </div>
-      <div class="winner-log">
-        <div class="winner-log-title">Winners</div>
-        <div class="win-log" id="winLog" aria-live="polite"></div>
-      </div>
-    </div>
-
-    <div class="draw-area">
       <div class="bowl-stage" id="bowlStage">
         <div class="bowl-glow" aria-hidden="true"></div>
         <div class="bowl-contents" id="bowlContents" aria-hidden="true"></div>
         <img class="bowl-art" src="img/lucky-bowl.webp" alt="Glass bowl full of paper slips"/>
-        <div class="bowl-status" id="bowlStatus" aria-live="polite">Pick a class and month, then press ▶ Load</div>
+        <div class="bowl-status" id="bowlStatus" aria-live="polite"></div>
       </div>
-      <div class="student-area">
-        <div class="student-heading">
-          <strong>PARTICIPANTS</strong>
+    </div>
+
+    <div class="bottom">
+      <div class="participants">
+        <div class="p-head">
+          <strong><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3"/><circle cx="5" cy="10" r="2.3"/><circle cx="19" cy="10" r="2.3"/><path d="M6.5 20c.4-3.5 2.6-5.5 5.5-5.5s5.1 2 5.5 5.5z"/><path d="M1.5 19c.3-2.4 1.7-3.8 3.8-3.8"/><path d="M22.5 19c-.3-2.4-1.7-3.8-3.8-3.8"/></svg>Participants</strong>
           <span class="remaining" id="remainingCount">0 slips left</span>
         </div>
         <div class="wall" id="wall">
           <div class="empty">Pick a class and month, then press ▶ Load</div>
         </div>
-        <div class="actions">
-          <button class="spin-btn" id="btnSpin" onclick="doSpin()" disabled>🎲 Draw</button>
-          <div class="draw-hint" id="drawHint">Pick a class and month, then press ▶ Load</div>
-          <div class="add-row">
-            <input type="text" id="addInput" placeholder="+ Add a name by hand…" aria-label="Add a name by hand" onkeydown="if(event.key==='Enter')addName()"/>
-            <button type="button" onclick="addName()">+ Add</button>
-          </div>
-        </div>
+      </div>
+      <div class="actions">
+        <button class="spin-btn" id="btnSpin" onclick="doSpin()" disabled>🎲 Draw</button>
+        <div class="draw-hint" id="drawHint">Pick a class and month, then press ▶ Load</div>
       </div>
     </div>
+    <div class="win-log" id="winLog" aria-live="polite"></div>
   </section>
 </main>
 
@@ -390,7 +359,7 @@ async function loadCandidates(){
       return;
     }
     document.getElementById('bowlStatus').textContent='Ready to draw';
-    document.getElementById('drawHint').textContent='Each student can win once this month';
+    document.getElementById('drawHint').textContent='';
     renderWall();
     document.getElementById('statusBar').textContent=candidates.length+' selected';
   }catch(e){
@@ -403,6 +372,7 @@ function setEmptyState(message){
   wall.innerHTML='';
   var state=document.createElement('div');
   state.className='empty';state.textContent=message;wall.appendChild(state);
+  if(currentClassId&&currentMonth) addTile(wall);
   document.getElementById('bowlStatus').textContent=message;
   document.getElementById('drawHint').textContent=message;
   document.getElementById('remainingCount').textContent='0 slips left';
@@ -410,6 +380,14 @@ function setEmptyState(message){
   renderBowlPapers();
 }
 
+// "+ Add a name" box at the end of the name tiles
+function addTile(wall){
+  var add=document.createElement('div'); add.className='add-tile';
+  add.innerHTML='<input type="text" id="addInput" placeholder="+ Add a name…" aria-label="Add a name by hand"/><button type="button">Add</button>';
+  add.querySelector('input').addEventListener('keydown',function(e){if(e.key==='Enter')addName();});
+  add.querySelector('button').addEventListener('click',addName);
+  wall.appendChild(add);
+}
 function renderWall(){
   var wall=document.getElementById('wall');
   wall.replaceChildren();
@@ -432,6 +410,7 @@ function renderWall(){
     tile.appendChild(remove);
     wall.appendChild(tile);
   });
+  addTile(wall);
   var remaining=candidates.filter(function(n){return !winners.includes(n);}).length;
   document.getElementById('remainingCount').textContent=remaining+(remaining===1?' slip left':' slips left');
   document.getElementById('btnSpin').disabled=remaining===0||spinning;
@@ -449,16 +428,16 @@ function renderBowlPapers(){
   var zone=document.getElementById('bowlContents');
   zone.replaceChildren();
   var remaining=candidates.filter(function(n){return !winners.includes(n);});
-  var shown=remaining.slice(0,24);
+  var shown=remaining.slice(0,16);
   shown.forEach(function(name,i){
     var paper=document.createElement('span');
     paper.className='paper';
     paper.setAttribute('aria-label',name);
-    var cols=6,row=Math.floor(i/cols),col=i%cols;
-    var x=8+col*15.4+(row%2?5:0)+(Math.random()*4-2);
-    var y=12+row*22+(Math.random()*5-2.5);
+    var cols=4,row=Math.floor(i/cols),col=i%cols;
+    var x=6+col*21+(row%2?8:0)+(Math.random()*4-2);
+    var y=8+row*21+(Math.random()*5-2.5);
     paper.style.left=x+'%';paper.style.top=y+'%';
-    paper.style.transform='rotate('+(Math.random()*34-17)+'deg)';
+    paper.style.transform='rotate('+(Math.random()*50-25)+'deg)';
     paper.style.animation='paper-wait '+(2.1+Math.random()*1.8)+'s ease-in-out '+(Math.random()*-2)+'s infinite';
     zone.appendChild(paper);
   });
@@ -466,11 +445,12 @@ function renderBowlPapers(){
 
 function addName(){
   var inp=document.getElementById('addInput');
-  var name=(inp.value||'').trim();
+  var name=(inp&&inp.value||'').trim();
   if(!name||spinning)return;
   if(candidates.includes(name)){inp.value='';return;}
   candidates.push(name);inp.value='';
   renderWall();
+  document.getElementById('addInput').focus();
   document.getElementById('statusBar').textContent=candidates.length+' selected';
 }
 
@@ -491,7 +471,7 @@ function resetDraw(){
   closeWinner();
   document.getElementById('bowlStage').classList.remove('is-shaking');
   document.getElementById('btnSpin').disabled=candidates.length===0;
-  document.getElementById('drawHint').textContent=candidates.length?'Each student can win once this month':'Pick a class and month, then press ▶ Load';
+  document.getElementById('drawHint').textContent=candidates.length?'':'Pick a class and month, then press ▶ Load';
   renderWall();
 }
 
@@ -525,14 +505,16 @@ function animateDraw(winner,token){
   var duration=2500;
   papers.forEach(function(paper,i){
     var direction=i%2?1:-1;
-    var turns=direction*(540+(i%5)*78);
-    var radiusX=16+(i%4)*5,radiusY=12+(i%3)*5;
+    var turns=direction*(900+(i%5)*120);
+    var radiusX=34+(i%4)*9,radiusY=24+(i%3)*8;
     var delay=i*5;
     paper.style.animation='none';
     paper.animate([
       {transform:'translate(0,0) rotate(0deg)'},
-      {transform:'translate('+radiusX+'px,'+(-radiusY)+'px) rotate('+(turns*.18)+'deg)',offset:.22},
-      {transform:'translate('+(-radiusX)+'px,'+(radiusY)+'px) rotate('+(turns*.72)+'deg)',offset:.72},
+      {transform:'translate('+radiusX+'px,'+(-radiusY)+'px) rotate('+(turns*.18)+'deg)',offset:.2},
+      {transform:'translate('+(-radiusX*.6)+'px,'+(-radiusY*1.5)+'px) rotate('+(turns*.4)+'deg)',offset:.4},
+      {transform:'translate('+(-radiusX)+'px,'+(radiusY)+'px) rotate('+(turns*.62)+'deg)',offset:.6},
+      {transform:'translate('+(radiusX*.7)+'px,'+(radiusY*.8)+'px) rotate('+(turns*.85)+'deg)',offset:.8},
       {transform:'translate(0,0) rotate('+turns+'deg)'}
     ],{duration:duration,delay:delay,easing:'cubic-bezier(.16,.68,.24,1)',fill:'forwards'});
   });
@@ -548,7 +530,7 @@ function animateDraw(winner,token){
 function flyWinnerPaper(winner,token){
   var stage=document.getElementById('bowlStage').getBoundingClientRect();
   var flyer=document.createElement('div');
-  flyer.className='flight-slip';flyer.textContent='✦';
+  flyer.className='flight-slip';flyer.textContent='★';
   flyer.style.left=(stage.left+stage.width*.5)+'px';
   flyer.style.top=(stage.top+stage.height*.48)+'px';
   document.body.appendChild(flyer);
