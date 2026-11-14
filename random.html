@@ -3,171 +3,103 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>IELTS Hub — Lucky Draw</title>
-<link rel="icon" type="image/svg+xml" href="class-hub-icon.svg?v=3"/>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Fraunces:opsz,wght@9..144,700;9..144,900&display=swap" rel="stylesheet"/>
+<title>IELTS Hub — Random Draw</title>
 <style>
-/* Colours of the app (class-hub-theme.css): charcoal, copper, gold, cream */
-:root{--ink:#fffdfa;--soft:rgba(255,253,250,.68);--glass:rgba(255,253,250,.06);--line:rgba(229,166,110,.22);
-  --copper:#b96e39;--copper-lt:#e5a66e;--gold:#d7a348;--cream:#fffdfa;--char:#22211e;--char2:#2b2a26;
-  --serif:'Fraunces',Georgia,serif;--font:'Plus Jakarta Sans','DM Sans',sans-serif;}
+:root{--red:#E01A22;--gold:#f59e0b;--dark:#1a1916;--g50:#f8f7f5;--g100:#f0eeea;--g200:#e2e0db;--g400:#9d9b96;--g600:#5c5a56;}
 *{box-sizing:border-box;margin:0;padding:0;}
-body{min-height:100vh;color:var(--ink);font-family:var(--font);overflow-x:hidden;background-color:var(--char);
-  background:radial-gradient(900px 520px at 70% 8%,rgba(185,110,57,.30),transparent 65%),
-             radial-gradient(700px 600px at 0% 100%,rgba(215,163,72,.10),transparent 60%),
-             linear-gradient(160deg,#2b2a26 0%,#1d1c19 100%);background-attachment:fixed;}
+body{background:var(--dark);font-family:'Helvetica Neue',Arial,sans-serif;min-height:100vh;color:white;}
 
-/* header */
-.header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 24px;background:rgba(39,39,35,.85);border-bottom:1px solid var(--line);}
-.logo{font-family:var(--serif);font-size:19px;font-weight:700;color:var(--cream);text-decoration:none;}
-.logo span{color:var(--copper-lt);}
+.header{background:rgba(0,0,0,.5);border-bottom:1px solid rgba(255,255,255,.1);padding:14px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+.logo{font-size:18px;font-weight:800;color:white;text-decoration:none;}
+.logo span{color:var(--red);}
 .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex:1;}
-select,.add-row input{padding:8px 14px;border-radius:10px;font-size:13px;font-weight:600;font-family:var(--font);border:1px solid var(--line);outline:none;background:var(--glass);color:var(--cream);}
-select option{background:var(--char2);color:var(--cream);}
-button{font-family:inherit;cursor:pointer;border:none;outline:none;}
-.btn{padding:8px 16px;border-radius:10px;font-size:13px;font-weight:700;color:var(--cream);background:var(--glass);border:1px solid var(--line);}
-.btn:hover{background:rgba(255,253,250,.12);}
-.btn-primary{background:linear-gradient(135deg,var(--copper-lt),var(--copper));border-color:transparent;}
-.status-bar{font-size:12px;color:var(--soft);margin-left:auto;white-space:nowrap;}
+select{padding:7px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid rgba(255,255,255,.2);outline:none;background:rgba(255,255,255,.1);color:white;}
+select option{background:#2a2825;color:white;}
+button{padding:7px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;outline:none;}
+.btn-load{background:var(--red);color:white;}
+.btn-load:hover{background:#c4151c;}
+.btn-reset{background:rgba(255,255,255,.1);color:white;border:1px solid rgba(255,255,255,.2);}
+.btn-add{background:rgba(255,255,255,.15);color:white;border:1px solid rgba(255,255,255,.2);}
+.status-bar{font-size:12px;color:rgba(255,255,255,.45);margin-left:auto;white-space:nowrap;}
 
-/* layout */
-.page{max-width:1180px;margin:0 auto;padding:28px 24px 200px;display:grid;grid-template-columns:320px 1fr;gap:28px;align-items:start;}
-@media(max-width:900px){.page{grid-template-columns:1fr;}}
+/* WALL */
+.wall{padding:24px;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;}
+.tile{border-radius:12px;padding:16px 12px;text-align:center;font-size:14px;font-weight:700;color:white;
+  transition:transform .15s,opacity .3s,box-shadow .15s;min-height:64px;
+  display:flex;align-items:center;justify-content:center;position:relative;}
+.tile.eliminated{opacity:.15;transform:scale(.9);}
+.tile.winner{box-shadow:0 0 28px rgba(255,215,0,.7);outline:3px solid gold;transform:scale(1.1);}
+.tile.spinning{animation:sf .12s infinite alternate;}
+@keyframes sf{from{filter:brightness(1.7);}to{filter:brightness(.6);}}
 
-/* intro card */
-.intro{background:linear-gradient(160deg,rgba(255,253,250,.07),rgba(255,253,250,.02));border:1px solid var(--line);border-radius:20px;padding:26px 24px;box-shadow:0 24px 60px rgba(0,0,0,.35);}
-.chip{display:inline-block;padding:6px 14px;border-radius:8px;background:rgba(185,110,57,.18);border:1px solid var(--line);font-size:11px;font-weight:800;letter-spacing:2.5px;color:var(--copper-lt);}
-.intro h1{font-family:var(--serif);font-size:42px;line-height:1.05;font-weight:900;margin:18px 0 8px;}
-.intro h1 em{font-style:normal;color:var(--copper-lt);}
-.intro .sub{font-size:14px;color:var(--soft);min-height:20px;}
-.rule{height:6px;margin:18px 0;background:repeating-linear-gradient(135deg,rgba(229,166,110,.45) 0 2px,transparent 2px 6px);border-radius:3px;opacity:.55;}
-.intro ul{list-style:none;background:rgba(0,0,0,.18);border:1px solid var(--line);border-radius:14px;padding:16px 18px;}
-.intro li{font-size:13.5px;line-height:1.6;color:var(--soft);padding-left:16px;position:relative;}
-.intro li+li{margin-top:8px;}
-.intro li::before{content:'';position:absolute;left:0;top:9px;width:6px;height:6px;border-radius:50%;background:var(--gold);}
-.intro li b{color:var(--cream);}
-.win-log{margin-top:18px;display:flex;flex-direction:column;gap:8px;}
-.win-badge{display:flex;align-items:center;gap:10px;padding:9px 14px;border-radius:12px;background:linear-gradient(135deg,#f3d39a,var(--gold));color:#3a2614;font-size:13px;font-weight:800;}
-.win-badge b{font-size:11px;background:rgba(255,253,250,.6);border-radius:6px;padding:2px 7px;}
+/* DISPLAY */
+.spin-display{margin:20px 24px 0;background:rgba(255,255,255,.06);border:2px solid rgba(255,255,255,.1);
+  border-radius:16px;padding:20px;text-align:center;}
+.spin-name{font-size:36px;font-weight:900;min-height:52px;letter-spacing:.5px;transition:color .1s;}
+.spin-btn{margin-top:14px;width:64px;height:64px;border-radius:50%;background:var(--red);
+  font-size:28px;cursor:pointer;border:none;color:white;transition:transform .15s,box-shadow .15s;}
+.spin-btn:hover{transform:scale(1.08);box-shadow:0 4px 20px rgba(224,26,34,.5);}
+.spin-btn:disabled{opacity:.5;cursor:default;transform:none;}
 
-/* stage with the gift boxes */
-.stage{background:radial-gradient(600px 260px at 50% 0%,rgba(185,110,57,.14),transparent 70%),rgba(0,0,0,.18);border:1px solid var(--line);border-radius:24px;padding:40px 24px 26px;min-height:440px;display:flex;flex-direction:column;align-items:center;}
-.boxes{display:grid;grid-template-columns:repeat(auto-fill,170px);justify-content:center;gap:44px 28px;width:100%;}
-.empty{padding:90px 10px;text-align:center;color:var(--soft);font-size:15px;line-height:1.8;}
-.empty small{opacity:.75;}
-.loading{padding:90px 10px;text-align:center;color:var(--soft);}
+/* ADD NAME */
+.add-row{display:flex;gap:8px;padding:0 24px;margin-top:16px;}
+.add-row input{flex:1;padding:8px 14px;border-radius:8px;background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.2);color:white;font-size:13px;outline:none;}
+.add-row input::placeholder{color:rgba(255,255,255,.35);}
+.add-row input:focus{border-color:rgba(255,255,255,.5);}
 
-.box{position:relative;height:172px;z-index:1;}
-/* box body: black with a gold ribbon */
-.box .body{position:absolute;left:0;right:0;top:46px;bottom:0;border-radius:5px;overflow:hidden;
-  background:linear-gradient(180deg,#34322d 0%,#1b1a17 100%);box-shadow:0 22px 30px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.07);
-  display:flex;align-items:center;justify-content:center;padding:14px 10px 12px;transition:box-shadow .12s;}
-.box .body::before{content:'';position:absolute;left:50%;top:0;bottom:0;width:20px;margin-left:-10px;
-  background:linear-gradient(90deg,#9c6b2a,#e9c27a 45%,#b98535 70%,#8a5b22);}
-.box .body::after{content:'';position:absolute;inset:0;background:radial-gradient(120% 70% at 50% 0%,rgba(255,214,140,.95),rgba(229,166,110,.35) 45%,transparent 75%);opacity:0;transition:opacity .4s;}
-/* lid + bow */
-.box .lid{position:absolute;left:-4%;right:-4%;top:22px;height:30px;border-radius:5px;z-index:2;
-  background:linear-gradient(180deg,#3d3b35,#22211d);box-shadow:0 6px 12px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.08);
-  transform-origin:6% 100%;transition:transform .85s cubic-bezier(.2,.9,.25,1.25);}
-.box .lid::after{content:'';position:absolute;left:50%;top:0;bottom:0;width:22px;margin-left:-11px;background:linear-gradient(90deg,#9c6b2a,#e9c27a 45%,#b98535 70%,#8a5b22);}
-.box .bow{position:absolute;left:50%;top:-20px;width:0;height:0;}
-.box .bow i{position:absolute;top:0;width:32px;height:22px;border:5px solid #d9ad5c;border-radius:50% 50% 50% 50%/60% 60% 40% 40%;background:rgba(150,100,40,.35);}
-.box .bow i:first-child{right:2px;transform:rotate(-18deg);}
-.box .bow i:last-child{left:2px;transform:rotate(18deg);}
-.box .bow::after{content:'';position:absolute;left:-7px;top:9px;width:14px;height:12px;border-radius:4px;background:linear-gradient(180deg,#f0cd85,#b98535);}
-/* name tag on the box */
-.box .tag{position:relative;z-index:1;max-width:92%;padding:7px 10px;border-radius:7px;background:linear-gradient(180deg,#fffdfa,#f3ead9);color:#3a2614;
-  font-size:13px;font-weight:800;line-height:1.3;text-align:center;box-shadow:0 3px 8px rgba(0,0,0,.35);word-break:break-word;}
-.box .x{position:absolute;top:-30px;right:-8px;z-index:3;width:22px;height:22px;border-radius:50%;background:rgba(255,253,250,.15);color:var(--cream);font-size:11px;line-height:22px;opacity:0;transition:opacity .2s;}
-.box:hover .x{opacity:1;}
-/* the light hops: lit box */
-.box.hot .body{box-shadow:0 0 0 2px rgba(233,194,122,.9),0 0 40px 12px rgba(229,166,110,.55),0 22px 30px rgba(0,0,0,.55);}
-.box.hot .lid{box-shadow:0 0 0 2px rgba(233,194,122,.9),0 0 26px 6px rgba(229,166,110,.45);}
-/* opened: lid off, light from inside */
-.box .beam{position:absolute;left:4%;right:4%;bottom:calc(100% - 50px);height:150px;z-index:0;pointer-events:none;opacity:0;
-  background:radial-gradient(60% 100% at 50% 100%,rgba(255,220,150,.75),rgba(229,166,110,.25) 55%,transparent 80%);filter:blur(4px);transition:opacity .5s;}
-.box.open{z-index:5;}
-.box.open .lid{transform:translate(-8px,-44px) rotate(-22deg);}
-.box.open .body::after,.box.open .beam{opacity:1;}
-.box.open .tag{visibility:hidden;}
-.box.drawn{opacity:.42;filter:saturate(.5);}
-.box.drawn .lid{transform:translate(-6px,-26px) rotate(-14deg);}
-.box.drawn .tag::after{content:' ✓';}
+/* WINNERS LOG */
+.win-log{display:flex;gap:8px;flex-wrap:wrap;padding:16px 24px 0;}
+.win-badge{padding:5px 14px;border-radius:8px;background:linear-gradient(135deg,#f59e0b,#d97706);
+  color:white;font-size:12px;font-weight:700;}
 
-.draw-btn{margin-top:34px;min-width:220px;padding:16px 34px;border-radius:14px;font-family:var(--serif);font-size:22px;font-weight:900;letter-spacing:.5px;color:#2b1a0d;
-  background:linear-gradient(180deg,#f3d39a,var(--copper-lt) 50%,var(--copper));box-shadow:0 10px 30px rgba(185,110,57,.45),inset 0 -3px 0 rgba(0,0,0,.15);transition:transform .15s,filter .15s;}
-.draw-btn:hover{transform:translateY(-2px);}
-.draw-btn:disabled{filter:grayscale(.7) brightness(.8);cursor:default;transform:none;}
-.draw-note{margin-top:10px;font-size:12px;color:var(--soft);}
-.add-row{display:flex;gap:8px;width:100%;max-width:520px;margin-top:22px;}
-.add-row input{flex:1;font-weight:500;}
-.add-row input::placeholder{color:rgba(255,253,250,.45);}
-
-/* winner: the name card flies out like a gift card */
-.fly{position:fixed;z-index:50;pointer-events:none;min-width:150px;padding:14px 18px;border-radius:10px;background:linear-gradient(160deg,#fffdfa,#f1e3c8);
-  color:#3a2614;font-family:var(--serif);font-weight:900;text-align:center;box-shadow:0 18px 40px rgba(0,0,0,.45),0 0 30px rgba(255,214,140,.5);}
-.overlay{position:fixed;inset:0;z-index:40;display:none;align-items:center;justify-content:center;background:rgba(15,14,12,.55);cursor:pointer;}
-.overlay.show{display:flex;}
-.winner-card{text-align:center;padding:32px 46px;border-radius:18px;background:linear-gradient(160deg,#fffdfa,#f1e3c8);color:#3a2614;
-  box-shadow:0 30px 90px rgba(0,0,0,.6),0 0 60px rgba(229,166,110,.45);border:2px solid rgba(215,163,72,.6);animation:pop .55s cubic-bezier(.2,1.4,.4,1);}
-.winner-card .lbl{font-size:12px;font-weight:800;letter-spacing:3px;color:var(--copper);}
-.winner-card .nm{font-family:var(--serif);font-size:44px;font-weight:900;margin:12px 0 8px;line-height:1.1;}
-.winner-card .hint{font-size:12px;color:#8c6a52;}
-@keyframes pop{from{transform:scale(.6) rotate(-4deg);opacity:0}to{transform:scale(1) rotate(0);opacity:1}}
-#confetti{position:fixed;inset:0;z-index:60;pointer-events:none;}
-
-/* the glass bowl from the reference picture, half size, bottom right */
-.bowl{position:fixed;right:18px;bottom:10px;width:125px;z-index:1;pointer-events:none;opacity:.9;filter:saturate(.25) sepia(.3) drop-shadow(0 10px 20px rgba(0,0,0,.45));}
-@media(max-width:600px){.bowl{width:90px;}.intro h1{font-size:32px;}.boxes{grid-template-columns:repeat(auto-fill,140px);gap:40px 18px;}}
+/* EMPTY */
+.empty{padding:80px 24px;text-align:center;color:rgba(255,255,255,.25);font-size:15px;line-height:1.8;}
+.loading{padding:60px;text-align:center;color:rgba(255,255,255,.35);font-size:14px;}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}
+.spinner{display:inline-block;font-size:28px;animation:spin 1s linear infinite;}
+.pulse{animation:pulse 1.5s ease-in-out infinite;}
 </style>
+<link rel="stylesheet" href="class-hub-theme.css"/>
+<link rel="icon" type="image/svg+xml" href="class-hub-icon.svg?v=3"/>
 </head>
 <body>
 
 <div class="header">
   <a href="teacher.html" class="logo">IELTS <span>Hub</span></a>
   <div class="controls">
-    <select id="selClass" onchange="onClassChange()" aria-label="Class"><option value="">— Class —</option></select>
-    <select id="selMonth" aria-label="Month"><option value="">— Month —</option></select>
-    <button class="btn btn-primary" onclick="loadCandidates()">▶ Load</button>
-    <button class="btn" onclick="resetDraw()">↺ Reset</button>
+    <select id="selClass" onchange="onClassChange()"><option value="">— Class —</option></select>
+    <select id="selMonth"><option value="">— Month —</option></select>
+    <button class="btn-load" onclick="loadCandidates()">▶ Load</button>
+    <button class="btn-reset" onclick="resetDraw()">↺ Reset</button>
   </div>
   <div class="status-bar" id="statusBar"></div>
 </div>
 
-<div class="page">
-  <section class="intro">
-    <span class="chip">LUCKY DRAW</span>
-    <h1>Diligent<br><em>Lucky</em> Draw</h1>
-    <div class="sub" id="drawSub">Chọn lớp và tháng, rồi bấm ▶ Load.</div>
-    <div class="rule"></div>
-    <ul>
-      <li>Mỗi hộp quà là một bạn chăm chỉ được tích chọn trong Diligent Report của tháng.</li>
-      <li>Bấm <b>Draw</b>: ánh sáng chạy qua các hộp và dừng ở một hộp ngẫu nhiên. Hộp mở ra, tên bạn trúng thưởng bay ra.</li>
-      <li>Bấm Draw tiếp để chọn người tiếp theo; người đã trúng không vào lượt sau.</li>
-    </ul>
-    <div class="win-log" id="winLog"></div>
-  </section>
+<div class="win-log" id="winLog"></div>
 
-  <section class="stage">
-    <div class="boxes" id="wall"><div class="empty" style="grid-column:1/-1">Chọn lớp và tháng,<br>rồi bấm ▶ Load.</div></div>
-    <button class="draw-btn" id="btnSpin" onclick="doSpin()">🎁 Draw</button>
-    <div class="draw-note" id="drawNote"></div>
-    <div class="add-row">
-      <input type="text" id="addInput" placeholder="+ Thêm tên bằng tay…" onkeydown="if(event.key==='Enter')addName()"/>
-      <button class="btn" onclick="addName()">+ Add</button>
-    </div>
-  </section>
+<div class="spin-display">
+  <div class="spin-name" id="spinName">—</div>
+  <button class="spin-btn" id="btnSpin" onclick="doSpin()">🎯</button>
 </div>
 
-<img class="bowl" src="img/draw-bowl.webp" alt=""/>
-<div class="overlay" id="overlay" onclick="closeWinner()"><div class="winner-card"><div class="lbl">🎉 CHÚC MỪNG 🎉</div><div class="nm" id="winnerName"></div><div class="hint">Bấm vào đây để tiếp tục</div></div></div>
-<canvas id="confetti"></canvas>
+<div class="add-row">
+  <input type="text" id="addInput" placeholder="+ Add a name manually…" onkeydown="if(event.key==='Enter')addName()"/>
+  <button class="btn-add" onclick="addName()">+ Add</button>
+</div>
+
+<div class="wall" id="wall">
+  <div class="empty">Select a class and month,<br>then click ▶ Load.</div>
+</div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="db.js"></script>
 <script>
+const COLORS=['#e11d48','#7c3aed','#1d4ed8','#0891b2','#059669','#d97706','#dc2626','#9333ea','#2563eb','#16a34a','#ca8a04','#0284c7','#be185d','#0369a1','#15803d'];
+
 var candidates=[], winners=[], spinning=false;
 
 // Firestore through db.js (teacher account); same actions as the old Apps Script API
@@ -176,12 +108,13 @@ async function gasCall(action,data){
   if(!st.signedIn||st.role!=='Teacher'){ location.href='index.html'; return {success:false}; }
   return DB.api(action,data);
 }
-function stageMessage(html){ document.getElementById('wall').innerHTML='<div class="empty" style="grid-column:1/-1">'+html+'</div>'; }
 
 // ── Init: read URL params then load classes
 window.addEventListener('load', async function(){
   const p=new URLSearchParams(location.search);
   const preClass=p.get('class'), preMonth=p.get('month');
+
+  // Load classes
   var selClass=document.getElementById('selClass');
   selClass.innerHTML='<option value="">&#9203; Loading…</option>';
   try{
@@ -194,8 +127,11 @@ window.addEventListener('load', async function(){
       selClass.appendChild(o);
     });
   }catch(e){ selClass.innerHTML='<option value="">Error loading</option>'; }
+
+  // If URL has class → load its months
   if(preClass){
     await loadMonths(preClass, preMonth?parseInt(preMonth):null);
+    // Auto-load candidates if month also provided
     if(preMonth) loadCandidates();
   }
 });
@@ -218,6 +154,7 @@ async function loadMonths(classId, autoMonth){
       if(autoMonth&&mo.month===autoMonth) o.selected=true;
       sel.appendChild(o);
     });
+    // Default to latest month if no autoMonth
     if(!autoMonth&&r.months&&r.months.length)
       sel.value=r.months[r.months.length-1].month;
   }catch(e){ sel.innerHTML='<option value="">Error</option>'; }
@@ -226,150 +163,159 @@ async function loadMonths(classId, autoMonth){
 async function loadCandidates(){
   var classId=document.getElementById('selClass').value;
   var month=parseInt(document.getElementById('selMonth').value);
-  winners=[]; spinning=false; updateWinLog();
-  if(!classId||!month){ stageMessage('Chọn lớp và tháng,<br>rồi bấm ▶ Load.'); return; }
-  document.getElementById('drawSub').textContent=classId+' · Month '+month;
-  document.getElementById('wall').innerHTML='<div class="loading" style="grid-column:1/-1">⏳ Đang tải danh sách…</div>';
+  var wall=document.getElementById('wall');
+  winners=[]; spinning=false;
+  document.getElementById('winLog').innerHTML='';
+  document.getElementById('spinName').textContent='—';
+  document.getElementById('spinName').style.color='white';
+
+  if(!classId||!month){
+    wall.innerHTML='<div class="empty">Please select a class and month.</div>';
+    return;
+  }
+  wall.innerHTML='<div class="loading"><div class="spinner">&#9203;</div><div style="margin-top:14px" class="pulse">Loading eligible students…</div></div>';
   document.getElementById('statusBar').textContent='';
+
   try{
     // Same month data and rule as the Diligent Report; the students ticked there for this class and month
     // (or, if the teacher hasn't changed the ticks, everyone who qualifies)
     var mo=await gasCall('getRewardsMonth',{classId:classId,month:month});
-    if(!mo||!mo.success){ stageMessage('Tháng này chưa có dữ liệu.'); return; }
+    if(!mo||!mo.success){wall.innerHTML='<div class="empty">No data for this month.</div>';return;}
     var saved=null;
     try{var v=JSON.parse(localStorage.getItem('classhub:diligent-draw:'+encodeURIComponent(classId)+':'+month));saved=Array.isArray(v)?v:null;}catch(e){}
     candidates=mo.students.filter(function(s){return saved?saved.indexOf(s.email)>=0:s.diligent;}).map(function(s){return s.name;});
+
     if(!candidates.length){
-      stageMessage('Chưa có bạn nào được chọn cho lượt quay này.<br><small>Hãy tích chọn trong Diligent Report trước.<br>Điều kiện: đóng học phí · 8 buổi Present · làm đủ homework (Done)</small>');
+      wall.innerHTML='<div class="empty">No students selected for this draw.<br><small style="opacity:.5">Select qualified students in the Diligent Report first.<br>Criteria: tuition paid · 8 present · 0 late · 0 absent · all homework submitted</small></div>';
       document.getElementById('statusBar').textContent='0 selected';
       return;
     }
     renderWall();
-  }catch(e){ stageMessage('Không tải được. Hãy đăng nhập lại.'); }
+    document.getElementById('statusBar').textContent=candidates.length+' selected';
+  }catch(e){
+    wall.innerHTML='<div class="empty">Failed to load. Please sign in again.</div>';
+  }
 }
 
 function renderWall(){
   var wall=document.getElementById('wall');
   wall.innerHTML='';
-  if(!candidates.length){ stageMessage('Chưa có tên nào. Thêm tên ở ô bên dưới.'); }
   candidates.forEach(function(name,i){
-    var box=document.createElement('div');
-    box.className='box'+(winners.includes(name)?' drawn':'');
-    box.id='t'+i;
-    box.innerHTML='<div class="beam"></div><div class="lid"><div class="bow"><i></i><i></i></div></div><div class="body"><div class="tag"></div></div><button class="x" title="Bỏ khỏi lượt quay" aria-label="Remove">✕</button>';
-    box.querySelector('.tag').textContent=name;
-    box.querySelector('.x').onclick=function(){ removeName(name); };
-    wall.appendChild(box);
+    var tile=document.createElement('div');
+    tile.className='tile'+(winners.includes(name)?' eliminated':'');
+    tile.id='t'+i;
+    tile.style.background=COLORS[i%COLORS.length];
+    // Name + remove button
+    tile.innerHTML='<span>'+name+'</span>'+
+      '<button onclick="removeName(\''+name.replace(/'/g,"\\'")+'\')" '+
+        'style="position:absolute;top:4px;right:6px;background:none;border:none;color:rgba(255,255,255,.5);'+
+        'font-size:11px;cursor:pointer;padding:0;line-height:1" title="Remove">✕</button>';
+    wall.appendChild(tile);
   });
-  var left=candidates.filter(function(n){return !winners.includes(n);}).length;
-  document.getElementById('statusBar').textContent=candidates.length+' selected';
-  document.getElementById('drawNote').textContent=candidates.length?(left?left+' hộp còn lại':'Đã quay hết — bấm ↺ Reset để quay lại'):'';
-  document.getElementById('btnSpin').disabled=!left;
 }
 
 function addName(){
   var inp=document.getElementById('addInput');
   var name=(inp.value||'').trim();
   if(!name)return;
-  if(!candidates.includes(name)) candidates.push(name);
+  if(candidates.includes(name)){inp.value='';return;}
+  candidates.push(name);
   inp.value='';
   renderWall();
+  document.getElementById('statusBar').textContent=candidates.length+' eligible';
 }
 
 function removeName(name){
-  if(spinning)return;
   candidates=candidates.filter(function(n){return n!==name;});
   winners=winners.filter(function(n){return n!==name;});
-  updateWinLog(); renderWall();
+  renderWall();
+  document.getElementById('statusBar').textContent=candidates.length+' eligible';
 }
 
 function resetDraw(){
-  if(spinning)return;
-  winners=[]; updateWinLog(); closeWinner(); renderWall();
+  winners=[]; spinning=false;
+  document.getElementById('winLog').innerHTML='';
+  document.getElementById('spinName').textContent='—';
+  document.getElementById('spinName').style.color='white';
+  document.getElementById('btnSpin').disabled=false;
+  renderWall();
 }
 
-// The light hops from box to box, slowing down, and stops on the winner (picked first, at random)
 function doSpin(){
   if(spinning)return;
-  var avail=candidates.map(function(n,i){return i;}).filter(function(i){return !winners.includes(candidates[i]);});
-  if(!avail.length)return;
-  spinning=true; document.getElementById('btnSpin').disabled=true;
-  var win=avail[Math.floor(Math.random()*avail.length)];
-  var steps=avail.length===1?6:22+Math.floor(Math.random()*8), path=[], prev=-1;
-  for(var k=0;k<steps-1;k++){ var j; do{ j=avail[Math.floor(Math.random()*avail.length)]; }while(avail.length>1&&j===prev); path.push(j); prev=j; }
-  if(path[path.length-1]===win&&avail.length>1) path.pop();
-  path.push(win);
-  var n=0;
-  (function hop(){
-    document.querySelectorAll('.box.hot').forEach(function(b){b.classList.remove('hot');});
-    var el=document.getElementById('t'+path[n]); if(el) el.classList.add('hot');
-    if(++n<path.length){ setTimeout(hop, 55+Math.pow(n/path.length,3)*420); return; }
-    setTimeout(function(){ openBox(win); }, 450);
-  })();
-}
+  var available=candidates.filter(function(n){return !winners.includes(n);});
+  if(!available.length){
+    document.getElementById('spinName').textContent='All drawn! ↺ Reset';
+    return;
+  }
+  spinning=true;
+  document.getElementById('btnSpin').disabled=true;
 
-function openBox(i){
-  var box=document.getElementById('t'+i), name=candidates[i];
-  box.classList.remove('hot'); box.classList.add('open');
-  // the name flies out of the box to the middle of the screen
-  var r=box.getBoundingClientRect(), fly=document.createElement('div');
-  fly.className='fly'; fly.textContent=name;
-  fly.style.left=(r.left+r.width/2)+'px'; fly.style.top=(r.top+r.height/2)+'px';
-  fly.style.fontSize='14px'; fly.style.transform='translate(-50%,-50%)';
-  document.body.appendChild(fly);
-  var dx=window.innerWidth/2-(r.left+r.width/2), dy=window.innerHeight/2-(r.top+r.height/2);
-  var anim=fly.animate([
-    {transform:'translate(-50%,-50%) scale(.5) rotate(0deg)',opacity:0},
-    {transform:'translate(-50%,calc(-50% - 120px)) scale(1.25) rotate(-8deg)',opacity:1,offset:.4},
-    {transform:'translate(calc(-50% + '+dx+'px),calc(-50% + '+dy+'px)) scale(2.2) rotate(0deg)',opacity:1,offset:.9},
-    {transform:'translate(calc(-50% + '+dx+'px),calc(-50% + '+dy+'px)) scale(2.3)',opacity:0}
-  ],{duration:1400,easing:'cubic-bezier(.3,.7,.3,1)',fill:'forwards'});
-  setTimeout(function(){ confetti(r.left+r.width/2, r.top+50); }, 300);
-  anim.onfinish=function(){
-    fly.remove();
-    winners.push(name); updateWinLog();
-    document.getElementById('winnerName').textContent=name;
-    document.getElementById('overlay').classList.add('show');
-    spinning=false;
-  };
-}
-function closeWinner(){
-  var ov=document.getElementById('overlay');
-  if(!ov.classList.contains('show'))return;
-  ov.classList.remove('show'); renderWall();
+  var winner=available[Math.floor(Math.random()*available.length)];
+  var display=document.getElementById('spinName');
+  var idx=0, total=24+Math.floor(Math.random()*14);
+
+  // Flash all remaining tiles
+  candidates.forEach(function(n,i){
+    if(!winners.includes(n)){
+      var t=document.getElementById('t'+i);
+      if(t)t.classList.add('spinning');
+    }
+  });
+
+  var iv=setInterval(function(){
+    idx++;
+    var pick=available[Math.floor(Math.random()*available.length)];
+    display.textContent=pick;
+    display.style.color='rgba(255,255,255,.7)';
+    display.style.fontSize='32px';
+
+    if(idx>=total){
+      clearInterval(iv);
+      // Stop all spinning
+      candidates.forEach(function(n,i){
+        var t=document.getElementById('t'+i);
+        if(t) t.classList.remove('spinning');
+      });
+
+      // Show winner
+      display.textContent='🎉  '+winner;
+      display.style.color='#fbbf24';
+      display.style.fontSize='36px';
+
+      // Mark winner tile
+      var wi=candidates.indexOf(winner);
+      var wt=document.getElementById('t'+wi);
+      if(wt){wt.classList.add('winner');}
+
+      // Dim others
+      candidates.forEach(function(n,i){
+        if(n!==winner&&!winners.includes(n)){
+          var t=document.getElementById('t'+i);
+          if(t) t.style.opacity='.2';
+        }
+      });
+
+      winners.push(winner);
+      updateWinLog();
+      spinning=false;
+      document.getElementById('btnSpin').disabled=false;
+
+      // Restore wall after 1.8s
+      setTimeout(function(){
+        renderWall();
+      },1800);
+    }
+  },75);
 }
 
 function updateWinLog(){
-  var el=document.getElementById('winLog'); el.innerHTML='';
-  winners.forEach(function(n,i){
-    var d=document.createElement('div'); d.className='win-badge';
-    d.innerHTML='<b>#'+(i+1)+'</b><span></span>'; d.querySelector('span').textContent='🏆 '+n;
-    el.appendChild(d);
-  });
-}
-
-// Confetti: paper pieces shot up from the bottom, falling with gravity for ~4 s
-function confetti(cx,cy){
-  var cv=document.getElementById('confetti'), ctx=cv.getContext('2d');
-  var W=cv.width=window.innerWidth, H=cv.height=window.innerHeight;
-  var cols=['#e9c27a','#d7a348','#f3d39a','#e5a66e','#b96e39','#fffdfa'], ps=[];
-  for(var k=0;k<220;k++){   // gold flakes burst from the opened box, plus sparkles from the sides
-    var side=k%3, a=-Math.PI/2+(Math.random()-.5)*1.3, sp=9+Math.random()*12;
-    ps.push({x:side===0?cx:side===1?W*0.08:W*0.92, y:side===0?cy:H+10,
-      vx:side===0?Math.cos(a)*sp:(side===1?1:-1)*(3+Math.random()*6), vy:side===0?Math.sin(a)*sp:-(13+Math.random()*9),
-      w:3+Math.random()*5, h:4+Math.random()*7, r:Math.random()*6, vr:(Math.random()-.5)*.35, c:cols[k%cols.length]});
-  }
-  var t0=performance.now();
-  (function frame(t){
-    ctx.clearRect(0,0,W,H);
-    ps.forEach(function(p){
-      p.vy+=0.32; p.vx*=0.99; p.x+=p.vx; p.y+=p.vy; p.r+=p.vr;
-      ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.r); ctx.fillStyle=p.c;
-      ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h*Math.abs(Math.cos(p.r*2))+1); ctx.restore();
-    });
-    if(t-t0<4200) requestAnimationFrame(frame); else ctx.clearRect(0,0,W,H);
-  })(t0);
+  document.getElementById('winLog').innerHTML=
+    winners.map(function(n,i){
+      return '<div class="win-badge">🏆 #'+(i+1)+'  '+n+'</div>';
+    }).join('');
 }
 </script>
+<script src="class-hub-icons.js"></script>
 </body>
 </html>
