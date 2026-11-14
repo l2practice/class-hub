@@ -113,6 +113,7 @@ h1{max-width:440px;margin:0;color:#fff;font-family:Fraunces,Georgia,serif;font-s
 .tile.winner{border-color:#ffda79;background:#fff0c2;opacity:.55}
 .tile-name{overflow-wrap:anywhere}
 .tile-trophy{font-size:12px}
+.tile-recent{padding:2px 7px;border-radius:999px;background:rgba(161,93,102,.13);color:#8f4f58;font-size:9px;font-weight:800;white-space:nowrap}
 .remove-pill{width:22px;height:22px;padding:0;border:0;border-radius:50%;background:rgba(83,63,54,.09);color:#79695b;font-size:12px;line-height:1}
 .remove-pill:hover{background:rgba(181,92,82,.18);color:#8f3f39}
 .empty,.loading{width:100%;padding:12px 14px;border:1px dashed rgba(255,255,255,.25);border-radius:12px;color:rgba(255,255,255,.85);font-size:11px;line-height:1.6;text-align:center}
@@ -219,6 +220,7 @@ h1{max-width:440px;margin:0;color:#fff;font-family:Fraunces,Georgia,serif;font-s
           <li>Each slip in the bowl is a diligent student ticked in this month's Diligent Report.</li>
           <li>Press Draw: the slips swirl and one flies out — that student wins.</li>
           <li>The winner gets a <b>1tr5</b> tuition note on their next unpaid month, so the tuition email asks for 1.500.000 đ.</li>
+          <li>Students who won in either of the last 2 months have half the chance of the others.</li>
           <li>Winners are out of the next draws.</li>
         </ul>
       </div>
@@ -274,7 +276,9 @@ h1{max-width:440px;margin:0;color:#fff;font-family:Fraunces,Georgia,serif;font-s
 <script>
 const COLORS=['#e8c995','#f5dcb4','#fff0d4','#ebcda0','#f9e6c2'];
 var candidates=[], winners=[], spinning=false;
-var spinToken=0, currentClassId='', currentMonth='', emailOf={}, prizes={};
+var spinToken=0, currentClassId='', currentMonth='', emailOf={}, prizes={}, recentWin={};
+// A student who won in one of the last RECENT_MONTHS months gets RECENT_WEIGHT of a normal chance
+var RECENT_MONTHS=2, RECENT_WEIGHT=0.5;
 
 // Firestore through db.js (teacher account); same actions as the old Apps Script API
 async function gasCall(action,data){
@@ -342,7 +346,7 @@ async function loadCandidates(){
   var classId=document.getElementById('selClass').value;
   var month=parseInt(document.getElementById('selMonth').value);
   var wall=document.getElementById('wall');
-  currentClassId=classId; currentMonth=String(month||''); candidates=[]; emailOf={}; prizes={};
+  currentClassId=classId; currentMonth=String(month||''); candidates=[]; emailOf={}; prizes={}; recentWin={};
   winners=[]; spinning=false; spinToken++;
   document.getElementById('winLog').replaceChildren();
   document.getElementById('spinName').textContent='—';
@@ -368,6 +372,18 @@ async function loadCandidates(){
     try{var v=JSON.parse(localStorage.getItem('classhub:diligent-draw:'+encodeURIComponent(classId)+':'+month));saved=Array.isArray(v)?v:null;}catch(e){}
     var picked=r.students.filter(function(s){return saved?saved.indexOf(s.email)>=0:s.diligent;});
     emailOf={}; picked.forEach(function(s){emailOf[s.name]=s.email;});
+    // Recent winners: the draw history saved by this page; for months drawn before it existed,
+    // a "1tr5" tuition note on the month after the draw (how prizes were noted by hand)
+    var hist=(await gasCall('getDrawWinners',{classId:classId})).winners||{}, mat=null;
+    for(var m=month-RECENT_MONTHS;m<month;m++){
+      if(m<1) continue;
+      if(hist[m]){ hist[m].forEach(function(e){(recentWin[e]=recentWin[e]||[]).push(m);}); continue; }
+      mat=mat||await gasCall('getAttendanceMatrix',{classId:classId});
+      ((mat&&mat.students)||[]).forEach(function(st){
+        var paid=(st.monthPayments||{})[m+1], note=(paid?paid.note:(st.monthNotes||{})[m+1])||'';
+        if(/1\s*tr\s*5/i.test(note)) (recentWin[st.email]=recentWin[st.email]||[]).push(m);
+      });
+    }
     candidates=picked.map(function(s){return s.name;});
 
     if(!candidates.length){
@@ -406,6 +422,13 @@ function renderWall(){
     var label=document.createElement('span');
     label.className='tile-name';label.textContent=name;
     tile.appendChild(label);
+    var won=recentWin[emailOf[name]];
+    if(won&&!winners.includes(name)){
+      var tag=document.createElement('span');
+      tag.className='tile-recent';tag.textContent='won M'+won.join(', M')+' · ½';
+      tag.title='Won in Month '+won.join(' and ')+' — half the chance this month';
+      tile.appendChild(tag);
+    }
     if(winners.includes(name)){
       var trophy=document.createElement('span');
       trophy.className='tile-trophy';trophy.textContent='🏆';trophy.setAttribute('aria-label','Winner');
@@ -491,7 +514,10 @@ function doSpin(){
     document.getElementById('btnSpin').disabled=true;
     return;
   }
-  var winner=available[Math.floor(Math.random()*available.length)];
+  // weighted random: recent winners count RECENT_WEIGHT, everyone else 1
+  var weights=available.map(function(n){return recentWin[emailOf[n]]?RECENT_WEIGHT:1;});
+  var x=Math.random()*weights.reduce(function(a,b){return a+b;},0), winner=available[available.length-1];
+  for(var i=0;i<available.length;i++){ x-=weights[i]; if(x<0){winner=available[i];break;} }
   var token=++spinToken;
   spinning=true;document.getElementById('btnSpin').disabled=true;
   if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){
@@ -569,11 +595,12 @@ async function notePrize(name){
   return {msg:'No unpaid month found — no tuition note saved.'};
 }
 async function undoPrize(name){
-  var p=prizes[name]; if(!p||!p.month) return;
+  var p=prizes[name]; if(!p||!p.email) return;
   var el=document.getElementById('winnerPrize'); el.textContent='Undoing…';
   try{
-    await gasCall('markTuitionPaid',{classId:p.classId,studentEmail:p.email,monthNo:p.month,paid:false,note:''});
-    prizes[name]={msg:'Tuition note removed from Month '+p.month+'.'};
+    if(p.month) await gasCall('markTuitionPaid',{classId:p.classId,studentEmail:p.email,monthNo:p.month,paid:false,note:''});
+    await gasCall('saveDrawWinner',{classId:p.classId,month:p.drawMonth,email:p.email,remove:true});
+    prizes[name]={msg:'Undone: '+(p.month?'tuition note removed from Month '+p.month+', ':'')+'win taken off the draw history.'};
   }catch(e){ prizes[name].msg='Could not undo: '+(e&&e.message||e); }
   showPrize(name); updateWinLog();
 }
@@ -582,7 +609,7 @@ function showPrize(name){
   el.replaceChildren();
   if(!p) { el.textContent='Saving the tuition note…'; return; }
   el.appendChild(document.createTextNode(p.msg));
-  if(p.month){
+  if(p.email){
     var b=document.createElement('button'); b.type='button'; b.className='prize-undo'; b.textContent='Undo';
     b.addEventListener('click',function(e){e.stopPropagation();undoPrize(name);});
     el.appendChild(b);
@@ -593,7 +620,10 @@ function finishSpin(winner,token){
   if(token!==spinToken)return;
   winners.push(winner);
   delete prizes[winner]; showPrize(winner);
+  if(emailOf[winner]) gasCall('saveDrawWinner',{classId:currentClassId,month:parseInt(currentMonth),email:emailOf[winner]});
+  var drawMonth=parseInt(currentMonth), cls=currentClassId, em=emailOf[winner];
   notePrize(winner).then(function(p){
+    if(em){ p.email=em; p.classId=cls; p.drawMonth=drawMonth; }
     prizes[winner]=p; updateWinLog();
     if(document.getElementById('winnerName').textContent===winner) showPrize(winner);
   });

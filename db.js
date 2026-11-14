@@ -1559,6 +1559,15 @@ var WRITES = {
     ops.push(dirty());
     return commit(ops);
   },
+  // Lucky Draw history: classes/{id}.lw = { monthNo: [winner emails] } (Firestore only, not in the Sheet)
+  saveDrawWinner: function(b) {
+    var c = String(b.classId).trim(), key = String(b.month), cls = S.classes[c];
+    if (!cls || !b.email) return Promise.resolve({ success: false, message: 'Class or student not found.' });
+    var list = (((cls.lw || {})[key]) || []).filter(function(e){ return e !== b.email; });
+    if (!b.remove) list.push(b.email);
+    var lw = {}; lw[key] = list;
+    return commit([{ op: 'set', col: 'classes', id: c, merge: true, data: { lw: lw } }]);
+  },
   archiveStudent: function(b) {
     var id = Object.keys(S.students).find(function(i){
       return S.students[i].email === b.email && S.students[i].status === (b.archive ? 'active' : 'archived');
@@ -1645,7 +1654,7 @@ var WRITES = {
     var merged = function(a, c){ return Object.assign({}, (a || {}), (c || {})); };
     var ops = [{ op: 'set', col: 'classes', id: target, data: {
       status: src.status, ord: src.ord || Date.now(), sched: src.sched || [],
-      hw: merged(dst && dst.hw, src.hw), hwm: merged(dst && dst.hwm, src.hwm) } }];
+      hw: merged(dst && dst.hw, src.hw), hwm: merged(dst && dst.hwm, src.hwm), lw: merged(dst && dst.lw, src.lw) } }];
     if (target !== from) ops.push({ op: 'delete', col: 'classes', id: from });
     var srcKey = normalizeClass(from), moved = 0;
     Object.keys(S.students).forEach(function(id){
@@ -1767,6 +1776,10 @@ var READS = {
     return { success: true, classes: list };
   },
   getStrayStudents: function(){ return { success: true, students: strayStudents() }; },
+  getDrawWinners: function(b){
+    var cls = S.classes[String(b.classId || '').trim()];
+    return S.role === 'Teacher' && cls ? { success: true, winners: cls.lw || {} } : { success: false, winners: {} };
+  },
   getStudentProfile: function(b){
     var id = findStudent(b.email), s = id && S.students[id];
     if (!s) return { success: false, message: 'Student not found.' };
