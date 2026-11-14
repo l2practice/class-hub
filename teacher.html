@@ -2374,9 +2374,9 @@ async function doReopenMonth(classId, monthNo, btn){
 }
 
 function buildHWMonths(regularHW, scheduleSessionDates){
-  // Month grouping rule: the month of a HW is determined by the session INDEX
-  // of its sessionDate in the CLASS SCHEDULE (not in the HW list itself).
-  // Sessions 1–8 = Month 1, 9–16 = Month 2, etc.
+  // Month grouping rule: a HW belongs to the month its DEADLINE falls in. Months come from the
+  // CLASS SCHEDULE: sessions 1–8 = Month 1, 9–16 = Month 2, … and a month runs from its first
+  // session to the day before the next month's first session (a deadline on that session = next month).
   //
   // scheduleSessionDates: ordered array of session dates from GAS (excl. Day 0)
   // If not provided, fall back to sorting unique HW session dates (less accurate)
@@ -2392,11 +2392,11 @@ function buildHWMonths(regularHW, scheduleSessionDates){
 
   var monthMap = {};
   regularHW.forEach(function(hw){
-    var sessIdx = dateToSessionIdx[hw.sessionDate];
+    var at = hw.deadline || hw.sessionDate;
+    var sessIdx = dateToSessionIdx[at];
     if(!sessIdx){
-      // HW date not in schedule (edge case: manually added for non-scheduled date)
-      // Find nearest session by date sort
-      var sorted = sessionOrder.filter(function(d){return d <= hw.sessionDate;});
+      // a date between sessions: the latest session on or before it
+      var sorted = sessionOrder.filter(function(d){return d <= at;});
       sessIdx = sorted.length ? sessionOrder.indexOf(sorted[sorted.length-1])+1 : 1;
     }
     var mo = Math.ceil(sessIdx/8);
