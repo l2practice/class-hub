@@ -113,7 +113,6 @@ h1{max-width:440px;margin:0;color:#fff;font-family:Fraunces,Georgia,serif;font-s
 .tile.winner{border-color:#ffda79;background:#fff0c2;opacity:.55}
 .tile-name{overflow-wrap:anywhere}
 .tile-trophy{font-size:12px}
-.tile-recent{padding:2px 7px;border-radius:999px;background:rgba(161,93,102,.13);color:#8f4f58;font-size:9px;font-weight:800;white-space:nowrap}
 .remove-pill{width:22px;height:22px;padding:0;border:0;border-radius:50%;background:rgba(83,63,54,.09);color:#79695b;font-size:12px;line-height:1}
 .remove-pill:hover{background:rgba(181,92,82,.18);color:#8f3f39}
 .empty,.loading{width:100%;padding:12px 14px;border:1px dashed rgba(255,255,255,.25);border-radius:12px;color:rgba(255,255,255,.85);font-size:11px;line-height:1.6;text-align:center}
@@ -220,7 +219,6 @@ h1{max-width:440px;margin:0;color:#fff;font-family:Fraunces,Georgia,serif;font-s
           <li>Each slip in the bowl is a diligent student ticked in this month's Diligent Report.</li>
           <li>Press Draw: the slips swirl and one flies out — that student wins.</li>
           <li>The winner gets a <b>1tr5</b> tuition note on their next unpaid month, so the tuition email asks for 1.500.000 đ.</li>
-          <li>Students who won in either of the last 2 months have half the chance of the others.</li>
           <li>Winners are out of the next draws.</li>
         </ul>
       </div>
@@ -422,13 +420,6 @@ function renderWall(){
     var label=document.createElement('span');
     label.className='tile-name';label.textContent=name;
     tile.appendChild(label);
-    var won=recentWin[emailOf[name]];
-    if(won&&!winners.includes(name)){
-      var tag=document.createElement('span');
-      tag.className='tile-recent';tag.textContent='won M'+won.join(', M')+' · ½';
-      tag.title='Won in Month '+won.join(' and ')+' — half the chance this month';
-      tile.appendChild(tag);
-    }
     if(winners.includes(name)){
       var trophy=document.createElement('span');
       trophy.className='tile-trophy';trophy.textContent='🏆';trophy.setAttribute('aria-label','Winner');
