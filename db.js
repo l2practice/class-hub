@@ -652,7 +652,7 @@ function getRewardsMonth(b) {
 
   // Homework of the month, as in the Homework Tracker: given on one of its sessions or on a day before
   // the next month's first session (Exam Revision days); Extra homework (no session date) by its deadline.
-  // One per date + skill. A student's homework counts as done when Done or Late (Partial is not complete).
+  // One per date + skill. Only Done counts (Late and Partial do not count for Diligent).
   const sched = [...new Set(readSchedule(classId).filter(x=>{const d=x.dayLabel.toLowerCase().replace(/ /g,'');return d!=='day0'&&d!=='0'&&x.date;}).map(x=>x.date))].sort();
   const mStart = monthDates[0], si = sched.indexOf(mStart), mEnd = (si>=0 && sched[si+8]) || '9999-99-99';
   const hwKeys = {};
@@ -678,7 +678,7 @@ function getRewardsMonth(b) {
       const sd = fmtDate(r.SessionDate), key = (sd || 'EXTRA_' + fmtDate(r.Deadline)) + '_' + String(r.Type||'').trim();
       if (!hwKeys[key] || seen[key]) return;
       seen[key] = 1;
-      if (['Done','Late'].includes(String(r[stCol]||'').trim())) hwDone++;
+      if (String(r[stCol]||'').trim() === 'Done') hwDone++;
     });
 
     return {
