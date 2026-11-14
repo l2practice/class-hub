@@ -3169,9 +3169,10 @@ async function loadDiligence(classId){
     if(!r.success){el.innerHTML='<p style="color:var(--red);padding:20px">Error: '+r.message+'</p>';return;}
     if(!r.months||!r.months.length){el.innerHTML='<p style="padding:40px;text-align:center;color:var(--g400)">No data yet — complete at least 1 session first.</p>';return;}
     _diligenceMonthsCache[classId]=r.months;
-    // Auto-expand latest month
+    // Open the latest month that has all 8 sessions (the one to reward); a month still in progress stays closed
     if(!_diligenceExpandedMonths[classId]) _diligenceExpandedMonths[classId]=new Set();
-    var latestMonth=r.months[r.months.length-1].month;
+    var done=r.months.filter(function(m){return m.dates.length>=8;});
+    var latestMonth=(done.length?done[done.length-1]:r.months[r.months.length-1]).month;
     _diligenceExpandedMonths[classId].add(latestMonth);
     renderDiligenceMonthList(classId);
     // Auto-load latest month data
@@ -3192,6 +3193,7 @@ function renderDiligenceMonthList(classId){
         '<div style="display:flex;align-items:center;gap:12px">'+
           '<span style="font-family:var(--serif);font-size:15px;font-weight:700">Month '+mo.month+'</span>'+
           '<span style="font-size:11px;color:var(--g400)">'+mo.dates.length+' sessions</span>'+
+          (mo.dates.length<8?'<span style="font-size:11px;background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:5px">Đang diễn ra '+mo.dates.length+'/8 buổi — chưa xét Diligent</span>':'')+
           (cached&&cached.rewards&&cached.rewards.diligent1?'<span style="font-size:11px;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:5px">⭐ '+cached.rewards.diligent1.name+'</span>':'')+
         '</div>'+
         '<span style="font-size:18px;color:var(--g400);transform:'+(isExpanded?'rotate(90deg)':'rotate(0deg)')+';transition:.2s;display:inline-block">›</span>'+
