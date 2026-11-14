@@ -45,7 +45,9 @@ select option{background:#302540;color:#fff}
 .header .btn-load:hover{background:#ffc79a}
 .header .btn-reset{background:rgba(255,255,255,.06)}
 .header .btn-reset:hover{background:rgba(255,255,255,.14)}
-.status-bar{margin-left:auto;display:inline-flex;align-items:center;gap:12px;color:#fff;font-size:18px;font-weight:600;white-space:nowrap}
+.header .btn-sound{margin-left:auto;min-width:52px;padding:10px 12px;justify-content:center;font-size:20px;background:rgba(255,255,255,.06)}
+.header .btn-sound:hover{background:rgba(255,255,255,.14)}
+.status-bar{display:inline-flex;align-items:center;gap:12px;color:#fff;font-size:18px;font-weight:600;white-space:nowrap}
 .status-bar svg{color:#f7b57f;width:28px;height:28px}
 
 /* ── Panel */
@@ -185,6 +187,7 @@ h1{margin:0;color:#fff;font-size:clamp(46px,6.4vw,82px);font-weight:800;line-hei
     <button class="btn-load" onclick="loadCandidates()"><svg class="i" viewBox="0 0 24 24" style="fill:currentColor"><path d="M7 4.5v15l12-7.5z"/></svg>Load</button>
     <button class="btn-reset" onclick="resetDraw()"><svg class="i" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg>Reset</button>
   </div>
+  <button class="btn-sound" id="btnSound" type="button" onclick="toggleSound()" title="Sound on/off" aria-label="Sound on/off">🔊</button>
   <div class="status-bar"><svg class="i" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.3-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><path d="M15.5 4.7a3.5 3.5 0 0 1 0 6.6"/><path d="M18 14.8c2 .7 3.2 2.5 3.5 5.2"/></svg><span id="statusBar" aria-live="polite"></span></div>
 </header>
 
@@ -503,6 +506,7 @@ function animateDraw(winner,token){
   var stage=document.getElementById('bowlStage');
   stage.classList.add('is-shaking');
   var duration=2500;
+  playSound(sfxSpin,duration);
   papers.forEach(function(paper,i){
     var direction=i%2?1:-1;
     var turns=direction*(900+(i%5)*120);
@@ -521,6 +525,7 @@ function animateDraw(winner,token){
   window.setTimeout(function(){
     if(token!==spinToken)return;
     stage.classList.remove('is-shaking');
+    playSound(sfxWhoosh);
     flyWinnerPaper(winner,token);
     burstConfetti();
   },duration);
@@ -589,6 +594,72 @@ function showPrize(name){
   }
 }
 
+// ── Sound: made with Web Audio (no sound files). Rustling slips + drum roll while the bowl
+// shakes, a whoosh when the slip flies out, a fanfare with sparkles for the winner.
+var SFX={ctx:null,noise:null,on:true};
+try{SFX.on=localStorage.getItem('classhub:draw-sound')!=='off';}catch(e){}
+function updateSoundBtn(){ var b=document.getElementById('btnSound'); if(b) b.textContent=SFX.on?'🔊':'🔇'; }
+function toggleSound(){
+  SFX.on=!SFX.on; updateSoundBtn();
+  try{localStorage.setItem('classhub:draw-sound',SFX.on?'on':'off');}catch(e){}
+}
+function playSound(fn,arg){
+  if(!SFX.on) return;
+  try{
+    SFX.ctx=SFX.ctx||new (window.AudioContext||window.webkitAudioContext)();
+    if(SFX.ctx.state==='suspended') SFX.ctx.resume();
+    if(!SFX.out){ SFX.out=SFX.ctx.createGain(); SFX.out.gain.value=0.9; SFX.out.connect(SFX.ctx.destination); }
+    fn(SFX.ctx,SFX.out,SFX.ctx.currentTime+0.03,arg);
+  }catch(e){}
+}
+function sfxNoise(ctx){
+  if(SFX.noise&&SFX.noise.sampleRate===ctx.sampleRate) return SFX.noise;
+  var b=ctx.createBuffer(1,ctx.sampleRate,ctx.sampleRate), d=b.getChannelData(0);
+  for(var i=0;i<d.length;i++) d[i]=Math.random()*2-1;
+  return SFX.noise=b;
+}
+// a short burst of filtered noise
+function sfxBurst(ctx,out,t,len,gain,type,freq,q){
+  var s=ctx.createBufferSource(), f=ctx.createBiquadFilter(), g=ctx.createGain();
+  s.buffer=sfxNoise(ctx); f.type=type; f.frequency.value=freq; f.Q.value=q||1;
+  g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(gain,t+0.006); g.gain.exponentialRampToValueAtTime(0.0001,t+len);
+  s.connect(f); f.connect(g); g.connect(out); s.start(t,Math.random()*0.8); s.stop(t+len+0.03);
+}
+function sfxTone(ctx,out,t,freq,len,gain,type,toFreq){
+  var o=ctx.createOscillator(), g=ctx.createGain();
+  o.type=type||'triangle'; o.frequency.setValueAtTime(freq,t);
+  if(toFreq) o.frequency.exponentialRampToValueAtTime(toFreq,t+len);
+  g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(gain,t+0.015); g.gain.exponentialRampToValueAtTime(0.0001,t+len);
+  o.connect(g); g.connect(out); o.start(t); o.stop(t+len+0.05);
+}
+function sfxSpin(ctx,out,t0,ms){
+  var end=t0+(ms||2500)/1000, t=t0;
+  while(t<end){
+    var k=(t-t0)/(end-t0), gap=0.028+0.1*Math.pow(Math.max(0,k-0.55)/0.45,2);   // fast, then slowing down
+    sfxBurst(ctx,out,t,0.05+Math.random()*0.06,0.22+Math.random()*0.18,'bandpass',1800+Math.random()*3200,0.8);  // paper
+    sfxBurst(ctx,out,t,0.09,0.5,'lowpass',160+Math.random()*50,1.2);                                                 // drum
+    t+=gap;
+  }
+}
+function sfxWhoosh(ctx,out,t){
+  var s=ctx.createBufferSource(), f=ctx.createBiquadFilter(), g=ctx.createGain();
+  s.buffer=sfxNoise(ctx); f.type='bandpass'; f.Q.value=1.4;
+  f.frequency.setValueAtTime(350,t); f.frequency.exponentialRampToValueAtTime(3800,t+0.55);
+  g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.55,t+0.25); g.gain.exponentialRampToValueAtTime(0.0001,t+0.7);
+  s.connect(f); f.connect(g); g.connect(out); s.start(t); s.stop(t+0.75);
+  sfxTone(ctx,out,t,320,0.6,0.12,'sine',1100);
+}
+function sfxWin(ctx,out,t){
+  sfxBurst(ctx,out,t,0.25,0.8,'lowpass',120,1);                               // boom
+  [523.25,659.25,783.99,1046.5].forEach(function(f,i){                         // C E G C
+    sfxTone(ctx,out,t+i*0.11,f,0.35,0.22,'triangle'); sfxTone(ctx,out,t+i*0.11,f*2,0.25,0.05,'sine');
+  });
+  [523.25,659.25,783.99,1046.5,1318.5].forEach(function(f){ sfxTone(ctx,out,t+0.48,f,1.6,0.12,'triangle'); });  // held chord
+  for(var i=0;i<18;i++) sfxTone(ctx,out,t+0.45+Math.random()*1.2,2000+Math.random()*2600,0.18,0.05,'sine');       // sparkles
+  for(var j=0;j<6;j++) sfxBurst(ctx,out,t+0.4+j*0.09,0.06,0.3,'highpass',3000,0.7);                               // confetti pops
+}
+updateSoundBtn();
+
 function finishSpin(winner,token){
   if(token!==spinToken)return;
   winners.push(winner);
@@ -610,6 +681,7 @@ function finishSpin(winner,token){
   document.getElementById('drawHint').textContent=nextMessage;
   spinning=false;
   document.getElementById('btnSpin').disabled=winners.length>=candidates.length;
+  playSound(sfxWin);
   openWinner();
 }
 
