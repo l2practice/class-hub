@@ -1255,14 +1255,13 @@ function preloadClass(cls){
         if(!r||!r.success) return;
         if(r.sessions&&r.sessions.length){
           allSchedules[cls.classId]=r.sessions;
-          // Pre-populate schedule dates for HW month grouping
-          // Only sessions that have already happened (≤ today)
-          var todayStr=localToday();
+          // Pre-populate schedule dates for HW month grouping: the whole schedule, upcoming sessions
+          // included (a homework goes to the month its deadline falls in, which can be a later month)
           var sessDatesSorted=[...new Set(
             r.sessions
               .filter(function(s){
                 var dl=(s.dayLabel||'').trim().toLowerCase().replace(/ /g,'');
-                return dl!=='day0'&&dl!=='0'&&s.date&&s.date<=todayStr;
+                return dl!=='day0'&&dl!=='0'&&s.date;
               })
               .map(function(s){return s.date;})
           )].sort();
@@ -2239,9 +2238,9 @@ async function loadHWTracker(classId){
     }
     hwTrackerCache[classId]=r;
 
-    // Get schedule session dates FOR MONTH GROUPING
-    // Use ONLY sessions that have already happened (from attendance data)
-    // NOT from schedule sheet (which includes future planned sessions)
+    // Session dates FOR MONTH GROUPING: the class schedule, upcoming sessions included (a deadline
+    // can fall in a month that hasn't started yet)
+    if(r.scheduleSessionDates&&r.scheduleSessionDates.length) _hwScheduleDates[classId]=[...new Set(r.scheduleSessionDates)].sort();
     if(!_hwScheduleDates[classId]){
       var today=localToday();
       if(allSchedules[classId] && allSchedules[classId].length){
