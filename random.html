@@ -2,105 +2,279 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>IELTS Hub — Random Draw</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="theme-color" content="#281d3d"/>
+<title>IELTS Hub — Diligent Lucky Draw</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
 <style>
-:root{--red:#E01A22;--gold:#f59e0b;--dark:#1a1916;--g50:#f8f7f5;--g100:#f0eeea;--g200:#e2e0db;--g400:#9d9b96;--g600:#5c5a56;}
-*{box-sizing:border-box;margin:0;padding:0;}
-body{background:var(--dark);font-family:'Helvetica Neue',Arial,sans-serif;min-height:100vh;color:white;}
-
-.header{background:rgba(0,0,0,.5);border-bottom:1px solid rgba(255,255,255,.1);padding:14px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
-.logo{font-size:18px;font-weight:800;color:white;text-decoration:none;}
-.logo span{color:var(--red);}
-.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex:1;}
-select{padding:7px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid rgba(255,255,255,.2);outline:none;background:rgba(255,255,255,.1);color:white;}
-select option{background:#2a2825;color:white;}
-button{padding:7px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;outline:none;}
-.btn-load{background:var(--red);color:white;}
-.btn-load:hover{background:#c4151c;}
-.btn-reset{background:rgba(255,255,255,.1);color:white;border:1px solid rgba(255,255,255,.2);}
-.btn-add{background:rgba(255,255,255,.15);color:white;border:1px solid rgba(255,255,255,.2);}
-.status-bar{font-size:12px;color:rgba(255,255,255,.45);margin-left:auto;white-space:nowrap;}
-
-/* WALL */
-.wall{padding:24px;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;}
-.tile{border-radius:12px;padding:16px 12px;text-align:center;font-size:14px;font-weight:700;color:white;
-  transition:transform .15s,opacity .3s,box-shadow .15s;min-height:64px;
-  display:flex;align-items:center;justify-content:center;position:relative;}
-.tile.eliminated{opacity:.15;transform:scale(.9);}
-.tile.winner{box-shadow:0 0 28px rgba(255,215,0,.7);outline:3px solid gold;transform:scale(1.1);}
-.tile.spinning{animation:sf .12s infinite alternate;}
-@keyframes sf{from{filter:brightness(1.7);}to{filter:brightness(.6);}}
-
-/* DISPLAY */
-.spin-display{margin:20px 24px 0;background:rgba(255,255,255,.06);border:2px solid rgba(255,255,255,.1);
-  border-radius:16px;padding:20px;text-align:center;}
-.spin-name{font-size:36px;font-weight:900;min-height:52px;letter-spacing:.5px;transition:color .1s;}
-.spin-btn{margin-top:14px;width:64px;height:64px;border-radius:50%;background:var(--red);
-  font-size:28px;cursor:pointer;border:none;color:white;transition:transform .15s,box-shadow .15s;}
-.spin-btn:hover{transform:scale(1.08);box-shadow:0 4px 20px rgba(224,26,34,.5);}
-.spin-btn:disabled{opacity:.5;cursor:default;transform:none;}
-
-/* ADD NAME */
-.add-row{display:flex;gap:8px;padding:0 24px;margin-top:16px;}
-.add-row input{flex:1;padding:8px 14px;border-radius:8px;background:rgba(255,255,255,.08);
-  border:1px solid rgba(255,255,255,.2);color:white;font-size:13px;outline:none;}
-.add-row input::placeholder{color:rgba(255,255,255,.35);}
-.add-row input:focus{border-color:rgba(255,255,255,.5);}
-
-/* WINNERS LOG */
-.win-log{display:flex;gap:8px;flex-wrap:wrap;padding:16px 24px 0;}
-.win-badge{padding:5px 14px;border-radius:8px;background:linear-gradient(135deg,#f59e0b,#d97706);
-  color:white;font-size:12px;font-weight:700;}
-
-/* EMPTY */
-.empty{padding:80px 24px;text-align:center;color:rgba(255,255,255,.25);font-size:15px;line-height:1.8;}
-.loading{padding:60px;text-align:center;color:rgba(255,255,255,.35);font-size:14px;}
-@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
-@keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}
-.spinner{display:inline-block;font-size:28px;animation:spin 1s linear infinite;}
-.pulse{animation:pulse 1.5s ease-in-out infinite;}
+:root{
+  --ink:#251b35;--muted:#f4ecfa;--cream:#fff5df;--gold:#ffd478;
+  --glass:rgba(255,255,255,.105);--line:rgba(255,255,255,.25);
+}
+*{box-sizing:border-box}
+html{min-width:320px;background:#261d3b}
+body{
+  min-width:320px;min-height:100vh;margin:0;color:#fff;
+  font-family:"Plus Jakarta Sans",sans-serif;
+  background:
+    radial-gradient(ellipse at 88% 15%,rgba(255,177,143,.67),transparent 38%),
+    radial-gradient(ellipse at 12% 92%,rgba(123,86,166,.62),transparent 42%),
+    linear-gradient(128deg,#352447 0%,#4b3557 45%,#d58e88 100%);
+  overflow-x:hidden;
+}
+button,input,select{font:inherit}
+button{cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #ffe39a;outline-offset:3px}
+.header{
+  min-height:68px;padding:12px clamp(16px,4vw,52px);display:flex;align-items:center;
+  gap:20px;background:rgba(25,18,38,.35);border-bottom:1px solid rgba(255,255,255,.15);
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)
+}
+.logo{color:white;text-decoration:none;font-size:18px;font-weight:800;letter-spacing:-.04em;white-space:nowrap}
+.logo span{color:#ffd28c}
+.controls{display:flex;align-items:center;gap:9px;flex:1;flex-wrap:wrap}
+select,.header button{
+  min-height:40px;padding:9px 13px;border-radius:11px;border:1px solid rgba(255,255,255,.24);
+  color:#fff;background:rgba(255,255,255,.1);font-size:12px;font-weight:700
+}
+select{min-width:128px}
+select option{background:#302540;color:white}
+.header .btn-load{background:#f2a67f;border-color:transparent;color:#32233e}
+.header .btn-load:hover{background:#ffc09a}
+.header .btn-reset{background:rgba(255,255,255,.08)}
+.status-bar{margin-left:auto;color:rgba(255,255,255,.76);font-size:11px;font-weight:600}
+main{width:min(1120px,calc(100% - 40px));margin:clamp(24px,5vh,58px) auto 54px}
+.glass-panel{
+  position:relative;overflow:hidden;display:grid;grid-template-columns:minmax(280px,.88fr) minmax(420px,1.12fr);
+  gap:clamp(16px,4vw,54px);padding:clamp(26px,5vw,58px);
+  border:1px solid rgba(255,255,255,.31);border-radius:30px;
+  background:linear-gradient(135deg,rgba(255,255,255,.13),rgba(255,255,255,.045));
+  box-shadow:0 28px 90px rgba(25,13,37,.24),inset 0 1px rgba(255,255,255,.23);
+  backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px)
+}
+.glass-panel:before{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(120deg,rgba(255,255,255,.1),transparent 34%,transparent 70%,rgba(255,198,172,.08))}
+.intro,.draw-area{position:relative;z-index:1;min-width:0}
+.intro{display:flex;flex-direction:column;align-items:flex-start}
+.slash-rule{width:150px;height:12px;margin:2px 0 20px;border-top:1px solid rgba(255,255,255,.3);position:relative}
+.slash-rule:after{content:"";position:absolute;inset:5px 0 0;background:repeating-linear-gradient(135deg,transparent 0 4px,rgba(255,255,255,.12) 4px 5px)}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;padding:8px 13px;margin-bottom:18px;
+  color:#fff0d5;background:rgba(34,25,47,.44);border:1px solid rgba(255,255,255,.15);
+  border-radius:8px;font-size:10px;font-weight:800;letter-spacing:.18em}
+.eyebrow:before{content:"";width:6px;height:6px;border-radius:50%;background:#ffd581;box-shadow:0 0 10px #ffd581}
+h1{max-width:440px;margin:0;color:#fff;font-family:Fraunces,Georgia,serif;font-size:clamp(38px,5vw,62px);font-weight:700;line-height:.99;letter-spacing:-.045em}
+.draw-sub{margin:15px 0 17px;color:#ffe2c5;font-size:13px;font-weight:700;letter-spacing:.03em}
+.intro .slash-rule{margin-bottom:18px}
+.instructions{
+  width:100%;padding:17px 18px;margin:0;border:1px solid rgba(255,255,255,.16);
+  border-radius:16px;background:rgba(27,20,41,.38);color:rgba(255,255,255,.91);
+  font-size:12px;line-height:1.7
+}
+.instructions ul{list-style:none;display:grid;gap:9px;padding:0;margin:0}
+.instructions li{position:relative;padding-left:17px}
+.instructions li:before{content:"";position:absolute;left:0;top:.72em;width:5px;height:5px;border-radius:50%;background:#ffd17d}
+.winner-log{display:flex;flex-direction:column;gap:7px;width:100%;margin-top:auto;padding-top:19px}
+.winner-log-title{color:rgba(255,255,255,.6);font-size:9px;font-weight:800;letter-spacing:.15em;text-transform:uppercase}
+.win-log{display:flex;flex-wrap:wrap;gap:7px}
+.win-badge{padding:7px 10px;border:1px solid rgba(255,213,120,.37);border-radius:999px;background:rgba(255,205,112,.13);color:#ffe4a9;font-size:11px;font-weight:700}
+.draw-area{display:flex;flex-direction:column;align-items:center;min-width:0}
+.bowl-stage{position:relative;width:min(100%,490px);aspect-ratio:1.12;display:grid;place-items:center;isolation:isolate}
+.bowl-glow{position:absolute;z-index:-1;left:18%;right:18%;bottom:11%;height:25%;border-radius:50%;background:rgba(255,184,156,.4);filter:blur(42px)}
+.bowl-art{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;z-index:2;pointer-events:none;user-select:none}
+.bowl-contents{
+  position:absolute;z-index:3;left:16%;top:41%;width:68%;height:45%;
+  clip-path:ellipse(49% 48% at 50% 51%);pointer-events:none;overflow:hidden
+}
+.paper{
+  position:absolute;width:clamp(25px,4.1vw,39px);height:clamp(18px,3vw,27px);
+  display:grid;place-items:center;border:1px solid rgba(148,113,67,.18);border-radius:3px;
+  background:linear-gradient(145deg,#fff8e8,#efdcb8);box-shadow:0 3px 7px rgba(55,35,28,.19);
+  transform-origin:center;color:#6d5941;font-size:7px
+}
+.paper:after{content:"";position:absolute;inset:2px 3px auto;height:1px;background:rgba(163,129,81,.14)}
+.bowl-status{
+  position:absolute;z-index:4;left:50%;bottom:4%;transform:translateX(-50%);
+  width:max-content;max-width:92%;padding:7px 12px;border:1px solid rgba(255,255,255,.2);
+  border-radius:999px;background:rgba(37,27,53,.54);color:#fff4df;
+  font-size:10px;font-weight:700;text-align:center;backdrop-filter:blur(10px)
+}
+.student-area{width:100%;margin-top:-3px}
+.student-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:1px 0 9px}
+.student-heading strong{font-size:11px;color:rgba(255,255,255,.88);letter-spacing:.04em}
+.remaining{color:#ffdfb2;font-size:11px;font-weight:700;white-space:nowrap}
+.wall{display:flex;flex-wrap:wrap;justify-content:center;gap:7px;min-height:41px}
+.tile{
+  min-height:34px;max-width:100%;display:inline-flex;align-items:center;gap:7px;
+  padding:5px 6px 5px 12px;border:1px solid rgba(255,247,225,.58);border-radius:999px;
+  color:#493b36;background:#fff4dc;font-size:10px;font-weight:800;
+  box-shadow:0 4px 10px rgba(35,20,37,.11);transition:opacity .2s,transform .2s,border-color .2s
+}
+.tile.winner{border-color:#ffda79;background:#fff0c2;opacity:.55}
+.tile-name{overflow-wrap:anywhere}
+.tile-trophy{font-size:12px}
+.remove-pill{width:22px;height:22px;padding:0;border:0;border-radius:50%;background:rgba(83,63,54,.09);color:#79695b;font-size:12px;line-height:1}
+.remove-pill:hover{background:rgba(181,92,82,.18);color:#8f3f39}
+.empty,.loading{width:100%;padding:12px 14px;border:1px dashed rgba(255,255,255,.25);border-radius:12px;color:rgba(255,255,255,.85);font-size:11px;line-height:1.6;text-align:center}
+.loading{color:#ffe0be}
+.actions{display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px;width:min(100%,350px);margin:17px auto 0}
+.spin-btn{
+  grid-column:1/-1;min-height:58px;padding:14px 24px;border:1px solid rgba(255,255,255,.46);
+  border-radius:17px;color:#402c39;background:linear-gradient(110deg,#ffe9b8,#f5b991);
+  box-shadow:0 10px 28px rgba(41,22,41,.2),inset 0 1px rgba(255,255,255,.75);
+  font-size:16px;font-weight:800;letter-spacing:.01em;transition:transform .18s,box-shadow .18s,opacity .18s
+}
+.spin-btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 14px 32px rgba(41,22,41,.3)}
+.spin-btn:disabled{opacity:.48;cursor:not-allowed}
+.draw-hint{grid-column:1/-1;min-height:16px;color:rgba(255,255,255,.75);font-size:10px;text-align:center}
+.add-row{display:flex;gap:7px;width:100%;margin-top:12px}
+.add-row input{
+  width:0;min-width:0;flex:1;min-height:39px;padding:9px 13px;border:1px solid rgba(255,255,255,.23);
+  border-radius:11px;background:rgba(38,28,53,.3);color:white;font-size:11px
+}
+.add-row input::placeholder{color:rgba(255,255,255,.65)}
+.add-row button{min-height:39px;padding:8px 15px;border:1px solid rgba(255,255,255,.27);border-radius:11px;background:rgba(255,255,255,.15);color:white;font-size:11px;font-weight:800}
+.add-row button:hover{background:rgba(255,255,255,.24)}
+.canvas-confetti{position:fixed;inset:0;z-index:20;width:100%;height:100%;pointer-events:none}
+.overlay{
+  position:fixed;inset:0;z-index:30;display:grid;place-items:center;padding:20px;
+  background:rgba(27,19,39,.55);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  opacity:0;visibility:hidden;transition:opacity .25s,visibility .25s
+}
+.overlay.open{opacity:1;visibility:visible}
+.winner-card{
+  position:relative;width:min(440px,100%);padding:40px 25px 34px;border:1px solid rgba(255,255,255,.72);
+  border-radius:28px;background:linear-gradient(145deg,#fff7e8,#f8dbc7);
+  box-shadow:0 24px 90px rgba(16,10,25,.38);color:#433047;text-align:center;cursor:pointer
+}
+.winner-card:before{content:"";position:absolute;inset:8px;border:1px solid rgba(163,113,91,.2);border-radius:21px;pointer-events:none}
+.winner-kicker{margin:0 0 11px;color:#a15d66;font-size:11px;font-weight:800;letter-spacing:.17em}
+.winner-name{margin:0;font-family:Fraunces,Georgia,serif;font-size:clamp(36px,8vw,60px);line-height:1.02;overflow-wrap:anywhere}
+.winner-prize{margin:14px 0 0;color:#6b4f5c;font-size:12px;font-weight:700;line-height:1.5}
+.prize-undo{margin-left:8px;padding:3px 10px;border:1px solid rgba(161,93,102,.4);border-radius:999px;background:transparent;color:#a15d66;font-size:11px;font-weight:800}
+.prize-undo:hover{background:rgba(161,93,102,.1)}
+.winner-close{margin:17px 0 0;color:#79677d;font-size:10px;font-weight:600}
+.flight-slip{
+  position:fixed;z-index:26;width:55px;height:39px;display:grid;place-items:center;
+  border:1px solid rgba(143,101,53,.22);border-radius:4px;background:#fff2d2;
+  box-shadow:0 8px 22px rgba(20,13,29,.26);font-size:8px;pointer-events:none
+}
+.sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+.is-shaking{animation:bowl-shake .13s ease-in-out infinite alternate}
+@keyframes bowl-shake{from{transform:translateX(-2px) rotate(-.6deg)}to{transform:translateX(2px) rotate(.6deg)}}
+@keyframes paper-wait{0%,100%{translate:0 0;rotate:-2deg}50%{translate:0 -3px;rotate:2deg}}
+@media(max-width:800px){
+  .header{gap:12px}.status-bar{width:100%;margin:0}
+  .glass-panel{grid-template-columns:minmax(0,1fr) minmax(0,1.12fr);gap:20px;padding:28px}
+  .bowl-stage{width:min(100%,420px)}
+}
+@media(max-width:640px){
+  .header{padding:12px 15px}.controls{gap:7px}.controls select{flex:1;min-width:115px}
+  .header .btn-load,.header .btn-reset{flex:1}
+  main{width:calc(100% - 24px);margin:16px auto 30px}
+  .glass-panel{grid-template-columns:1fr;gap:9px;padding:24px 17px 20px;border-radius:23px}
+  .intro{align-items:center;text-align:center}
+  .slash-rule{width:128px;margin:0 0 15px!important}
+  .eyebrow{margin-bottom:13px}
+  h1{max-width:350px;font-size:clamp(42px,12vw,56px)}
+  .draw-sub{margin:10px 0 15px}
+  .instructions{padding:14px 15px;text-align:left;font-size:11px}
+  .winner-log{margin-top:0;padding-top:14px}
+  .winner-log-title{text-align:center}
+  .win-log{justify-content:center}
+  .draw-area{margin-top:3px}
+  .bowl-stage{width:min(100%,390px);aspect-ratio:1.15}
+  .paper{width:clamp(24px,7vw,34px);height:clamp(17px,5vw,25px)}
+  .student-heading{padding:0 2px}
+  .wall{gap:6px}
+  .tile{font-size:10px}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
 </style>
-<link rel="stylesheet" href="class-hub-theme.css"/>
-<link rel="icon" type="image/svg+xml" href="class-hub-icon.svg?v=3"/>
 </head>
 <body>
-
-<div class="header">
+<header class="header">
   <a href="teacher.html" class="logo">IELTS <span>Hub</span></a>
   <div class="controls">
-    <select id="selClass" onchange="onClassChange()"><option value="">— Class —</option></select>
-    <select id="selMonth"><option value="">— Month —</option></select>
+    <select id="selClass" aria-label="Class" onchange="onClassChange()"><option value="">— Class —</option></select>
+    <select id="selMonth" aria-label="Month"><option value="">— Month —</option></select>
     <button class="btn-load" onclick="loadCandidates()">▶ Load</button>
     <button class="btn-reset" onclick="resetDraw()">↺ Reset</button>
   </div>
-  <div class="status-bar" id="statusBar"></div>
-</div>
+  <div class="status-bar" id="statusBar" aria-live="polite"></div>
+</header>
 
-<div class="win-log" id="winLog"></div>
+<main>
+  <section class="glass-panel" aria-label="Diligent Lucky Draw">
+    <div class="intro">
+      <div class="slash-rule" aria-hidden="true"></div>
+      <div class="eyebrow">LUCKY DRAW</div>
+      <h1>Diligent<br/>Lucky Draw</h1>
+      <p class="draw-sub" id="drawSub">Pick a class and month</p>
+      <div class="slash-rule" aria-hidden="true"></div>
+      <div class="instructions">
+        <ul>
+          <li>Each slip in the bowl is a diligent student ticked in this month's Diligent Report.</li>
+          <li>Press Draw: the slips swirl and one flies out — that student wins.</li>
+          <li>The winner gets a <b>1tr5</b> tuition note on their next unpaid month, so the tuition email asks for 1.500.000 đ.</li>
+          <li>Winners are out of the next draws.</li>
+        </ul>
+      </div>
+      <div class="winner-log">
+        <div class="winner-log-title">Winners</div>
+        <div class="win-log" id="winLog" aria-live="polite"></div>
+      </div>
+    </div>
 
-<div class="spin-display">
-  <div class="spin-name" id="spinName">—</div>
-  <button class="spin-btn" id="btnSpin" onclick="doSpin()">🎯</button>
-</div>
+    <div class="draw-area">
+      <div class="bowl-stage" id="bowlStage">
+        <div class="bowl-glow" aria-hidden="true"></div>
+        <div class="bowl-contents" id="bowlContents" aria-hidden="true"></div>
+        <img class="bowl-art" src="img/lucky-bowl.webp" alt="Glass bowl full of paper slips"/>
+        <div class="bowl-status" id="bowlStatus" aria-live="polite">Pick a class and month, then press ▶ Load</div>
+      </div>
+      <div class="student-area">
+        <div class="student-heading">
+          <strong>PARTICIPANTS</strong>
+          <span class="remaining" id="remainingCount">0 slips left</span>
+        </div>
+        <div class="wall" id="wall">
+          <div class="empty">Pick a class and month, then press ▶ Load</div>
+        </div>
+        <div class="actions">
+          <button class="spin-btn" id="btnSpin" onclick="doSpin()" disabled>🎲 Draw</button>
+          <div class="draw-hint" id="drawHint">Pick a class and month, then press ▶ Load</div>
+          <div class="add-row">
+            <input type="text" id="addInput" placeholder="+ Add a name by hand…" aria-label="Add a name by hand" onkeydown="if(event.key==='Enter')addName()"/>
+            <button type="button" onclick="addName()">+ Add</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
 
-<div class="add-row">
-  <input type="text" id="addInput" placeholder="+ Add a name manually…" onkeydown="if(event.key==='Enter')addName()"/>
-  <button class="btn-add" onclick="addName()">+ Add</button>
+<div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-labelledby="winnerName" aria-hidden="true">
+  <div class="winner-card" id="winnerCard" role="button" tabindex="0" aria-label="Close">
+    <p class="winner-kicker">🎉 CONGRATULATIONS 🎉</p>
+    <h2 class="winner-name" id="winnerName"></h2>
+    <p class="winner-prize" id="winnerPrize"></p>
+    <p class="winner-close">Click to close and continue</p>
+  </div>
 </div>
-
-<div class="wall" id="wall">
-  <div class="empty">Select a class and month,<br>then click ▶ Load.</div>
-</div>
+<canvas class="canvas-confetti" id="confettiCanvas" aria-hidden="true"></canvas>
+<span class="sr-only" id="spinName">—</span>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="db.js"></script>
 <script>
-const COLORS=['#e11d48','#7c3aed','#1d4ed8','#0891b2','#059669','#d97706','#dc2626','#9333ea','#2563eb','#16a34a','#ca8a04','#0284c7','#be185d','#0369a1','#15803d'];
-
+const COLORS=['#e8c995','#f5dcb4','#fff0d4','#ebcda0','#f9e6c2'];
 var candidates=[], winners=[], spinning=false;
+var spinToken=0, currentClassId='', currentMonth='', emailOf={}, prizes={};
 
 // Firestore through db.js (teacher account); same actions as the old Apps Script API
 async function gasCall(action,data){
@@ -109,12 +283,10 @@ async function gasCall(action,data){
   return DB.api(action,data);
 }
 
-// ── Init: read URL params then load classes
+// Init: read URL params then load classes
 window.addEventListener('load', async function(){
   const p=new URLSearchParams(location.search);
   const preClass=p.get('class'), preMonth=p.get('month');
-
-  // Load classes
   var selClass=document.getElementById('selClass');
   selClass.innerHTML='<option value="">&#9203; Loading…</option>';
   try{
@@ -127,21 +299,20 @@ window.addEventListener('load', async function(){
       selClass.appendChild(o);
     });
   }catch(e){ selClass.innerHTML='<option value="">Error loading</option>'; }
-
-  // If URL has class → load its months
   if(preClass){
-    await loadMonths(preClass, preMonth?parseInt(preMonth):null);
-    // Auto-load candidates if month also provided
+    await loadMonths(preClass,preMonth?parseInt(preMonth):null);
     if(preMonth) loadCandidates();
   }
 });
 
 async function onClassChange(){
   var cls=document.getElementById('selClass').value;
-  if(cls) await loadMonths(cls, null);
+  currentClassId=cls;
+  if(cls) await loadMonths(cls,null);
+  updateDrawSub();
 }
 
-async function loadMonths(classId, autoMonth){
+async function loadMonths(classId,autoMonth){
   var sel=document.getElementById('selMonth');
   sel.innerHTML='<option value="">&#9203; Loading…</option>';
   try{
@@ -154,168 +325,369 @@ async function loadMonths(classId, autoMonth){
       if(autoMonth&&mo.month===autoMonth) o.selected=true;
       sel.appendChild(o);
     });
-    // Default to latest month if no autoMonth
     if(!autoMonth&&r.months&&r.months.length)
       sel.value=r.months[r.months.length-1].month;
   }catch(e){ sel.innerHTML='<option value="">Error</option>'; }
+  currentClassId=classId;
+  currentMonth=sel.value;
+  updateDrawSub();
+}
+
+function updateDrawSub(){
+  var cls=document.getElementById('selClass').value, month=document.getElementById('selMonth').value;
+  document.getElementById('drawSub').textContent=cls&&month?cls+' · Month '+month:'Pick a class and month';
 }
 
 async function loadCandidates(){
   var classId=document.getElementById('selClass').value;
   var month=parseInt(document.getElementById('selMonth').value);
   var wall=document.getElementById('wall');
-  winners=[]; spinning=false;
-  document.getElementById('winLog').innerHTML='';
+  currentClassId=classId; currentMonth=String(month||''); candidates=[]; emailOf={}; prizes={};
+  winners=[]; spinning=false; spinToken++;
+  document.getElementById('winLog').replaceChildren();
   document.getElementById('spinName').textContent='—';
-  document.getElementById('spinName').style.color='white';
+  document.getElementById('winnerName').textContent='';
+  document.getElementById('statusBar').textContent='';
+  document.getElementById('bowlStatus').textContent='⏳ Loading…';
+  document.getElementById('drawHint').textContent='⏳ Loading…';
+  document.getElementById('btnSpin').disabled=true;
+  updateDrawSub();
 
   if(!classId||!month){
-    wall.innerHTML='<div class="empty">Please select a class and month.</div>';
+    setEmptyState('Pick a class and month, then press ▶ Load');
     return;
   }
-  wall.innerHTML='<div class="loading"><div class="spinner">&#9203;</div><div style="margin-top:14px" class="pulse">Loading eligible students…</div></div>';
-  document.getElementById('statusBar').textContent='';
+  wall.innerHTML='<div class="loading">⏳ Loading…</div>';
 
   try{
-    // Same month data and rule as the Diligent Report; the students ticked there for this class and month
+    var r=await gasCall('getRewardsMonth',{classId:classId,month:month});
+    if(!r||!r.success){ setEmptyState('No data for this month yet.'); return; }
+    // Same month data and rule as the Diligent Report: the students ticked there for this class and month
     // (or, if the teacher hasn't changed the ticks, everyone who qualifies)
-    var mo=await gasCall('getRewardsMonth',{classId:classId,month:month});
-    if(!mo||!mo.success){wall.innerHTML='<div class="empty">No data for this month.</div>';return;}
     var saved=null;
     try{var v=JSON.parse(localStorage.getItem('classhub:diligent-draw:'+encodeURIComponent(classId)+':'+month));saved=Array.isArray(v)?v:null;}catch(e){}
-    candidates=mo.students.filter(function(s){return saved?saved.indexOf(s.email)>=0:s.diligent;}).map(function(s){return s.name;});
+    var picked=r.students.filter(function(s){return saved?saved.indexOf(s.email)>=0:s.diligent;});
+    emailOf={}; picked.forEach(function(s){emailOf[s.name]=s.email;});
+    candidates=picked.map(function(s){return s.name;});
 
     if(!candidates.length){
-      wall.innerHTML='<div class="empty">No students selected for this draw.<br><small style="opacity:.5">Select qualified students in the Diligent Report first.<br>Criteria: tuition paid · 8 present · 0 late · 0 absent · all homework submitted</small></div>';
+      setEmptyState('No students are ticked for this draw. Tick them in the Diligent Report first (tuition paid · 8 sessions Present · all homework Done).');
       document.getElementById('statusBar').textContent='0 selected';
       return;
     }
+    document.getElementById('bowlStatus').textContent='Ready to draw';
+    document.getElementById('drawHint').textContent='Each student can win once this month';
     renderWall();
     document.getElementById('statusBar').textContent=candidates.length+' selected';
   }catch(e){
-    wall.innerHTML='<div class="empty">Failed to load. Please sign in again.</div>';
+    setEmptyState('Could not load the data. Please sign in again.');
   }
+}
+
+function setEmptyState(message){
+  var wall=document.getElementById('wall');
+  wall.innerHTML='';
+  var state=document.createElement('div');
+  state.className='empty';state.textContent=message;wall.appendChild(state);
+  document.getElementById('bowlStatus').textContent=message;
+  document.getElementById('drawHint').textContent=message;
+  document.getElementById('remainingCount').textContent='0 slips left';
+  document.getElementById('btnSpin').disabled=true;
+  renderBowlPapers();
 }
 
 function renderWall(){
   var wall=document.getElementById('wall');
-  wall.innerHTML='';
+  wall.replaceChildren();
   candidates.forEach(function(name,i){
     var tile=document.createElement('div');
-    tile.className='tile'+(winners.includes(name)?' eliminated':'');
+    tile.className='tile'+(winners.includes(name)?' winner':'');
     tile.id='t'+i;
-    tile.style.background=COLORS[i%COLORS.length];
-    // Name + remove button
-    tile.innerHTML='<span>'+name+'</span>'+
-      '<button onclick="removeName(\''+name.replace(/'/g,"\\'")+'\')" '+
-        'style="position:absolute;top:4px;right:6px;background:none;border:none;color:rgba(255,255,255,.5);'+
-        'font-size:11px;cursor:pointer;padding:0;line-height:1" title="Remove">✕</button>';
+    var label=document.createElement('span');
+    label.className='tile-name';label.textContent=name;
+    tile.appendChild(label);
+    if(winners.includes(name)){
+      var trophy=document.createElement('span');
+      trophy.className='tile-trophy';trophy.textContent='🏆';trophy.setAttribute('aria-label','Winner');
+      tile.appendChild(trophy);
+    }
+    var remove=document.createElement('button');
+    remove.type='button';remove.className='remove-pill';remove.textContent='✕';
+    remove.title='Remove '+name;remove.setAttribute('aria-label','Remove '+name);
+    remove.addEventListener('click',function(){removeName(name);});
+    tile.appendChild(remove);
     wall.appendChild(tile);
+  });
+  var remaining=candidates.filter(function(n){return !winners.includes(n);}).length;
+  document.getElementById('remainingCount').textContent=remaining+(remaining===1?' slip left':' slips left');
+  document.getElementById('btnSpin').disabled=remaining===0||spinning;
+  if(remaining===0&&candidates.length){
+    document.getElementById('bowlStatus').textContent='Everyone has been drawn — press ↺ Reset to start again';
+    document.getElementById('drawHint').textContent='Everyone has been drawn — press ↺ Reset to start again';
+  }else if(candidates.length){
+    document.getElementById('bowlStatus').textContent='Ready to draw';
+  }
+  renderBowlPapers();
+}
+
+// At most 24 slips are drawn in the bowl; the draw still picks from every candidate
+function renderBowlPapers(){
+  var zone=document.getElementById('bowlContents');
+  zone.replaceChildren();
+  var remaining=candidates.filter(function(n){return !winners.includes(n);});
+  var shown=remaining.slice(0,24);
+  shown.forEach(function(name,i){
+    var paper=document.createElement('span');
+    paper.className='paper';
+    paper.setAttribute('aria-label',name);
+    var cols=6,row=Math.floor(i/cols),col=i%cols;
+    var x=8+col*15.4+(row%2?5:0)+(Math.random()*4-2);
+    var y=12+row*22+(Math.random()*5-2.5);
+    paper.style.left=x+'%';paper.style.top=y+'%';
+    paper.style.transform='rotate('+(Math.random()*34-17)+'deg)';
+    paper.style.animation='paper-wait '+(2.1+Math.random()*1.8)+'s ease-in-out '+(Math.random()*-2)+'s infinite';
+    zone.appendChild(paper);
   });
 }
 
 function addName(){
   var inp=document.getElementById('addInput');
   var name=(inp.value||'').trim();
-  if(!name)return;
+  if(!name||spinning)return;
   if(candidates.includes(name)){inp.value='';return;}
-  candidates.push(name);
-  inp.value='';
+  candidates.push(name);inp.value='';
   renderWall();
-  document.getElementById('statusBar').textContent=candidates.length+' eligible';
+  document.getElementById('statusBar').textContent=candidates.length+' selected';
 }
 
 function removeName(name){
+  if(spinning)return;
   candidates=candidates.filter(function(n){return n!==name;});
   winners=winners.filter(function(n){return n!==name;});
   renderWall();
-  document.getElementById('statusBar').textContent=candidates.length+' eligible';
+  document.getElementById('statusBar').textContent=candidates.length+' selected';
 }
 
+// Reset the draw on this page; the loaded / hand-edited list stays
 function resetDraw(){
-  winners=[]; spinning=false;
-  document.getElementById('winLog').innerHTML='';
+  spinToken++;winners=[];spinning=false;
+  document.getElementById('winLog').replaceChildren();
   document.getElementById('spinName').textContent='—';
-  document.getElementById('spinName').style.color='white';
-  document.getElementById('btnSpin').disabled=false;
+  document.getElementById('winnerName').textContent='';
+  closeWinner();
+  document.getElementById('bowlStage').classList.remove('is-shaking');
+  document.getElementById('btnSpin').disabled=candidates.length===0;
+  document.getElementById('drawHint').textContent=candidates.length?'Each student can win once this month':'Pick a class and month, then press ▶ Load';
   renderWall();
 }
 
+// The winner is picked first; the animation only shows it
 function doSpin(){
   if(spinning)return;
   var available=candidates.filter(function(n){return !winners.includes(n);});
   if(!available.length){
-    document.getElementById('spinName').textContent='All drawn! ↺ Reset';
+    document.getElementById('bowlStatus').textContent='Everyone has been drawn — press ↺ Reset to start again';
+    document.getElementById('drawHint').textContent='Everyone has been drawn — press ↺ Reset to start again';
+    document.getElementById('btnSpin').disabled=true;
     return;
   }
-  spinning=true;
-  document.getElementById('btnSpin').disabled=true;
-
   var winner=available[Math.floor(Math.random()*available.length)];
-  var display=document.getElementById('spinName');
-  var idx=0, total=24+Math.floor(Math.random()*14);
+  var token=++spinToken;
+  spinning=true;document.getElementById('btnSpin').disabled=true;
+  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    finishSpin(winner,token);
+    return;
+  }
+  animateDraw(winner,token);
+}
 
-  // Flash all remaining tiles
-  candidates.forEach(function(n,i){
-    if(!winners.includes(n)){
-      var t=document.getElementById('t'+i);
-      if(t)t.classList.add('spinning');
-    }
+function animateDraw(winner,token){
+  var papers=Array.prototype.slice.call(document.querySelectorAll('.paper'));
+  var stage=document.getElementById('bowlStage');
+  stage.classList.add('is-shaking');
+  var duration=2500;
+  papers.forEach(function(paper,i){
+    var direction=i%2?1:-1;
+    var turns=direction*(540+(i%5)*78);
+    var radiusX=16+(i%4)*5,radiusY=12+(i%3)*5;
+    var delay=i*5;
+    paper.style.animation='none';
+    paper.animate([
+      {transform:'translate(0,0) rotate(0deg)'},
+      {transform:'translate('+radiusX+'px,'+(-radiusY)+'px) rotate('+(turns*.18)+'deg)',offset:.22},
+      {transform:'translate('+(-radiusX)+'px,'+(radiusY)+'px) rotate('+(turns*.72)+'deg)',offset:.72},
+      {transform:'translate(0,0) rotate('+turns+'deg)'}
+    ],{duration:duration,delay:delay,easing:'cubic-bezier(.16,.68,.24,1)',fill:'forwards'});
   });
+  window.setTimeout(function(){
+    if(token!==spinToken)return;
+    stage.classList.remove('is-shaking');
+    flyWinnerPaper(winner,token);
+    burstConfetti();
+  },duration);
+}
 
-  var iv=setInterval(function(){
-    idx++;
-    var pick=available[Math.floor(Math.random()*available.length)];
-    display.textContent=pick;
-    display.style.color='rgba(255,255,255,.7)';
-    display.style.fontSize='32px';
+// The chosen slip flies up out of the bowl, then the winner card opens
+function flyWinnerPaper(winner,token){
+  var stage=document.getElementById('bowlStage').getBoundingClientRect();
+  var flyer=document.createElement('div');
+  flyer.className='flight-slip';flyer.textContent='✦';
+  flyer.style.left=(stage.left+stage.width*.5)+'px';
+  flyer.style.top=(stage.top+stage.height*.48)+'px';
+  document.body.appendChild(flyer);
+  var animation=flyer.animate([
+    {transform:'translate(-50%,-50%) rotate(0deg) rotateY(0deg) scale(.8)',opacity:1},
+    {transform:'translate(-50%,-260px) rotate(24deg) rotateY(540deg) scale(1.8)',opacity:1,offset:.78},
+    {transform:'translate(-50%,-250px) rotate(0deg) rotateY(720deg) scale(1.5)',opacity:0}
+  ],{duration:850,easing:'cubic-bezier(.18,.72,.24,1)',fill:'forwards'});
+  animation.onfinish=function(){
+    flyer.remove();
+    if(token===spinToken)finishSpin(winner,token);
+  };
+}
 
-    if(idx>=total){
-      clearInterval(iv);
-      // Stop all spinning
-      candidates.forEach(function(n,i){
-        var t=document.getElementById('t'+i);
-        if(t) t.classList.remove('spinning');
-      });
-
-      // Show winner
-      display.textContent='🎉  '+winner;
-      display.style.color='#fbbf24';
-      display.style.fontSize='36px';
-
-      // Mark winner tile
-      var wi=candidates.indexOf(winner);
-      var wt=document.getElementById('t'+wi);
-      if(wt){wt.classList.add('winner');}
-
-      // Dim others
-      candidates.forEach(function(n,i){
-        if(n!==winner&&!winners.includes(n)){
-          var t=document.getElementById('t'+i);
-          if(t) t.style.opacity='.2';
-        }
-      });
-
-      winners.push(winner);
-      updateWinLog();
-      spinning=false;
-      document.getElementById('btnSpin').disabled=false;
-
-      // Restore wall after 1.8s
-      setTimeout(function(){
-        renderWall();
-      },1800);
+// Prize: "1tr5" goes in the tuition note of the winner's next month, or the month after it if
+// that one is already paid (and so on). The tuition emails read the fee from that note.
+var PRIZE_NOTE='1tr5';
+async function notePrize(name){
+  var email=emailOf[name], classId=currentClassId, month=parseInt(currentMonth);
+  if(!email) return {msg:'Added by hand — no tuition note saved.'};
+  try{
+    var r=await gasCall('getAttendanceMatrix',{classId:classId});
+    var s=((r&&r.students)||[]).find(function(x){return x.email===email;});
+    if(!s) return {msg:'Student not found in '+classId+' — no tuition note saved.'};
+    for(var mo=month+1;mo<=month+24;mo++){
+      if((s.monthPayments||{})[mo]) continue;                       // paid in advance: next month
+      var cur=String((s.monthNotes||{})[mo]||'').trim();
+      if(cur===PRIZE_NOTE) return {msg:'Month '+mo+' tuition already has the note '+PRIZE_NOTE+'.'};
+      if(cur) return {msg:'Month '+mo+' tuition already has the note "'+cur+'" — not changed. Edit it in Tuition & Attendance.'};
+      var w=await gasCall('markTuitionPaid',{classId:classId,studentEmail:email,monthNo:mo,paid:false,note:PRIZE_NOTE});
+      if(w&&w.success===false) throw new Error(w.message||'save failed');
+      return {msg:'Saved: Month '+mo+' tuition note '+PRIZE_NOTE+' (1.500.000 đ).',month:mo,email:email,classId:classId};
     }
-  },75);
+  }catch(e){ return {msg:'Could not save the tuition note: '+(e&&e.message||e)}; }
+  return {msg:'No unpaid month found — no tuition note saved.'};
+}
+async function undoPrize(name){
+  var p=prizes[name]; if(!p||!p.month) return;
+  var el=document.getElementById('winnerPrize'); el.textContent='Undoing…';
+  try{
+    await gasCall('markTuitionPaid',{classId:p.classId,studentEmail:p.email,monthNo:p.month,paid:false,note:''});
+    prizes[name]={msg:'Tuition note removed from Month '+p.month+'.'};
+  }catch(e){ prizes[name].msg='Could not undo: '+(e&&e.message||e); }
+  showPrize(name); updateWinLog();
+}
+function showPrize(name){
+  var el=document.getElementById('winnerPrize'), p=prizes[name];
+  el.replaceChildren();
+  if(!p) { el.textContent='Saving the tuition note…'; return; }
+  el.appendChild(document.createTextNode(p.msg));
+  if(p.month){
+    var b=document.createElement('button'); b.type='button'; b.className='prize-undo'; b.textContent='Undo';
+    b.addEventListener('click',function(e){e.stopPropagation();undoPrize(name);});
+    el.appendChild(b);
+  }
+}
+
+function finishSpin(winner,token){
+  if(token!==spinToken)return;
+  winners.push(winner);
+  delete prizes[winner]; showPrize(winner);
+  notePrize(winner).then(function(p){
+    prizes[winner]=p; updateWinLog();
+    if(document.getElementById('winnerName').textContent===winner) showPrize(winner);
+  });
+  document.getElementById('spinName').textContent=winner;
+  document.getElementById('winnerName').textContent=winner;
+  updateWinLog();
+  renderWall();
+  var allDrawn=winners.length>=candidates.length;
+  var nextMessage=allDrawn?'Everyone has been drawn — press ↺ Reset to start again':'Click the winner card to continue';
+  document.getElementById('bowlStatus').textContent=allDrawn?nextMessage:'🏆 '+winner+' wins!';
+  document.getElementById('drawHint').textContent=nextMessage;
+  spinning=false;
+  document.getElementById('btnSpin').disabled=winners.length>=candidates.length;
+  openWinner();
 }
 
 function updateWinLog(){
-  document.getElementById('winLog').innerHTML=
-    winners.map(function(n,i){
-      return '<div class="win-badge">🏆 #'+(i+1)+'  '+n+'</div>';
-    }).join('');
+  var log=document.getElementById('winLog');
+  log.replaceChildren();
+  winners.forEach(function(name,i){
+    var badge=document.createElement('div');
+    badge.className='win-badge';
+    var p=prizes[name];
+    badge.textContent='#'+(i+1)+' 🏆 '+name+(p&&p.month?' · M'+p.month+' '+PRIZE_NOTE:'');
+    log.appendChild(badge);
+  });
 }
+
+function openWinner(){
+  var overlay=document.getElementById('overlay');
+  overlay.classList.add('open');overlay.setAttribute('aria-hidden','false');
+  document.getElementById('winnerCard').focus({preventScroll:true});
+}
+function closeWinner(){
+  var overlay=document.getElementById('overlay');
+  overlay.classList.remove('open');overlay.setAttribute('aria-hidden','true');
+  if(!spinning)document.getElementById('btnSpin').focus({preventScroll:true});
+}
+
+// Canvas confetti from the bowl and both sides of the screen, about 4 seconds
+function burstConfetti(){
+  var canvas=document.getElementById('confettiCanvas'),ctx=canvas.getContext('2d');
+  var dpr=Math.min(window.devicePixelRatio||1,2);
+  canvas.width=Math.floor(window.innerWidth*dpr);canvas.height=Math.floor(window.innerHeight*dpr);
+  canvas.style.width=window.innerWidth+'px';canvas.style.height=window.innerHeight+'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  var rect=document.getElementById('bowlStage').getBoundingClientRect();
+  var origins=[
+    {x:rect.left+rect.width*.5,y:rect.top+rect.height*.34},
+    {x:16,y:window.innerHeight*.58},
+    {x:window.innerWidth-16,y:window.innerHeight*.58}
+  ];
+  var colors=['#ffd36f','#fff0cc','#f3a28e','#f7c5aa','#fff8e8'];
+  var particles=[];
+  origins.forEach(function(origin){
+    for(var i=0;i<48;i++){
+      var angle=(-Math.PI/2)+(Math.random()-.5)*1.7;
+      var speed=2+Math.random()*6;
+      particles.push({
+        x:origin.x,y:origin.y,vx:Math.cos(angle)*speed+(origin.x<30?2:origin.x>window.innerWidth-30?-2:0),
+        vy:Math.sin(angle)*speed-1,gravity:.09+Math.random()*.1,
+        size:4+Math.random()*7,rotation:Math.random()*6.2,spin:(Math.random()-.5)*.25,
+        color:colors[Math.floor(Math.random()*colors.length)],life:170+Math.random()*70
+      });
+    }
+  });
+  var frame=0;
+  function draw(){
+    ctx.clearRect(0,0,window.innerWidth,window.innerHeight);
+    particles.forEach(function(p){
+      if(p.life<=0)return;
+      p.x+=p.vx;p.y+=p.vy;p.vy+=p.gravity;p.rotation+=p.spin;p.life--;
+      ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.rotation);
+      ctx.globalAlpha=Math.min(1,p.life/32);ctx.fillStyle=p.color;
+      ctx.fillRect(-p.size/2,-p.size/3,p.size,p.size*.62);ctx.restore();
+    });
+    frame++;
+    if(frame<230)requestAnimationFrame(draw);
+    else ctx.clearRect(0,0,window.innerWidth,window.innerHeight);
+  }
+  requestAnimationFrame(draw);
+}
+
+document.getElementById('overlay').addEventListener('click',function(e){
+  if(e.target===this||e.target.closest('#winnerCard'))closeWinner();
+});
+document.getElementById('winnerCard').addEventListener('keydown',function(e){
+  if(e.key==='Enter'||e.key===' '){e.preventDefault();closeWinner();}
+});
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape'&&document.getElementById('overlay').classList.contains('open'))closeWinner();
+});
+document.getElementById('selMonth').addEventListener('change',updateDrawSub);
 </script>
-<script src="class-hub-icons.js"></script>
 </body>
 </html>
+
