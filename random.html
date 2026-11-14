@@ -608,9 +608,15 @@ function playSound(fn,arg){
   try{
     SFX.ctx=SFX.ctx||new (window.AudioContext||window.webkitAudioContext)();
     if(SFX.ctx.state==='suspended') SFX.ctx.resume();
-    if(!SFX.out){ SFX.out=SFX.ctx.createGain(); SFX.out.gain.value=0.9; SFX.out.connect(SFX.ctx.destination); }
+    SFX.out=SFX.out||sfxOutput(SFX.ctx);
     fn(SFX.ctx,SFX.out,SFX.ctx.currentTime+0.03,arg);
   }catch(e){}
+}
+// master volume through a limiter, so stacked hits never clip
+function sfxOutput(ctx){
+  var g=ctx.createGain(), c=ctx.createDynamicsCompressor();
+  g.gain.value=0.9; c.threshold.value=-10; c.knee.value=6; c.ratio.value=12; c.attack.value=0.003; c.release.value=0.15;
+  g.connect(c); c.connect(ctx.destination); return g;
 }
 function sfxNoise(ctx){
   if(SFX.noise&&SFX.noise.sampleRate===ctx.sampleRate) return SFX.noise;
@@ -632,14 +638,32 @@ function sfxTone(ctx,out,t,freq,len,gain,type,toFreq){
   g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(gain,t+0.015); g.gain.exponentialRampToValueAtTime(0.0001,t+len);
   o.connect(g); g.connect(out); o.start(t); o.stop(t+len+0.05);
 }
+function sfxSnare(ctx,out,t,gain){
+  sfxBurst(ctx,out,t,0.07,gain,'highpass',1700+Math.random()*400,0.7);
+  sfxTone(ctx,out,t,200,0.06,gain*0.45,'triangle',150);
+}
+function sfxTom(ctx,out,t,gain,f){
+  sfxTone(ctx,out,t,f||130,0.28,gain,'sine',(f||130)*0.5);
+  sfxBurst(ctx,out,t,0.05,gain*0.35,'lowpass',500,1);
+}
 function sfxSpin(ctx,out,t0,ms){
   var end=t0+(ms||2500)/1000, t=t0;
+  // paper rustling: fast, then slowing down with the shake
   while(t<end){
-    var k=(t-t0)/(end-t0), gap=0.028+0.1*Math.pow(Math.max(0,k-0.55)/0.45,2);   // fast, then slowing down
-    sfxBurst(ctx,out,t,0.05+Math.random()*0.06,0.22+Math.random()*0.18,'bandpass',1800+Math.random()*3200,0.8);  // paper
-    sfxBurst(ctx,out,t,0.09,0.5,'lowpass',160+Math.random()*50,1.2);                                                 // drum
+    var k=(t-t0)/(end-t0), gap=0.028+0.1*Math.pow(Math.max(0,k-0.55)/0.45,2);
+    sfxBurst(ctx,out,t,0.05+Math.random()*0.06,0.16+Math.random()*0.14,'bandpass',1800+Math.random()*3200,0.8);
     t+=gap;
   }
+  // snare drum roll, faster and louder until the winner shows (~0.85 s after the shake)
+  var rollEnd=end+0.85; t=t0;
+  while(t<rollEnd){
+    var r=(t-t0)/(rollEnd-t0);
+    sfxSnare(ctx,out,t,0.1+0.3*r*r+(Math.random()*0.04));
+    t+=0.075-0.045*r;
+  }
+  // toms on the beat, then a quick fill into the result
+  for(var b=t0;b<end;b+=0.5) sfxTom(ctx,out,b,0.55,125);
+  [0.45,0.58,0.71].forEach(function(d,i){ sfxTom(ctx,out,end+d,0.6,170-i*25); });
 }
 function sfxWhoosh(ctx,out,t){
   var s=ctx.createBufferSource(), f=ctx.createBiquadFilter(), g=ctx.createGain();
@@ -650,7 +674,9 @@ function sfxWhoosh(ctx,out,t){
   sfxTone(ctx,out,t,320,0.6,0.12,'sine',1100);
 }
 function sfxWin(ctx,out,t){
-  sfxBurst(ctx,out,t,0.25,0.8,'lowpass',120,1);                               // boom
+  sfxTone(ctx,out,t,120,0.4,0.7,'sine',45);                                    // kick
+  sfxBurst(ctx,out,t,1.5,0.38,'highpass',5000,0.6);                            // cymbal crash
+  sfxBurst(ctx,out,t,0.25,0.4,'lowpass',120,1);                               // boom
   [523.25,659.25,783.99,1046.5].forEach(function(f,i){                         // C E G C
     sfxTone(ctx,out,t+i*0.11,f,0.35,0.22,'triangle'); sfxTone(ctx,out,t+i*0.11,f*2,0.25,0.05,'sine');
   });
